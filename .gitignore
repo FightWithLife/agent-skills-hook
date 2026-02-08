@@ -1,0 +1,21 @@
+# Secrets
+**/.env
+
+# Generated outputs/logs
+agents/skills/Auto-Redbook-Skills/ai_agent_output/
+agents/skills/Auto-Redbook-Skills/ai_agent_history.md
+agents/skills/mediacrawler/browser_data/
+
+# Dependency/cache directories
+**/node_modules/
+**/venv/
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+
+# Bytecode
+**/*.pyc
+**/*.pyo
+**/*.pyd

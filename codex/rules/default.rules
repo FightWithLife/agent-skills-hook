@@ -1,0 +1,14 @@
+# Execpolicy rules for Codex CLI (prompt on risky prefixes)
+rules = [
+    prefix_rule(pattern=["rm", "-rf", "/"], decision="prompt"),
+    prefix_rule(pattern=["rm", "-rf", "--no-preserve-root", "/"], decision="prompt"),
+    prefix_rule(pattern=["sudo"], decision="prompt"),
+    prefix_rule(pattern=["curl"], decision="prompt"),
+    prefix_rule(pattern=["wget"], decision="prompt"),
+    prefix_rule(pattern=["bash"], decision="prompt"),
+    prefix_rule(pattern=["sh"], decision="prompt"),
+    prefix_rule(pattern=["dd"], decision="prompt"),
+    prefix_rule(pattern=["mkfs"], decision="prompt"),
+    prefix_rule(pattern=["chmod", "-R", "777", "/"], decision="prompt"),
+    prefix_rule(pattern=["chown", "-R", "root", "/"], decision="prompt"),
+]
