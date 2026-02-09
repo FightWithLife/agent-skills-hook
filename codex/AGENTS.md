@@ -12,6 +12,9 @@ These instructions are loaded globally by Codex CLI.
 ## Skill Forced Eval (every user request)
 - Before any work, always run `Skill(skill-forced-eval)` and follow its steps.
 
+## Review Output Language
+- When the user asks for a "review", write the final response in Chinese while keeping the required review structure and formatting rules intact.
+
 ## Tool Safety
 - Obey execpolicy rules. Never bypass safety checks unless the user explicitly asks and it is safe.
 
