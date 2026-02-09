@@ -14,19 +14,21 @@ The script backs up your current config to `~/.codex-backups/agent-skills-hook-Y
    - `codex/AGENTS.md` → `~/.codex/AGENTS.md`
 2. 复制规则文件：
    - `codex/rules/default.rules` → `~/.codex/rules/default.rules`
-3. 技能目录（单一来源）：
-   - 如果 `~/.codex/skills/` 不存在，先从 `agents/skills/` 复制过去
-   - `agents/skills` → `~/.codex/skills`（软链接）
+3. 技能目录（单一来源，submodule）：
+   - 初始化子模块：`git submodule update --init --recursive agents/skills`
+   - `~/.codex/skills` → `agents/skills`（软链接）
    - 可选：`~/.agents/skills` → `~/.codex/skills`（软链接）
+   - 如果你已有 `~/.codex/skills`，先把内容合并到 `agents/skills`，再建立软链接
 
 1. Copy global instructions:
    - `codex/AGENTS.md` → `~/.codex/AGENTS.md`
 2. Copy execpolicy rules:
    - `codex/rules/default.rules` → `~/.codex/rules/default.rules`
-3. Skills directory (single source):
-   - If `~/.codex/skills/` doesn't exist, seed it from `agents/skills/`
-   - `agents/skills` → `~/.codex/skills` (symlink)
+3. Skills directory (single source, submodule):
+   - Initialize the submodule: `git submodule update --init --recursive agents/skills`
+   - `~/.codex/skills` → `agents/skills` (symlink)
    - Optional: `~/.agents/skills` → `~/.codex/skills` (symlink)
+   - If you already have `~/.codex/skills`, merge it into `agents/skills` before linking
 
 ## 3) 验证 / Verify
 - 规则检查：
@@ -54,8 +56,8 @@ bash scripts/restore.sh ~/.codex-backups/agent-skills-hook-YYYYmmdd-HHMMSS
 Run `scripts/restore.sh` to restore the latest backup, or pass a specific backup path.
 
 ## 5) 技能更新 / Updating skills
-如果你在本机新增/更新了技能，请直接修改 `~/.codex/skills/`。
-如需提交到仓库，先移除 `agents/skills` 的软链接并复制回仓库后再提交。
+如果你在本机新增/更新了技能，请修改 `agents/skills`（子模块）或 `~/.codex/skills`（指向子模块的软链接）。
+如需提交到仓库，请在子模块仓库内提交，并在本仓库更新 submodule 引用后再提交。
 
-If you add or update skills locally, edit `~/.codex/skills/`.
-If you need to commit to the repo, remove the `agents/skills` symlink and copy contents back before committing.
+If you add or update skills locally, edit `agents/skills` (the submodule) or `~/.codex/skills` (symlink to it).
+If you need to commit to the repo, commit inside the submodule repo and then update the submodule reference in this repo.
