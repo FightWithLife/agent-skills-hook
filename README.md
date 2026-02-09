@@ -21,8 +21,10 @@ This repo applies a “hook-like” workflow to Codex CLI to increase skill usag
 bash scripts/deploy.sh
 ```
 完成后重启 Codex CLI 以加载新的全局指令。
+部署会把工程内的 `agents/skills` 软链接到 `~/.codex/skills`，保持本机只保留一份 skills。
 
 Restart Codex CLI after deployment to load the global instructions.
+Deployment links `agents/skills` to `~/.codex/skills` so there is only one local skills directory.
 
 ## 文档 / Docs
 详见 `DEPLOYMENT.md`。

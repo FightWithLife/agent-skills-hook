@@ -14,19 +14,19 @@ The script backs up your current config to `~/.codex-backups/agent-skills-hook-Y
    - `codex/AGENTS.md` → `~/.codex/AGENTS.md`
 2. 复制规则文件：
    - `codex/rules/default.rules` → `~/.codex/rules/default.rules`
-3. 技能目录：
-   - `agents/skills/` → `~/.agents/skills/`
-4. 为兼容旧路径，给每个技能创建符号链接：
-   - `~/.codex/skills/<skill>` → `~/.agents/skills/<skill>`
+3. 技能目录（单一来源）：
+   - 如果 `~/.codex/skills/` 不存在，先从 `agents/skills/` 复制过去
+   - `agents/skills` → `~/.codex/skills`（软链接）
+   - 可选：`~/.agents/skills` → `~/.codex/skills`（软链接）
 
 1. Copy global instructions:
    - `codex/AGENTS.md` → `~/.codex/AGENTS.md`
 2. Copy execpolicy rules:
    - `codex/rules/default.rules` → `~/.codex/rules/default.rules`
-3. Skills directory:
-   - `agents/skills/` → `~/.agents/skills/`
-4. Create symlinks for compatibility:
-   - `~/.codex/skills/<skill>` → `~/.agents/skills/<skill>`
+3. Skills directory (single source):
+   - If `~/.codex/skills/` doesn't exist, seed it from `agents/skills/`
+   - `agents/skills` → `~/.codex/skills` (symlink)
+   - Optional: `~/.agents/skills` → `~/.codex/skills` (symlink)
 
 ## 3) 验证 / Verify
 - 规则检查：
@@ -54,10 +54,8 @@ bash scripts/restore.sh ~/.codex-backups/agent-skills-hook-YYYYmmdd-HHMMSS
 Run `scripts/restore.sh` to restore the latest backup, or pass a specific backup path.
 
 ## 5) 技能更新 / Updating skills
-如果你在本机新增/更新了技能：
-```bash
-cp -a ~/.agents/skills/* agents/skills/
-```
-然后提交到仓库。
+如果你在本机新增/更新了技能，请直接修改 `~/.codex/skills/`。
+如需提交到仓库，先移除 `agents/skills` 的软链接并复制回仓库后再提交。
 
-If you add or update skills locally, copy them into `agents/skills/` and commit.
+If you add or update skills locally, edit `~/.codex/skills/`.
+If you need to commit to the repo, remove the `agents/skills` symlink and copy contents back before committing.

@@ -24,9 +24,14 @@ if [ -d "$BACKUP_DIR/codex/rules" ]; then
   rm -rf "$HOME/.codex/rules"
   cp -a "$BACKUP_DIR/codex/rules" "$HOME/.codex/"
 fi
+if [ -e "$BACKUP_DIR/codex/skills" ]; then
+  mkdir -p "$HOME/.codex"
+  rm -rf "$HOME/.codex/skills"
+  cp -a "$BACKUP_DIR/codex/skills" "$HOME/.codex/"
+fi
 
 # Restore skills
-if [ -d "$BACKUP_DIR/agents/skills" ]; then
+if [ -e "$BACKUP_DIR/agents/skills" ]; then
   mkdir -p "$HOME/.agents"
   rm -rf "$HOME/.agents/skills"
   cp -a "$BACKUP_DIR/agents/skills" "$HOME/.agents/"
