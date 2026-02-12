@@ -61,3 +61,47 @@ Run `scripts/restore.sh` to restore the latest backup, or pass a specific backup
 
 If you add or update skills locally, edit `agents/skills` (the submodule) or `~/.codex/skills` (symlink to it).
 If you need to commit to the repo, commit inside the submodule repo and then update the submodule reference in this repo.
+
+# OpenCode 部署 / OpenCode Deployment Guide
+
+## 1) 一键部署 / One-shot deploy
+```bash
+bash scripts/deploy-opencode.sh
+```
+- 脚本会自动备份当前配置到 `~/.opencode-backups/agent-skills-hook-YYYYmmdd-HHMMSS`。
+- 完成后请重启 OpenCode。
+
+The script backs up your current config to `~/.opencode-backups/agent-skills-hook-YYYYmmdd-HHMMSS` and then deploys the new settings. Restart OpenCode afterwards.
+
+## 2) 手动部署 / Manual deploy
+1. 复制全局指令：
+   - `opencode/AGENTS.md` → `~/.config/opencode/AGENTS.md`
+2. 技能目录（单一来源，submodule）：
+   - 初始化子模块：`git submodule update --init --recursive agents/skills`
+   - `~/.config/opencode/skills` → `agents/skills`（软链接）
+   - 可选：`~/.agents/skills` 或 `~/.claude/skills` → `~/.config/opencode/skills`（软链接）
+   - 如果你已有 `~/.config/opencode/skills`，先把内容合并到 `agents/skills`，再建立软链接
+
+1. Copy global instructions:
+   - `opencode/AGENTS.md` → `~/.config/opencode/AGENTS.md`
+2. Skills directory (single source, submodule):
+   - Initialize the submodule: `git submodule update --init --recursive agents/skills`
+   - `~/.config/opencode/skills` → `agents/skills` (symlink)
+   - Optional: `~/.agents/skills` or `~/.claude/skills` → `~/.config/opencode/skills` (symlink)
+   - If you already have `~/.config/opencode/skills`, merge it into `agents/skills` before linking
+
+## 3) 验证 / Verify
+- 启动 OpenCode，发送一句简单请求，应该看到 `SessionStart` 和 `Skill Match` 输出。
+
+- SessionStart + Skill Match should appear in the first response of a new session.
+
+## 4) 回滚 / Rollback
+```bash
+bash scripts/restore-opencode.sh
+```
+如需指定备份目录，可传入路径：
+```bash
+bash scripts/restore-opencode.sh ~/.opencode-backups/agent-skills-hook-YYYYmmdd-HHMMSS
+```
+
+Run `scripts/restore-opencode.sh` to restore the latest backup, or pass a specific backup path.
