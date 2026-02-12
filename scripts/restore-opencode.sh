@@ -19,6 +19,10 @@ if [ -f "$BACKUP_DIR/opencode/AGENTS.md" ]; then
   mkdir -p "$HOME/.config/opencode"
   cp -a "$BACKUP_DIR/opencode/AGENTS.md" "$HOME/.config/opencode/AGENTS.md"
 fi
+if [ -f "$BACKUP_DIR/opencode/oh-my-opencode.json" ]; then
+  mkdir -p "$HOME/.config/opencode"
+  cp -a "$BACKUP_DIR/opencode/oh-my-opencode.json" "$HOME/.config/opencode/oh-my-opencode.json"
+fi
 if [ -e "$BACKUP_DIR/opencode/skills" ]; then
   mkdir -p "$HOME/.config/opencode"
   rm -rf "$HOME/.config/opencode/skills"

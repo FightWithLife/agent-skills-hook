@@ -8,9 +8,11 @@ BACKUP_DIR="$BACKUP_ROOT/agent-skills-hook-$STAMP"
 CONFIG_ROOT="$HOME/.config/opencode"
 GLOBAL_AGENTS="$CONFIG_ROOT/AGENTS.md"
 GLOBAL_SKILLS="$CONFIG_ROOT/skills"
+GLOBAL_OMO_CONFIG="$CONFIG_ROOT/oh-my-opencode.json"
 LEGACY_AGENTS_SKILLS="$HOME/.agents/skills"
 LEGACY_CLAUDE_SKILLS="$HOME/.claude/skills"
 REPO_SKILLS="$REPO_ROOT/agents/skills"
+REPO_OMO_CONFIG="$REPO_ROOT/opencode/oh-my-opencode.json"
 
 # If skills are now a submodule, ensure it is initialized.
 if [ -f "$REPO_ROOT/.gitmodules" ] && grep -q 'submodule "agents/skills"' "$REPO_ROOT/.gitmodules"; then
@@ -48,6 +50,9 @@ mkdir -p "$BACKUP_DIR/opencode" "$BACKUP_DIR/agents" "$BACKUP_DIR/claude" "$BACK
 if [ -f "$GLOBAL_AGENTS" ]; then
   cp -a "$GLOBAL_AGENTS" "$BACKUP_DIR/opencode/AGENTS.md"
 fi
+if [ -f "$GLOBAL_OMO_CONFIG" ]; then
+  cp -a "$GLOBAL_OMO_CONFIG" "$BACKUP_DIR/opencode/oh-my-opencode.json"
+fi
 if [ -e "$GLOBAL_SKILLS" ]; then
   cp -a "$GLOBAL_SKILLS" "$BACKUP_DIR/opencode/"
 fi
@@ -64,6 +69,10 @@ fi
 # Deploy AGENTS
 mkdir -p "$CONFIG_ROOT"
 cp -a "$REPO_ROOT/opencode/AGENTS.md" "$GLOBAL_AGENTS"
+
+if [ -f "$REPO_OMO_CONFIG" ]; then
+  cp -a "$REPO_OMO_CONFIG" "$GLOBAL_OMO_CONFIG"
+fi
 
 # Validate existing links
 if [ -L "$GLOBAL_SKILLS" ] && [ ! -e "$GLOBAL_SKILLS" ]; then

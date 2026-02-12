@@ -76,7 +76,9 @@ The script backs up your current config to `~/.opencode-backups/agent-skills-hoo
 ## 2) 手动部署 / Manual deploy
 1. 复制全局指令：
    - `opencode/AGENTS.md` → `~/.config/opencode/AGENTS.md`
-2. 技能目录（单一来源，submodule）：
+2. 复制插件配置（含并发与超时）：
+   - `opencode/oh-my-opencode.json` → `~/.config/opencode/oh-my-opencode.json`
+3. 技能目录（单一来源，submodule）：
    - 初始化子模块：`git submodule update --init --recursive agents/skills`
    - `~/.config/opencode/skills` → `agents/skills`（软链接）
    - 可选：`~/.agents/skills` 或 `~/.claude/skills` → `~/.config/opencode/skills`（软链接）
@@ -84,7 +86,9 @@ The script backs up your current config to `~/.opencode-backups/agent-skills-hoo
 
 1. Copy global instructions:
    - `opencode/AGENTS.md` → `~/.config/opencode/AGENTS.md`
-2. Skills directory (single source, submodule):
+2. Copy plugin config (includes concurrency/timeouts):
+   - `opencode/oh-my-opencode.json` → `~/.config/opencode/oh-my-opencode.json`
+3. Skills directory (single source, submodule):
    - Initialize the submodule: `git submodule update --init --recursive agents/skills`
    - `~/.config/opencode/skills` → `agents/skills` (symlink)
    - Optional: `~/.agents/skills` or `~/.claude/skills` → `~/.config/opencode/skills` (symlink)
