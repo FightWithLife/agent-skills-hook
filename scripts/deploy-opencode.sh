@@ -13,6 +13,7 @@ LEGACY_AGENTS_SKILLS="$HOME/.agents/skills"
 LEGACY_CLAUDE_SKILLS="$HOME/.claude/skills"
 REPO_SKILLS="$REPO_ROOT/agents/skills"
 REPO_OMO_CONFIG="$REPO_ROOT/opencode/oh-my-opencode.json"
+REPO_AGENTS="$REPO_ROOT/opencode/AGENTS.md"
 
 # If skills are now a submodule, ensure it is initialized.
 if [ -f "$REPO_ROOT/.gitmodules" ] && grep -q 'submodule "agents/skills"' "$REPO_ROOT/.gitmodules"; then
@@ -66,9 +67,33 @@ if [ -e "$REPO_SKILLS" ]; then
   cp -a "$REPO_SKILLS" "$BACKUP_DIR/repo/"
 fi
 
+deploy_agents() {
+  if [ ! -f "$REPO_AGENTS" ]; then
+    echo "Error: $REPO_AGENTS is missing." >&2
+    exit 1
+  fi
+
+  mkdir -p "$CONFIG_ROOT"
+
+  if [ -L "$GLOBAL_AGENTS" ] && [ ! -e "$GLOBAL_AGENTS" ]; then
+    rm -f "$GLOBAL_AGENTS"
+  fi
+
+  if [ -d "$GLOBAL_AGENTS" ]; then
+    echo "Warning: $GLOBAL_AGENTS is a directory. Replacing it with a file." >&2
+    rm -rf "$GLOBAL_AGENTS"
+  fi
+
+  cp -f "$REPO_AGENTS" "$GLOBAL_AGENTS"
+
+  if ! cmp -s "$REPO_AGENTS" "$GLOBAL_AGENTS"; then
+    echo "Error: failed to deploy AGENTS.md to $GLOBAL_AGENTS." >&2
+    exit 1
+  fi
+}
+
 # Deploy AGENTS
-mkdir -p "$CONFIG_ROOT"
-cp -a "$REPO_ROOT/opencode/AGENTS.md" "$GLOBAL_AGENTS"
+deploy_agents
 
 if [ -f "$REPO_OMO_CONFIG" ]; then
   cp -a "$REPO_OMO_CONFIG" "$GLOBAL_OMO_CONFIG"
