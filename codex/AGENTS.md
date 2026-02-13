@@ -11,8 +11,6 @@ These instructions are loaded globally by Codex CLI.
 
 ## Skill Forced Eval (every user request)
 - Before any work, always run `Skill(skill-forced-eval)` and follow its steps.
-- Always include `lsp-code-analysis` in the Skill Match candidate list when it is available.
-- If the request involves code changes, `Skill(lsp-code-analysis)` is mandatory before making edits.
 
 ## Review Output Language
 - When the user asks for a "review", write the final response in Chinese while keeping the required review structure and formatting rules intact.
