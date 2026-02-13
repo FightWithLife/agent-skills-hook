@@ -13,7 +13,7 @@ These instructions are loaded globally by OpenCode.
 - Before any work, always run the `skill` tool to load `skill-forced-eval` and follow its steps.
 
 ## Review Output Language
-- When the user asks for a "review", write the final response in Chinese while keeping the required review structure and formatting rules intact.
+- When the user asks for a "review", the final response MUST be in Chinese. Keep all narrative/explanatory text in Chinese while preserving the required review structure and formatting rules.
 
 ## Tool Safety
 - Obey tool permission rules. Never bypass safety checks unless the user explicitly asks and it is safe.
