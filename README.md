@@ -114,6 +114,133 @@ Merge the following into `~/.config/opencode/opencode.json`:
 
 > Note: this repo does not provide a one-shot installer for those third-party plugins. Agents should check local availability and prompt for missing dependencies.
 
+### OpenCode 配置优化（性能与稳定性） / OpenCode optimization (performance + stability)
+- 上下文压缩：`compaction.auto=true`、`strategy=summarize`、`threshold=0.8`、`prune_tool_outputs=true`
+- 缓存：`cache.enabled=true`，降低重复请求开销
+- 插件集合：将高频插件统一写入 `plugin`，避免每个项目重复手配
+- MCP：建议启用 `chrome-devtools`、`context7`、`fetch`、`memory`、`sequential-thinking`、`time`
+
+- Context compaction: `compaction.auto=true`, `strategy=summarize`, `threshold=0.8`, `prune_tool_outputs=true`
+- Cache: `cache.enabled=true` to reduce repeated work
+- Plugin baseline: keep commonly-used plugins in a shared `plugin` list
+- MCP baseline: enable `chrome-devtools`, `context7`, `fetch`, `memory`, `sequential-thinking`, `time`
+
+参考 MCP 配置（Linux/macOS 常见写法）：
+
+Reference MCP block (common Linux/macOS form):
+
+```json
+{
+  "mcp": {
+    "chrome-devtools": {
+      "command": ["npx", "-y", "chrome-devtools-mcp@latest"],
+      "enabled": true,
+      "type": "local"
+    },
+    "context7": {
+      "command": ["npx", "-y", "@upstash/context7-mcp"],
+      "enabled": true,
+      "type": "local"
+    },
+    "fetch": {
+      "command": ["uvx", "mcp-server-fetch"],
+      "enabled": true,
+      "type": "local"
+    },
+    "memory": {
+      "command": ["npx", "-y", "@modelcontextprotocol/server-memory"],
+      "enabled": true,
+      "type": "local"
+    },
+    "sequential-thinking": {
+      "command": ["npx", "-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "enabled": true,
+      "type": "local"
+    },
+    "time": {
+      "command": ["npx", "-y", "@modelcontextprotocol/server-time"],
+      "enabled": true,
+      "type": "local"
+    }
+  }
+}
+```
+
+可选长期记忆：`mem0` 需要单独 API key 文件（例如 `~/.config/opencode/mem0.jsonc`），未配置 key 前不建议默认启用。
+
+Optional long-term memory: `mem0` needs a dedicated API key file (for example `~/.config/opencode/mem0.jsonc`), so do not enable it by default before key setup.
+
+### 当前模型配置（可直接复制） / Current model profile (copy-ready)
+下面是当前本机在用的 OpenCode 模型编排（已去掉敏感字段）。AI 可直接按此映射执行。
+
+Below is the active OpenCode model orchestration (sensitive fields removed). Agents can follow this mapping directly.
+
+`~/.config/opencode/opencode.json`（模型与代理映射片段）：
+
+`~/.config/opencode/opencode.json` (models + agents excerpt):
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "openai": {
+      "options": {
+        "baseURL": "<YOUR_BASE_URL>",
+        "apiKey": "<YOUR_API_KEY>",
+        "timeout": 45000
+      },
+      "models": {
+        "gpt-5.3-codex": { "name": "GPT-5.3 Codex" },
+        "gpt-5.2-codex": { "name": "GPT-5.2 Codex" },
+        "gpt-5-codex": { "name": "GPT-5 Codex" },
+        "gpt-5.1": { "name": "GPT-5.1" },
+        "gpt-4o-2024-11-20": { "name": "GPT-4o 2024-11-20" },
+        "gpt-4o-mini": { "name": "GPT-4o Mini" },
+        "gpt-4.1-nano": { "name": "GPT-4.1 Nano" }
+      }
+    }
+  },
+  "model": "openai/gpt-5.2-codex",
+  "default_agent": "build",
+  "agent": {
+    "build": { "model": "openai/gpt-5.2-codex" },
+    "plan": { "model": "openai/gpt-5.2-codex" },
+    "sisyphus": { "model": "openai/gpt-5.3-codex" },
+    "hephaestus": { "model": "openai/gpt-5.2-codex" },
+    "prometheus": { "model": "openai/gpt-5.2-codex" },
+    "atlas": { "model": "openai/gpt-5.2-codex" },
+    "sisyphus-junior": { "model": "openai/gpt-5-codex" },
+    "oracle": { "model": "openai/gpt-5.1" },
+    "explore": { "model": "openai/gpt-4.1-nano" },
+    "multimodal-looker": { "model": "openai/gpt-4o-2024-11-20" },
+    "metis": { "model": "openai/gpt-4o-mini" },
+    "momus": { "model": "openai/gpt-4o-mini" },
+    "general": { "model": "openai/gpt-5.2-codex" },
+    "compaction": { "model": "openai/gpt-5.2-codex" },
+    "summary": { "model": "openai/gpt-5.2-codex" },
+    "title": { "model": "openai/gpt-5.2-codex" }
+  }
+}
+```
+
+如果启用了 `opencode-arise`，建议同时使用以下模型映射：
+
+If `opencode-arise` is enabled, also use this model mapping:
+
+```json
+{
+  "agents": {
+    "monarch": { "model": "openai/gpt-5.3-codex" },
+    "beru": { "model": "openai/gpt-4.1-nano" },
+    "igris": { "model": "openai/gpt-5.2-codex" },
+    "bellion": { "model": "openai/gpt-5.2-codex" },
+    "tusk": { "model": "openai/gpt-4o-2024-11-20" },
+    "tank": { "model": "openai/gpt-4o-mini" },
+    "shadow-sovereign": { "model": "openai/gpt-5.2-codex" }
+  }
+}
+```
+
 ## 文档 / Docs
 详见 `DEPLOYMENT.md`。
 See `DEPLOYMENT.md`.
