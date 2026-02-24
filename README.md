@@ -17,25 +17,91 @@ This repo applies a “hook-like” workflow to Codex CLI to increase skill usag
 - Stop summary when task is done
 
 ## 快速开始 / Quick Start
-### Codex CLI
-```bash
-bash scripts/deploy.sh
+本仓库已移除一键部署脚本，改为 **AI 自部署（scriptless）** 模式。
+
+This repo has removed one-shot deploy scripts and now uses an **AI-driven scriptless deployment** mode.
+
+### 给 AI 的指令模板 / Prompt Template for AI
+```text
+请在仓库根目录按 README 的“AI 自部署协议”完成部署。
+要求：先备份，再初始化 agents/skills 子模块，再执行配置复制与 skills 软链接，最后做验证并汇报结果。
+目标：Codex CLI 与 OpenCode 使用同一份 skills（仓库内 agents/skills）。
 ```
-完成后重启 Codex CLI 以加载新的全局指令。
-部署会把 `~/.codex/skills` 软链接到仓库内的 `agents/skills` 子模块，保持本机只保留一份 skills。
 
-Restart Codex CLI after deployment to load the global instructions.
-Deployment links `~/.codex/skills` to the repo submodule at `agents/skills` so there is only one local skills directory.
+## AI 自部署协议（无脚本） / AI Deployment Protocol (Scriptless)
+以下步骤是给 AI 执行的标准流程。要求幂等、安全、可回滚。
 
-### OpenCode
+The following steps are the standard runbook for AI agents. Keep it idempotent, safe, and rollback-ready.
+
+### 0) 通用前置 / Common preflight
 ```bash
-bash scripts/deploy-opencode.sh
+git submodule update --init --recursive agents/skills
+REPO_SKILLS="$(pwd)/agents/skills"
 ```
-完成后重启 OpenCode 以加载新的全局指令。
-部署会把 `~/.config/opencode/skills` 软链接到仓库内的 `agents/skills` 子模块，保持本机只保留一份 skills。
 
-Restart OpenCode after deployment to load the global instructions.
-Deployment links `~/.config/opencode/skills` to the repo submodule at `agents/skills` so there is only one local skills directory.
+### 1) Codex CLI 部署 / Codex CLI deployment
+1. 备份当前配置到带时间戳目录（例如 `~/.codex-backups/agent-skills-hook-YYYYmmdd-HHMMSS`）。
+2. 复制：
+- `codex/AGENTS.md` -> `~/.codex/AGENTS.md`
+- `codex/rules/*` -> `~/.codex/rules/`
+3. 如存在旧 skills 目录（`~/.codex/skills`、`~/.agents/skills`）且不是指向 `agents/skills`，先把缺失条目合并到 `agents/skills`（不覆盖同名）。
+4. 建立单一来源软链接：
+- `~/.codex/skills` -> `<repo>/agents/skills`
+- `~/.agents/skills` -> `~/.codex/skills`
+5. 重启 Codex CLI。
+
+1. Backup current config to a timestamped folder (for example `~/.codex-backups/agent-skills-hook-YYYYmmdd-HHMMSS`).
+2. Copy:
+- `codex/AGENTS.md` -> `~/.codex/AGENTS.md`
+- `codex/rules/*` -> `~/.codex/rules/`
+3. If legacy skill dirs exist (`~/.codex/skills`, `~/.agents/skills`) and do not point to `agents/skills`, merge missing entries into `agents/skills` (no overwrite).
+4. Set single-source symlinks:
+- `~/.codex/skills` -> `<repo>/agents/skills`
+- `~/.agents/skills` -> `~/.codex/skills`
+5. Restart Codex CLI.
+
+### 2) OpenCode 部署 / OpenCode deployment
+1. 备份当前配置到带时间戳目录（例如 `~/.opencode-backups/agent-skills-hook-YYYYmmdd-HHMMSS`）。
+2. 复制：
+- `opencode/AGENTS.md` -> `~/.config/opencode/AGENTS.md`
+- `opencode/oh-my-opencode.json` -> `~/.config/opencode/oh-my-opencode.json`
+3. 如存在旧 skills 目录（`~/.config/opencode/skills`、`~/.agents/skills`、`~/.claude/skills`）且不是指向 `agents/skills`，先把缺失条目合并到 `agents/skills`（不覆盖同名）。
+4. 建立单一来源软链接：
+- `~/.config/opencode/skills` -> `<repo>/agents/skills`
+- 可选：`~/.agents/skills`、`~/.claude/skills` -> `~/.config/opencode/skills`
+5. 重启 OpenCode。
+
+1. Backup current config to a timestamped folder (for example `~/.opencode-backups/agent-skills-hook-YYYYmmdd-HHMMSS`).
+2. Copy:
+- `opencode/AGENTS.md` -> `~/.config/opencode/AGENTS.md`
+- `opencode/oh-my-opencode.json` -> `~/.config/opencode/oh-my-opencode.json`
+3. If legacy skill dirs exist (`~/.config/opencode/skills`, `~/.agents/skills`, `~/.claude/skills`) and do not point to `agents/skills`, merge missing entries into `agents/skills` (no overwrite).
+4. Set single-source symlinks:
+- `~/.config/opencode/skills` -> `<repo>/agents/skills`
+- Optional: `~/.agents/skills`, `~/.claude/skills` -> `~/.config/opencode/skills`
+5. Restart OpenCode.
+
+### 3) 验证 / Verify
+- Codex 规则检查：
+```bash
+codex execpolicy check --pretty --rules ~/.codex/rules/default.rules -- rm -rf /
+```
+- 新会话首条回复应出现：`SessionStart` 与 `Skill Match`。
+
+- Codex rule check:
+```bash
+codex execpolicy check --pretty --rules ~/.codex/rules/default.rules -- rm -rf /
+```
+- First reply in a new session should include `SessionStart` and `Skill Match`.
+
+### 4) 回滚 / Rollback
+- 从最近备份目录中手动恢复被替换文件与目录。
+- Codex 恢复目标：`~/.codex/AGENTS.md`、`~/.codex/rules/`、`~/.codex/skills`、`~/.agents/skills`。
+- OpenCode 恢复目标：`~/.config/opencode/AGENTS.md`、`~/.config/opencode/oh-my-opencode.json`、`~/.config/opencode/skills`、`~/.agents/skills`、`~/.claude/skills`。
+
+- Manually restore replaced files/directories from the latest backup folder.
+- Codex restore targets: `~/.codex/AGENTS.md`, `~/.codex/rules/`, `~/.codex/skills`, `~/.agents/skills`.
+- OpenCode restore targets: `~/.config/opencode/AGENTS.md`, `~/.config/opencode/oh-my-opencode.json`, `~/.config/opencode/skills`, `~/.agents/skills`, `~/.claude/skills`.
 
 ## AI 环境依赖清单（给 Agent 读取） / AI Tooling Prerequisites (for Agents)
 
@@ -242,5 +308,5 @@ If `opencode-arise` is enabled, also use this model mapping:
 ```
 
 ## 文档 / Docs
-详见 `DEPLOYMENT.md`。
-See `DEPLOYMENT.md`.
+部署说明已并入本 README（见 “AI 自部署协议”）。
+Deployment instructions are now embedded in this README (see "AI Deployment Protocol").
