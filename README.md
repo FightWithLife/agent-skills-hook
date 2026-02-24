@@ -1,153 +1,220 @@
 # agent-skills-hook
 
-## 简介 / Overview
-这是一个把“Hook 机制”落地到 Codex CLI 的配置包，目标是提高 AI 对技能的使用概率，并在会话开始/结束提供固定流程输出，同时加上危险命令提示规则。
+## 简介
+这是一个把“Hook 机制”落地到 Codex CLI / OpenCode 的配置仓库，目标是：
+- 提高 AI 对 skills 的触发与使用概率
+- 固定会话起止输出（`SessionStart` / `Stop`）
+- 在危险命令前给出 execpolicy 安全提示
 
-This repo applies a “hook-like” workflow to Codex CLI to increase skill usage, add session start/stop framing, and enforce execpolicy prompts for risky commands.
-
-## 功能 / Features
-- 会话启动提示（SessionStart）
-- 每次请求前强制技能评估（Skill Forced Eval）
+## 功能
+- 会话启动提示（`SessionStart`）
+- 每次请求前强制技能评估（`Skill Forced Eval`）
 - 危险命令前缀提示（execpolicy rules）
-- 任务完成收尾总结（Stop）
+- 任务完成收尾总结（`Stop`）
 
-- Session start banner (SessionStart)
-- Skill Forced Eval before every request
-- Execpolicy prompts on risky command prefixes
-- Stop summary when task is done
+## 目录
+- [快速开始（给人）](#快速开始给人)
+- [AI 部署规范（给 AI，English）](#ai-deployment-spec-english-for-ai)
+- [验证与回滚](#验证与回滚)
+- [AI 环境依赖清单](#ai-环境依赖清单)
+- [OpenCode 推荐配置（保持最新）](#opencode-推荐配置保持最新)
+- [当前模型映射示例](#当前模型映射示例)
 
-## 快速开始 / Quick Start
-本仓库已移除一键部署脚本，改为 **AI 自部署（scriptless）** 模式。
+## 快速开始（给人）
+本仓库已移除一键部署脚本，改为 **AI 自部署（scriptless）**。
 
-This repo has removed one-shot deploy scripts and now uses an **AI-driven scriptless deployment** mode.
-
-### 给 AI 的指令模板 / Prompt Template for AI
-```text
-请在仓库根目录按 README 的“AI 自部署协议”完成部署。
-要求：先备份，再初始化 agents/skills 子模块，再执行配置复制与 skills 软链接，最后做验证并汇报结果。
-目标：Codex CLI 与 OpenCode 使用同一份 skills（仓库内 agents/skills）。
-```
-
-## AI 自部署协议（无脚本） / AI Deployment Protocol (Scriptless)
-以下步骤是给 AI 执行的标准流程。要求幂等、安全、可回滚。
-
-The following steps are the standard runbook for AI agents. Keep it idempotent, safe, and rollback-ready.
-
-### 0) 通用前置 / Common preflight
+1. 在仓库根目录初始化 submodule：
 ```bash
 git submodule update --init --recursive agents/skills
-REPO_SKILLS="$(pwd)/agents/skills"
+```
+2. 把下面这段话发给 AI：
+```text
+请在仓库根目录按 README 的 “AI Deployment Spec” 执行部署。
+目标：Codex CLI 与 OpenCode 使用同一份 skills（仓库内 agents/skills）。
+要求：先备份，再部署，再验证，最后回报变更与验证结果。
 ```
 
-### 1) Codex CLI 部署 / Codex CLI deployment
-1. 备份当前配置到带时间戳目录（例如 `~/.codex-backups/agent-skills-hook-YYYYmmdd-HHMMSS`）。
-2. 复制：
-- `codex/AGENTS.md` -> `~/.codex/AGENTS.md`
-- `codex/rules/*` -> `~/.codex/rules/`
-3. 如存在旧 skills 目录（`~/.codex/skills`、`~/.agents/skills`）且不是指向 `agents/skills`，先把缺失条目合并到 `agents/skills`（不覆盖同名）。
-4. 建立单一来源软链接：
-- `~/.codex/skills` -> `<repo>/agents/skills`
-- `~/.agents/skills` -> `~/.codex/skills`
-5. 重启 Codex CLI。
+## AI Deployment Spec (English, for AI)
+Use this section as the source of truth for deployment behavior.
 
-1. Backup current config to a timestamped folder (for example `~/.codex-backups/agent-skills-hook-YYYYmmdd-HHMMSS`).
-2. Copy:
-- `codex/AGENTS.md` -> `~/.codex/AGENTS.md`
-- `codex/rules/*` -> `~/.codex/rules/`
-3. If legacy skill dirs exist (`~/.codex/skills`, `~/.agents/skills`) and do not point to `agents/skills`, merge missing entries into `agents/skills` (no overwrite).
-4. Set single-source symlinks:
-- `~/.codex/skills` -> `<repo>/agents/skills`
-- `~/.agents/skills` -> `~/.codex/skills`
-5. Restart Codex CLI.
+### Goals
+- Keep one single skills source: `<repo>/agents/skills`.
+- Deploy Codex/OpenCode config without repo scripts.
+- Be idempotent and rollback-friendly.
 
-### 2) OpenCode 部署 / OpenCode deployment
-1. 备份当前配置到带时间戳目录（例如 `~/.opencode-backups/agent-skills-hook-YYYYmmdd-HHMMSS`）。
-2. 复制：
-- `opencode/AGENTS.md` -> `~/.config/opencode/AGENTS.md`
-- `opencode/oh-my-opencode.json` -> `~/.config/opencode/oh-my-opencode.json`
-3. 如存在旧 skills 目录（`~/.config/opencode/skills`、`~/.agents/skills`、`~/.claude/skills`）且不是指向 `agents/skills`，先把缺失条目合并到 `agents/skills`（不覆盖同名）。
-4. 建立单一来源软链接：
-- `~/.config/opencode/skills` -> `<repo>/agents/skills`
-- 可选：`~/.agents/skills`、`~/.claude/skills` -> `~/.config/opencode/skills`
-5. 重启 OpenCode。
+### Constraints
+- Always backup before mutating user config.
+- Merge legacy skills into repo skills with `no overwrite` policy.
+- Keep plugin/tool versions unpinned (latest) unless user requests pinning.
+- Do not run destructive git commands.
 
-1. Backup current config to a timestamped folder (for example `~/.opencode-backups/agent-skills-hook-YYYYmmdd-HHMMSS`).
-2. Copy:
-- `opencode/AGENTS.md` -> `~/.config/opencode/AGENTS.md`
-- `opencode/oh-my-opencode.json` -> `~/.config/opencode/oh-my-opencode.json`
-3. If legacy skill dirs exist (`~/.config/opencode/skills`, `~/.agents/skills`, `~/.claude/skills`) and do not point to `agents/skills`, merge missing entries into `agents/skills` (no overwrite).
-4. Set single-source symlinks:
-- `~/.config/opencode/skills` -> `<repo>/agents/skills`
-- Optional: `~/.agents/skills`, `~/.claude/skills` -> `~/.config/opencode/skills`
-5. Restart OpenCode.
+### One-Shot Idempotent Command Block
+Run from repo root. Optional: `TARGET=codex|opencode|both` (default `both`).
 
-### 3) 验证 / Verify
+```bash
+set -euo pipefail
+
+REPO_ROOT="${REPO_ROOT:-$(pwd)}"
+TARGET="${TARGET:-both}"
+STAMP="$(date +%Y%m%d-%H%M%S)"
+REPO_SKILLS="$REPO_ROOT/agents/skills"
+
+if [ ! -d "$REPO_SKILLS" ]; then
+  git -C "$REPO_ROOT" submodule update --init --recursive agents/skills
+fi
+
+if [ ! -d "$REPO_SKILLS" ]; then
+  echo "ERROR: $REPO_SKILLS missing" >&2
+  exit 1
+fi
+
+merge_missing_skills() {
+  local src="$1"
+  local real="$src"
+  [ -e "$src" ] || return 0
+  if [ -L "$src" ]; then
+    real="$(readlink -f "$src" 2>/dev/null || true)"
+  fi
+  [ -d "$real" ] || return 0
+
+  shopt -s nullglob dotglob
+  for item in "$real"/*; do
+    [ -e "$item" ] || continue
+    local name
+    name="$(basename "$item")"
+    if [ ! -e "$REPO_SKILLS/$name" ]; then
+      cp -a "$item" "$REPO_SKILLS/"
+    fi
+  done
+  shopt -u nullglob dotglob
+}
+
+safe_link() {
+  local link_path="$1"
+  local target_path="$2"
+  mkdir -p "$(dirname "$link_path")"
+
+  if [ -L "$link_path" ]; then
+    local real
+    real="$(readlink -f "$link_path" 2>/dev/null || true)"
+    if [ "$real" = "$target_path" ]; then
+      return 0
+    fi
+    rm -f "$link_path"
+  elif [ -e "$link_path" ]; then
+    rm -rf "$link_path"
+  fi
+
+  ln -s "$target_path" "$link_path"
+}
+
+if [ "$TARGET" = "codex" ] || [ "$TARGET" = "both" ]; then
+  BACKUP_C="$HOME/.codex-backups/agent-skills-hook-$STAMP"
+  mkdir -p "$BACKUP_C/codex" "$BACKUP_C/agents" "$BACKUP_C/repo"
+
+  [ -f "$HOME/.codex/AGENTS.md" ] && cp -a "$HOME/.codex/AGENTS.md" "$BACKUP_C/codex/AGENTS.md"
+  [ -d "$HOME/.codex/rules" ] && cp -a "$HOME/.codex/rules" "$BACKUP_C/codex/"
+  [ -e "$HOME/.codex/skills" ] && cp -a "$HOME/.codex/skills" "$BACKUP_C/codex/"
+  [ -e "$HOME/.agents/skills" ] && cp -a "$HOME/.agents/skills" "$BACKUP_C/agents/"
+  cp -a "$REPO_SKILLS" "$BACKUP_C/repo/"
+
+  mkdir -p "$HOME/.codex/rules"
+  cp -a "$REPO_ROOT/codex/AGENTS.md" "$HOME/.codex/AGENTS.md"
+  cp -a "$REPO_ROOT/codex/rules/." "$HOME/.codex/rules/"
+
+  merge_missing_skills "$HOME/.codex/skills"
+  merge_missing_skills "$HOME/.agents/skills"
+
+  safe_link "$HOME/.codex/skills" "$REPO_SKILLS"
+  safe_link "$HOME/.agents/skills" "$HOME/.codex/skills"
+
+  echo "Codex deployed. Backup: $BACKUP_C"
+fi
+
+if [ "$TARGET" = "opencode" ] || [ "$TARGET" = "both" ]; then
+  BACKUP_O="$HOME/.opencode-backups/agent-skills-hook-$STAMP"
+  mkdir -p "$BACKUP_O/opencode" "$BACKUP_O/agents" "$BACKUP_O/claude" "$BACKUP_O/repo"
+
+  [ -f "$HOME/.config/opencode/AGENTS.md" ] && cp -a "$HOME/.config/opencode/AGENTS.md" "$BACKUP_O/opencode/AGENTS.md"
+  [ -f "$HOME/.config/opencode/oh-my-opencode.json" ] && cp -a "$HOME/.config/opencode/oh-my-opencode.json" "$BACKUP_O/opencode/oh-my-opencode.json"
+  [ -e "$HOME/.config/opencode/skills" ] && cp -a "$HOME/.config/opencode/skills" "$BACKUP_O/opencode/"
+  [ -e "$HOME/.agents/skills" ] && cp -a "$HOME/.agents/skills" "$BACKUP_O/agents/"
+  [ -e "$HOME/.claude/skills" ] && cp -a "$HOME/.claude/skills" "$BACKUP_O/claude/"
+  cp -a "$REPO_SKILLS" "$BACKUP_O/repo/"
+
+  mkdir -p "$HOME/.config/opencode"
+  cp -a "$REPO_ROOT/opencode/AGENTS.md" "$HOME/.config/opencode/AGENTS.md"
+  cp -a "$REPO_ROOT/opencode/oh-my-opencode.json" "$HOME/.config/opencode/oh-my-opencode.json"
+
+  merge_missing_skills "$HOME/.config/opencode/skills"
+  merge_missing_skills "$HOME/.agents/skills"
+  merge_missing_skills "$HOME/.claude/skills"
+
+  safe_link "$HOME/.config/opencode/skills" "$REPO_SKILLS"
+
+  # optional legacy links
+  safe_link "$HOME/.agents/skills" "$HOME/.config/opencode/skills"
+  safe_link "$HOME/.claude/skills" "$HOME/.config/opencode/skills"
+
+  echo "OpenCode deployed. Backup: $BACKUP_O"
+fi
+```
+
+### AI Output Requirements
+After running deployment, output:
+1. Changed files/links.
+2. Backup directory paths.
+3. Verification results.
+4. Any blocked step with exact reason.
+
+## 验证与回滚
+### 验证
 - Codex 规则检查：
 ```bash
 codex execpolicy check --pretty --rules ~/.codex/rules/default.rules -- rm -rf /
 ```
 - 新会话首条回复应出现：`SessionStart` 与 `Skill Match`。
+- OpenCode 新会话首条回复应出现：`SessionStart` 与 `Skill Match`。
 
-- Codex rule check:
-```bash
-codex execpolicy check --pretty --rules ~/.codex/rules/default.rules -- rm -rf /
-```
-- First reply in a new session should include `SessionStart` and `Skill Match`.
+### 回滚
+从最近备份目录手动恢复以下路径即可：
+- Codex：`~/.codex/AGENTS.md`、`~/.codex/rules/`、`~/.codex/skills`、`~/.agents/skills`
+- OpenCode：`~/.config/opencode/AGENTS.md`、`~/.config/opencode/oh-my-opencode.json`、`~/.config/opencode/skills`、`~/.agents/skills`、`~/.claude/skills`
 
-### 4) 回滚 / Rollback
-- 从最近备份目录中手动恢复被替换文件与目录。
-- Codex 恢复目标：`~/.codex/AGENTS.md`、`~/.codex/rules/`、`~/.codex/skills`、`~/.agents/skills`。
-- OpenCode 恢复目标：`~/.config/opencode/AGENTS.md`、`~/.config/opencode/oh-my-opencode.json`、`~/.config/opencode/skills`、`~/.agents/skills`、`~/.claude/skills`。
+## AI 环境依赖清单
+以下用于帮助 AI 判断环境是否完整。
 
-- Manually restore replaced files/directories from the latest backup folder.
-- Codex restore targets: `~/.codex/AGENTS.md`, `~/.codex/rules/`, `~/.codex/skills`, `~/.agents/skills`.
-- OpenCode restore targets: `~/.config/opencode/AGENTS.md`, `~/.config/opencode/oh-my-opencode.json`, `~/.config/opencode/skills`, `~/.agents/skills`, `~/.claude/skills`.
-
-## AI 环境依赖清单（给 Agent 读取） / AI Tooling Prerequisites (for Agents)
-
-以下内容根据参考文章整理，目的是让 AI 在阅读仓库文档时，知道常见 OpenCode 插件与工具依赖。
-
-The following list is adapted from the referenced article so agents can infer which OpenCode plugins/tools are expected in this setup.
-
-### 必装基础 / Required base
+### 必装基础
 - `oh-my-opencode`（内置）
 - `opencode-pty`（内置）
-- `node` + `npm`（用于安装插件与 npx 运行 MCP）
+- `node` + `npm`（安装插件和 npx 运行 MCP）
 
-- `oh-my-opencode` (built-in)
-- `opencode-pty` (built-in)
-- `node` + `npm` (for plugin install and MCP via npx)
-
-### 推荐插件 / Recommended plugins
+### 推荐插件（保持最新）
 ```bash
-npm install -g @nick-vi/opencode-type-inject
-npm install -g opencode-supermemory
-npm install -g opencode-browser
-npm install -g opencode-arise
-npm install -g @mohak34/opencode-notifier
-npm install -g @plannotator/opencode
-npm install -g @tarquinen/opencode-dcp
+npm install -g @nick-vi/opencode-type-inject@latest
+npm install -g opencode-supermemory@latest
+npm install -g opencode-browser@latest
+npm install -g opencode-arise@latest
+npm install -g @mohak34/opencode-notifier@latest
+npm install -g @plannotator/opencode@latest
+npm install -g @tarquinen/opencode-dcp@latest
 ```
 
-可选（需手动安装）：
-
-Optional (manual install):
+可选：
 - `opencode-morph-fast-apply`（通常以 GitHub 插件方式配置）
 - `@zenobi-us/opencode-skillful`
 
-### 推荐 MCP 工具 / Recommended MCP tools
-常见内置或常用项：`chrome-devtools`、`context7`、`fetch`、`memory`、`sequential-thinking`、`time`。
+### 推荐 MCP 工具
+- `chrome-devtools`
+- `context7`
+- `fetch`
+- `memory`
+- `sequential-thinking`
+- `time`
+- 可选长期记忆：`mem0`（需额外 API key）
 
-Common built-in or widely used entries: `chrome-devtools`, `context7`, `fetch`, `memory`, `sequential-thinking`, `time`.
-
-可选长期记忆：`mem0`（需要额外 API key 配置，如 `~/.config/opencode/mem0.jsonc`）。
-
-Optional long-term memory: `mem0` (requires extra API key config, for example `~/.config/opencode/mem0.jsonc`).
-
-### 建议配置片段 / Suggested config snippet
-将下列内容并入 `~/.config/opencode/opencode.json`：
-
-Merge the following into `~/.config/opencode/opencode.json`:
+## OpenCode 推荐配置（保持最新）
+> 这是“合并片段”，不是完整 `opencode.json`。请做字段级 merge，不要整文件覆盖。
 
 ```json
 {
@@ -165,38 +232,14 @@ Merge the following into `~/.config/opencode/opencode.json`:
   "plugin": [
     "oh-my-opencode",
     "opencode-pty",
-    "@nick-vi/opencode-type-inject",
+    "@nick-vi/opencode-type-inject@latest",
     "opencode-supermemory@latest",
-    "opencode-browser",
-    "opencode-arise",
-    "@mohak34/opencode-notifier",
+    "opencode-browser@latest",
+    "opencode-arise@latest",
+    "@mohak34/opencode-notifier@latest",
     "@plannotator/opencode@latest",
-    "@tarquinen/opencode-dcp"
-  ]
-}
-```
-
-> 说明：本仓库当前不提供这些第三方插件的一键部署脚本；AI 应按上述依赖清单检查本机环境并提示缺失项。
-
-> Note: this repo does not provide a one-shot installer for those third-party plugins. Agents should check local availability and prompt for missing dependencies.
-
-### OpenCode 配置优化（性能与稳定性） / OpenCode optimization (performance + stability)
-- 上下文压缩：`compaction.auto=true`、`strategy=summarize`、`threshold=0.8`、`prune_tool_outputs=true`
-- 缓存：`cache.enabled=true`，降低重复请求开销
-- 插件集合：将高频插件统一写入 `plugin`，避免每个项目重复手配
-- MCP：建议启用 `chrome-devtools`、`context7`、`fetch`、`memory`、`sequential-thinking`、`time`
-
-- Context compaction: `compaction.auto=true`, `strategy=summarize`, `threshold=0.8`, `prune_tool_outputs=true`
-- Cache: `cache.enabled=true` to reduce repeated work
-- Plugin baseline: keep commonly-used plugins in a shared `plugin` list
-- MCP baseline: enable `chrome-devtools`, `context7`, `fetch`, `memory`, `sequential-thinking`, `time`
-
-参考 MCP 配置（Linux/macOS 常见写法）：
-
-Reference MCP block (common Linux/macOS form):
-
-```json
-{
+    "@tarquinen/opencode-dcp@latest"
+  ],
   "mcp": {
     "chrome-devtools": {
       "command": ["npx", "-y", "chrome-devtools-mcp@latest"],
@@ -232,18 +275,8 @@ Reference MCP block (common Linux/macOS form):
 }
 ```
 
-可选长期记忆：`mem0` 需要单独 API key 文件（例如 `~/.config/opencode/mem0.jsonc`），未配置 key 前不建议默认启用。
-
-Optional long-term memory: `mem0` needs a dedicated API key file (for example `~/.config/opencode/mem0.jsonc`), so do not enable it by default before key setup.
-
-### 当前模型配置（可直接复制） / Current model profile (copy-ready)
-下面是当前本机在用的 OpenCode 模型编排（已去掉敏感字段）。AI 可直接按此映射执行。
-
-Below is the active OpenCode model orchestration (sensitive fields removed). Agents can follow this mapping directly.
-
-`~/.config/opencode/opencode.json`（模型与代理映射片段）：
-
-`~/.config/opencode/opencode.json` (models + agents excerpt):
+## 当前模型映射示例
+> 以下是可复制模板（敏感字段请自行填充）。
 
 ```json
 {
@@ -289,9 +322,7 @@ Below is the active OpenCode model orchestration (sensitive fields removed). Age
 }
 ```
 
-如果启用了 `opencode-arise`，建议同时使用以下模型映射：
-
-If `opencode-arise` is enabled, also use this model mapping:
+如果启用了 `opencode-arise`，可补充：
 
 ```json
 {
@@ -306,7 +337,3 @@ If `opencode-arise` is enabled, also use this model mapping:
   }
 }
 ```
-
-## 文档 / Docs
-部署说明已并入本 README（见 “AI 自部署协议”）。
-Deployment instructions are now embedded in this README (see "AI Deployment Protocol").
