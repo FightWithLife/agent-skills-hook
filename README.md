@@ -1,7 +1,7 @@
 # agent-skills-hook
 
 ## 简介
-这是一个把“Hook 机制”落地到 Codex CLI / OpenCode 的配置仓库，目标是：
+这是一个把“Hook 机制”落地到 Codex CLI / OpenCode / Claude Code 的配置仓库，目标是：
 - 提高 AI 对 skills 的触发与使用概率
 - 固定会话起止输出（`SessionStart` / `Stop`）
 - 在危险命令前给出 execpolicy 安全提示
@@ -30,7 +30,7 @@ git submodule update --init --recursive agents/skills
 2. 把下面这段话发给 AI：
 ```text
 请在仓库根目录按 README 的 “AI Deployment Spec” 执行部署。
-目标：Codex CLI 与 OpenCode 使用同一份 skills（仓库内 agents/skills）。
+目标：Codex CLI / OpenCode / Claude Code 使用同一份 skills（仓库内 agents/skills）。
 要求：先备份，再部署，再验证，最后回报变更与验证结果。
 ```
 
@@ -39,7 +39,7 @@ Use this section as the source of truth for deployment behavior.
 
 ### Goals
 - Keep one single skills source: `<repo>/agents/skills`.
-- Deploy Codex/OpenCode config without repo scripts.
+- Deploy Codex/OpenCode/Claude config without repo scripts.
 - Be idempotent and rollback-friendly.
 
 ### Constraints
@@ -49,7 +49,7 @@ Use this section as the source of truth for deployment behavior.
 - Do not run destructive git commands.
 
 ### One-Shot Idempotent Command Block
-Run from repo root. Optional: `TARGET=codex|opencode|both` (default `both`).
+Run from repo root. Optional: `TARGET=codex|opencode|claude|both|all` (default `both`, where `both` means Codex+OpenCode).
 
 ```bash
 set -euo pipefail
@@ -108,7 +108,7 @@ safe_link() {
   ln -s "$target_path" "$link_path"
 }
 
-if [ "$TARGET" = "codex" ] || [ "$TARGET" = "both" ]; then
+if [ "$TARGET" = "codex" ] || [ "$TARGET" = "both" ] || [ "$TARGET" = "all" ]; then
   BACKUP_C="$HOME/.codex-backups/agent-skills-hook-$STAMP"
   mkdir -p "$BACKUP_C/codex" "$BACKUP_C/agents" "$BACKUP_C/repo"
 
@@ -131,7 +131,7 @@ if [ "$TARGET" = "codex" ] || [ "$TARGET" = "both" ]; then
   echo "Codex deployed. Backup: $BACKUP_C"
 fi
 
-if [ "$TARGET" = "opencode" ] || [ "$TARGET" = "both" ]; then
+if [ "$TARGET" = "opencode" ] || [ "$TARGET" = "both" ] || [ "$TARGET" = "all" ]; then
   BACKUP_O="$HOME/.opencode-backups/agent-skills-hook-$STAMP"
   mkdir -p "$BACKUP_O/opencode" "$BACKUP_O/agents" "$BACKUP_O/claude" "$BACKUP_O/repo"
 
@@ -158,6 +158,73 @@ if [ "$TARGET" = "opencode" ] || [ "$TARGET" = "both" ]; then
 
   echo "OpenCode deployed. Backup: $BACKUP_O"
 fi
+
+if [ "$TARGET" = "claude" ] || [ "$TARGET" = "all" ]; then
+  BACKUP_CL="$HOME/.claude-backups/agent-skills-hook-$STAMP"
+  mkdir -p "$BACKUP_CL/claude" "$BACKUP_CL/agents" "$BACKUP_CL/repo"
+
+  [ -f "$HOME/.claude/AGENTS.md" ] && cp -a "$HOME/.claude/AGENTS.md" "$BACKUP_CL/claude/AGENTS.md"
+  [ -f "$HOME/.claude/CLAUDE.md" ] && cp -a "$HOME/.claude/CLAUDE.md" "$BACKUP_CL/claude/CLAUDE.md"
+  [ -f "$HOME/.claude/settings.json" ] && cp -a "$HOME/.claude/settings.json" "$BACKUP_CL/claude/settings.json"
+  [ -d "$HOME/.claude/hooks" ] && cp -a "$HOME/.claude/hooks" "$BACKUP_CL/claude/"
+  [ -e "$HOME/.claude/skills" ] && cp -a "$HOME/.claude/skills" "$BACKUP_CL/claude/"
+  [ -e "$HOME/.agents/skills" ] && cp -a "$HOME/.agents/skills" "$BACKUP_CL/agents/"
+  cp -a "$REPO_SKILLS" "$BACKUP_CL/repo/"
+
+  mkdir -p "$HOME/.claude" "$HOME/.claude/hooks"
+  cp -a "$REPO_ROOT/claude/AGENTS.md" "$HOME/.claude/AGENTS.md"
+  if [ -f "$REPO_ROOT/claude/CLAUDE.md" ]; then
+    cp -a "$REPO_ROOT/claude/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
+  else
+    cp -a "$REPO_ROOT/claude/AGENTS.md" "$HOME/.claude/CLAUDE.md"
+  fi
+  if [ -f "$REPO_ROOT/claude/hooks/user-prompt-skill-forced-eval.sh" ]; then
+    cp -a "$REPO_ROOT/claude/hooks/user-prompt-skill-forced-eval.sh" "$HOME/.claude/hooks/user-prompt-skill-forced-eval.sh"
+    chmod +x "$HOME/.claude/hooks/user-prompt-skill-forced-eval.sh"
+  fi
+
+  if [ -f "$REPO_ROOT/claude/settings.json" ]; then
+    if [ -f "$HOME/.claude/settings.json" ] && command -v python3 >/dev/null 2>&1; then
+      python3 - "$REPO_ROOT" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+user_path = Path.home() / ".claude" / "settings.json"
+repo_path = Path(sys.argv[1]) / "claude" / "settings.json"
+
+try:
+    user = json.loads(user_path.read_text(encoding="utf-8"))
+except Exception:
+    user = {}
+repo = json.loads(repo_path.read_text(encoding="utf-8"))
+
+user.setdefault("hooks", {})
+for event, rules in repo.get("hooks", {}).items():
+    existing = user["hooks"].get(event, [])
+    keys = {json.dumps(r, sort_keys=True, ensure_ascii=False) for r in existing}
+    for r in rules:
+        k = json.dumps(r, sort_keys=True, ensure_ascii=False)
+        if k not in keys:
+            existing.append(r)
+            keys.add(k)
+    user["hooks"][event] = existing
+
+user_path.write_text(json.dumps(user, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+    elif [ ! -f "$HOME/.claude/settings.json" ]; then
+      cp -a "$REPO_ROOT/claude/settings.json" "$HOME/.claude/settings.json"
+    fi
+  fi
+
+  merge_missing_skills "$HOME/.claude/skills"
+  merge_missing_skills "$HOME/.agents/skills"
+
+  safe_link "$HOME/.claude/skills" "$REPO_SKILLS"
+  safe_link "$HOME/.agents/skills" "$HOME/.claude/skills"
+
+  echo "Claude deployed. Backup: $BACKUP_CL"
+fi
 ```
 
 ### AI Output Requirements
@@ -175,11 +242,50 @@ codex execpolicy check --pretty --rules ~/.codex/rules/default.rules -- rm -rf /
 ```
 - 新会话首条回复应出现：`SessionStart` 与 `Skill Match`。
 - OpenCode 新会话首条回复应出现：`SessionStart` 与 `Skill Match`。
+- Claude Code 新会话首条回复应出现：`SessionStart` 与 `Skill Match`。
+- Claude 检查：`readlink -f ~/.claude/skills` 应指向 `<repo>/agents/skills`。
+
+```bash
+readlink -f ~/.claude/skills
+```
+
+```bash
+test -f ~/.claude/CLAUDE.md && grep -n 'Skill Forced Eval' ~/.claude/CLAUDE.md
+```
+
+```bash
+# 兼容保留：如果你仍在使用 AGENTS.md
+test -f ~/.claude/AGENTS.md && grep -n 'Skill Forced Eval' ~/.claude/AGENTS.md
+```
+
+```bash
+test -f ~/.claude/settings.json && python3 -m json.tool ~/.claude/settings.json >/dev/null
+```
+
+```bash
+test -f ~/.claude/skills/skill-forced-eval/SKILL.md
+```
+
+```bash
+# 可选：检查 hook 片段是否已合并
+grep -n 'UserPromptSubmit' ~/.claude/settings.json
+```
+
+```bash
+test -x ~/.claude/hooks/user-prompt-skill-forced-eval.sh
+```
+
+```bash
+# 语义验证：新开 Claude 会话，首条响应包含 SessionStart，任意请求前有 Skill Match。
+```
+
+
 
 ### 回滚
 从最近备份目录手动恢复以下路径即可：
 - Codex：`~/.codex/AGENTS.md`、`~/.codex/rules/`、`~/.codex/skills`、`~/.agents/skills`
 - OpenCode：`~/.config/opencode/AGENTS.md`、`~/.config/opencode/oh-my-opencode.json`、`~/.config/opencode/skills`、`~/.agents/skills`、`~/.claude/skills`
+- Claude：`~/.claude/CLAUDE.md`、`~/.claude/AGENTS.md`、`~/.claude/settings.json`、`~/.claude/hooks/`、`~/.claude/skills`、`~/.agents/skills`
 
 ## AI 环境依赖清单
 以下用于帮助 AI 判断环境是否完整。
