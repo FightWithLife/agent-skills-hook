@@ -267,13 +267,20 @@ npm install -g @tarquinen/opencode-dcp@latest
       "type": "local"
     },
     "time": {
-      "command": ["npx", "-y", "@modelcontextprotocol/server-time"],
+      "command": ["uvx", "mcp-server-time"],
       "enabled": true,
       "type": "local"
     }
   }
 }
 ```
+
+### MCP 排障经验（2026-02-26 实测）
+- `time` MCP：`@modelcontextprotocol/server-time` 当前在 npm registry 返回 `404 Not Found`，请改用 `uvx mcp-server-time`。
+- `chrome-devtools` 若报 `ENOTEMPTY ... ~/.npm/_npx/...`，可按下列步骤处理：
+1. 定位冲突目录：`ls -1 ~/.npm/_npx`
+2. 备份冲突目录：`mv ~/.npm/_npx/<hash> ~/.npm/_npx/<hash>.bak.$(date +%Y%m%d-%H%M%S)`
+3. 重新验证连接：`opencode mcp list`
 
 ## 当前模型映射示例
 > 以下是可复制模板（敏感字段请自行填充）。
