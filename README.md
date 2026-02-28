@@ -136,7 +136,6 @@ if [ "$TARGET" = "opencode" ] || [ "$TARGET" = "both" ] || [ "$TARGET" = "all" ]
   mkdir -p "$BACKUP_O/opencode" "$BACKUP_O/agents" "$BACKUP_O/claude" "$BACKUP_O/repo"
 
   [ -f "$HOME/.config/opencode/AGENTS.md" ] && cp -a "$HOME/.config/opencode/AGENTS.md" "$BACKUP_O/opencode/AGENTS.md"
-  [ -f "$HOME/.config/opencode/oh-my-opencode.json" ] && cp -a "$HOME/.config/opencode/oh-my-opencode.json" "$BACKUP_O/opencode/oh-my-opencode.json"
   [ -e "$HOME/.config/opencode/skills" ] && cp -a "$HOME/.config/opencode/skills" "$BACKUP_O/opencode/"
   [ -e "$HOME/.agents/skills" ] && cp -a "$HOME/.agents/skills" "$BACKUP_O/agents/"
   [ -e "$HOME/.claude/skills" ] && cp -a "$HOME/.claude/skills" "$BACKUP_O/claude/"
@@ -144,7 +143,6 @@ if [ "$TARGET" = "opencode" ] || [ "$TARGET" = "both" ] || [ "$TARGET" = "all" ]
 
   mkdir -p "$HOME/.config/opencode"
   cp -a "$REPO_ROOT/opencode/AGENTS.md" "$HOME/.config/opencode/AGENTS.md"
-  cp -a "$REPO_ROOT/opencode/oh-my-opencode.json" "$HOME/.config/opencode/oh-my-opencode.json"
 
   merge_missing_skills "$HOME/.config/opencode/skills"
   merge_missing_skills "$HOME/.agents/skills"
@@ -284,7 +282,7 @@ test -x ~/.claude/hooks/user-prompt-skill-forced-eval.sh
 ### 回滚
 从最近备份目录手动恢复以下路径即可：
 - Codex：`~/.codex/AGENTS.md`、`~/.codex/rules/`、`~/.codex/skills`、`~/.agents/skills`
-- OpenCode：`~/.config/opencode/AGENTS.md`、`~/.config/opencode/oh-my-opencode.json`、`~/.config/opencode/skills`、`~/.agents/skills`、`~/.claude/skills`
+- OpenCode：`~/.config/opencode/AGENTS.md`、`~/.config/opencode/skills`、`~/.agents/skills`、`~/.claude/skills`
 - Claude：`~/.claude/CLAUDE.md`、`~/.claude/AGENTS.md`、`~/.claude/settings.json`、`~/.claude/hooks/`、`~/.claude/skills`、`~/.agents/skills`
 
 ## AI 环境依赖清单
@@ -300,7 +298,6 @@ test -x ~/.claude/hooks/user-prompt-skill-forced-eval.sh
 npm install -g @nick-vi/opencode-type-inject@latest
 npm install -g opencode-supermemory@latest
 npm install -g opencode-browser@latest
-npm install -g opencode-arise@latest
 npm install -g @mohak34/opencode-notifier@latest
 npm install -g @plannotator/opencode@latest
 npm install -g @tarquinen/opencode-dcp@latest
@@ -339,8 +336,7 @@ npm install -g @tarquinen/opencode-dcp@latest
   "plugin": [
     "opencode-mem",
     "opencode-dcp",
-    "opencode-browser",
-    "opencode-arise"
+    "opencode-browser"
   ],
   "mcp": {
     "chrome-devtools": {
@@ -372,46 +368,6 @@ npm install -g @tarquinen/opencode-dcp@latest
       "command": ["uvx", "mcp-server-time"],
       "enabled": true,
       "type": "local"
-    }
-  }
-}
-```
-
-### opencode-arise 模型配置（可选）
-> 如果安装了 `opencode-arise` 插件，建议在 `~/.config/opencode/opencode-arise.json`
->（或项目级 `.opencode/opencode-arise.json`）配置如下模型映射。
-> 若模型支持 variant，统一使用 `xhigh`。
-
-```json
-{
-  "agents": {
-    "monarch": {
-      "model": "openai/gpt-5.2-codex",
-      "variant": "xhigh"
-    },
-    "beru": {
-      "model": "openai/gpt-5.3-codex",
-      "variant": "xhigh"
-    },
-    "igris": {
-      "model": "openai/gpt-5.3-codex",
-      "variant": "xhigh"
-    },
-    "bellion": {
-      "model": "openai/gpt-5.2-codex",
-      "variant": "xhigh"
-    },
-    "tank": {
-      "model": "openai/gpt-5.3-codex",
-      "variant": "xhigh"
-    },
-    "tusk": {
-      "model": "openai/gpt-5.3-codex",
-      "variant": "xhigh"
-    },
-    "shadow-sovereign": {
-      "model": "openai/gpt-5.2",
-      "variant": "xhigh"
     }
   }
 }
