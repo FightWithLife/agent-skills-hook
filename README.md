@@ -336,15 +336,10 @@ npm install -g @tarquinen/opencode-dcp@latest
     "enabled": true
   },
   "plugin": [
-    "oh-my-opencode",
-    "opencode-pty",
-    "@nick-vi/opencode-type-inject@latest",
-    "opencode-supermemory@latest",
-    "opencode-browser@latest",
-    "opencode-arise@latest",
-    "@mohak34/opencode-notifier@latest",
-    "@plannotator/opencode@latest",
-    "@tarquinen/opencode-dcp@latest"
+    "opencode-mem",
+    "opencode-dcp",
+    "opencode-browser",
+    "opencode-arise"
   ],
   "mcp": {
     "chrome-devtools": {
