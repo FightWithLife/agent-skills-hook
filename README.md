@@ -377,6 +377,46 @@ npm install -g @tarquinen/opencode-dcp@latest
 }
 ```
 
+### opencode-arise 模型配置（可选）
+> 如果安装了 `opencode-arise` 插件，建议在 `~/.config/opencode/opencode-arise.json`
+>（或项目级 `.opencode/opencode-arise.json`）配置如下模型映射。
+> 若模型支持 variant，统一使用 `xhigh`。
+
+```json
+{
+  "agents": {
+    "monarch": {
+      "model": "openai/gpt-5.2-codex",
+      "variant": "xhigh"
+    },
+    "beru": {
+      "model": "openai/gpt-5.3-codex",
+      "variant": "xhigh"
+    },
+    "igris": {
+      "model": "openai/gpt-5.3-codex",
+      "variant": "xhigh"
+    },
+    "bellion": {
+      "model": "openai/gpt-5.2-codex",
+      "variant": "xhigh"
+    },
+    "tank": {
+      "model": "openai/gpt-5.3-codex",
+      "variant": "xhigh"
+    },
+    "tusk": {
+      "model": "openai/gpt-5.3-codex",
+      "variant": "xhigh"
+    },
+    "shadow-sovereign": {
+      "model": "openai/gpt-5.2-pro",
+      "variant": "xhigh"
+    }
+  }
+}
+```
+
 ### MCP 排障经验（2026-02-26 实测）
 - `time` MCP：`@modelcontextprotocol/server-time` 当前在 npm registry 返回 `404 Not Found`，请改用 `uvx mcp-server-time`。
 - `chrome-devtools` 若报 `ENOTEMPTY ... ~/.npm/_npx/...`，可按下列步骤处理：
