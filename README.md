@@ -321,6 +321,7 @@ npm install -g @tarquinen/opencode-dcp@latest
 
 ## OpenCode 推荐配置（保持最新）
 > 这是“合并片段”，不是完整 `opencode.json`。请做字段级 merge，不要整文件覆盖。
+> 配置提示：若模型支持 variant 级别，GPT 系列 API 建议统一设置为 `xhigh`。
 
 ```json
 {
