@@ -410,7 +410,7 @@ npm install -g @tarquinen/opencode-dcp@latest
       "variant": "xhigh"
     },
     "shadow-sovereign": {
-      "model": "openai/gpt-5.2-pro",
+      "model": "openai/gpt-5.2-codex",
       "variant": "xhigh"
     }
   }
