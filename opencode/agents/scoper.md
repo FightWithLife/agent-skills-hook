@@ -27,9 +27,19 @@ tools:
 - 允许：`read`、`glob`、`grep`。
 - 禁止：`write`、`edit`、`bash`（默认）。
 
+前置断言（preconditions）：
+- 输入必须包含最小任务包：`task_id/goal/context/acceptance_criteria/risks`。
+- 必须能产出或补全 `task_contract.version == v1` 与 `task_contract.intent`。
+
+前置失败策略（on_precondition_fail）：
+- 缺少可补齐信息：`status=need-info`，并在 `open_questions` 列出缺失项。
+- 目标或边界自相矛盾、当前不可收敛：`status=blocked`，并给出回流建议。
+
 结果输出要求：
 - 必须包含：`evidence`、`confidence`、`next_actions`。
 - `evidence` 至少包含：引用的输入来源、关键约束与边界依据。
+- 必须输出：`task_contract`（含 `intent`）与 `gate0_evidence`。
+- `gate0_evidence` 至少包含：`scope_ready`、`source`、`summary`、`refs`。
 
 任务协议：
 
@@ -45,6 +55,16 @@ expected_outputs:
 acceptance_criteria:
 risks:
 deadline:
+
+task_contract:
+  version: v1
+  intent:
+
+gate0_evidence:
+  scope_ready: true | false
+  source: scoper | orchestrator
+  summary:
+  refs:
 ```
 
 结果输出（subagent -> primary）：

@@ -20,6 +20,15 @@ tools:
 - 每个失败项必须包含可复现步骤和环境信息。
 - 每个通过项至少给出对应验证依据（命令、日志或测试报告引用）。
 
+前置断言（preconditions）：
+- 通用：`task_contract.version == v1` 且 `gate0_evidence.scope_ready == true`。
+- `qa-only` 模式：必须提供被测对象、测试范围、通过/失败判定口径；不强依赖 `dev.status == done`。
+- `dev-feature` 变更验证模式：必须 `dev.status == done` 且 `dev.evidence.commands` 至少 1 条含 `cmd + result_summary`。
+
+前置失败策略（on_precondition_fail）：
+- 信息缺失可补齐：`status=need-info`，在 `open_questions` 列缺失项。
+- `dev-feature` 但 `dev` 证据不完整：`status=blocked`，回流 `dev` 补证据后再测。
+
 建议证据结构：
 
 ```yaml
@@ -45,6 +54,16 @@ expected_outputs:
 acceptance_criteria:
 risks:
 deadline:
+
+task_contract:
+  version: v1
+  intent: qa-only | dev-feature
+
+gate0_evidence:
+  scope_ready: true | false
+  source: scoper | orchestrator
+  summary:
+  refs:
 ```
 
 结果输出（subagent -> primary）：

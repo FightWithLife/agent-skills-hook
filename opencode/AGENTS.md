@@ -53,6 +53,9 @@ These instructions are loaded globally by OpenCode.
 
 ## Completion Gates (v2)
 - No evidence, no done.
+- Gate-0 (Scope Ready): before dispatching any execution subagent (`dev/qa/review/debug/impact/security`), `task_contract.version == v1` and `gate0_evidence.scope_ready == true` are required.
+- Gate-0 is a contract-readiness gate (not a fixed pipeline gate): after Gate-0 passes, orchestrator can route by `task_contract.intent`.
+- Only when `task_contract.intent == dev-feature`, enforce `dev -> qa -> review` and keep existing Gate-2 `code-review` checks unchanged.
 - `triage` can return `done` only if `confidence >= triage_done_confidence_threshold`.
 - `need-info` and `blocked` must include missing evidence and concrete `open_questions`.
 - Phase order: `explore/scoper/impact/security (optional)` -> `dev` -> `qa` -> `review`.
@@ -84,6 +87,18 @@ expected_outputs:
 acceptance_criteria:
 risks:
 deadline:
+
+task_contract:
+  version: v1
+  intent: review-only | qa-only | debug-only | dev-feature | impact | security
+  out_of_scope:
+  target_files:
+
+gate0_evidence:
+  scope_ready: true | false
+  source: scoper | orchestrator
+  summary:
+  refs:
 ```
 
 Result output (subagent -> primary):

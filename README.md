@@ -47,9 +47,13 @@ git submodule update --init --recursive agents/skills
 
 本次新增能力/门禁摘要：
 - 新增 `scoper/impact/security` 三个本地子代理，并纳入路由策略。
+- 新增 Gate-0（合同就绪）：进入 `dev/qa/review/debug/impact/security` 前，必须具备 `task_contract(v1)` + `gate0_evidence.scope_ready=true`。
+- Gate-0 通过后按 `task_contract.intent` 自由分流（`review-only | qa-only | debug-only | dev-feature | impact | security`）。
+- 仅 `intent=dev-feature` 强制执行 `dev -> qa -> review` 回归链条；`qa-only`/`debug-only` 不强制走完整开发链。
 - 引入 strict review gate：`code-review` 触发前必须满足 `dev.status=done` + `dev` 有命令级证据 + `qa.status=done` 且 `qa.verdict=pass`。
 - `plan-review` 改为 opt-in（默认不启用）。
 - `explore` 明确为原生子代理，不走本地伪实现。
+- `orchestrator` 新增 No Phantom Artifacts 规则：无 `dev/debug` 证据不得宣称文件已落地。
 
 OpenCode 全局读取位置：
 - `~/.config/opencode/AGENTS.md`
@@ -278,14 +282,18 @@ After running deployment, output:
 4. Any blocked step with exact reason.
 
 ### OpenCode Post-Deploy Quick Verification
-Run these checks to confirm new gates and agent files are in place:
+Run these checks to confirm Gate-0/intent rules are in place:
 
 ```bash
-test -f ~/.config/opencode/AGENTS.md && grep -n 'strict_review_gate\|plan-review\|code-review' ~/.config/opencode/AGENTS.md
+test -f ~/.config/opencode/AGENTS.md && grep -n 'Gate-0\|task_contract\|intent\|code-review' ~/.config/opencode/AGENTS.md
 ```
 
 ```bash
-test -f ~/.config/opencode/agents/scoper.md && test -f ~/.config/opencode/agents/impact.md && test -f ~/.config/opencode/agents/security.md
+test -f ~/.config/opencode/agents/orchestrator.md && grep -n 'No Phantom Artifacts\|Gate-0\|dev-feature' ~/.config/opencode/agents/orchestrator.md
+```
+
+```bash
+test -f ~/.config/opencode/agents/scoper.md && grep -n 'task_contract\|gate0_evidence\|preconditions' ~/.config/opencode/agents/scoper.md
 ```
 
 ```bash
