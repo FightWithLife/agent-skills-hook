@@ -28,7 +28,19 @@ permission:
 - 遇到疑难问题先执行一次快速 `debug` 排查；若仍无结论，仅建议手动调用 `triage`。
 - 严禁自动调用 `triage`。
 
+强自检 + 禁止伪落地（No Phantom Artifacts）：
+- 本代理无 `write/edit` 权限；不得宣称“已写入/已落地文件”。
+- 任何“文件改动已完成”的结论，必须引用 `dev/debug` 的可验证证据（命令结果、变更路径、结果摘要）。
+- 无对应证据时，只能报告“计划/建议”，不得伪造落地状态。
+
 阶段门禁（phase gating）硬规则：
+- Gate-0（Contract Ready）：
+  - 必须有 `task_contract.version == v1`。
+  - 必须有 `task_contract.intent` 且可解析。
+  - 必须有 `gate0_evidence.scope_ready == true`。
+  - Gate-0 失败：禁止分发到执行型子代理（`dev/qa/review/debug/impact/security`），仅允许回流 `scoper` 或返回 `need-info/blocked`。
+- Gate-0 通过后：按 `task_contract.intent` 自由分流（不是固定 `dev->qa->review` 流水线）。
+- 仅当 `task_contract.intent == dev-feature`：强制执行 `dev -> qa -> review`（Gate-2 维持不变）。
 - `phase_order`（默认顺序）：`explore/scoper/impact/security（按需） -> dev -> qa -> review`。
 - `review_modes`：
   - `plan-review`：仅在 Gate-1 后 **opt-in** 触发，默认不触发。
@@ -48,11 +60,13 @@ permission:
 路由触发条件（MVP）：
 - 上下文不足、未知项多、目录不确定：先派发 `explore`（native）。
 - 需求边界模糊、任务包不清：派发 `scoper`。
+- `task_contract.intent == review-only`：可直达 `review`（仍需满足 Gate-0；若是 `code-review` 仍受 Gate-2 约束）。
+- `task_contract.intent == qa-only`：可直达 `qa`（Gate-0 + 被测对象/判定口径完整）。
+- `task_contract.intent == debug-only`：可直达 `debug`（Gate-0 + 可复现症状/日志）。
 - 跨模块改动或回归风险高：派发 `impact`。
 - 涉及权限、输入处理、敏感数据路径：派发 `security`。
-- 进入实现阶段且任务清晰：派发 `dev`。
-- `dev` 产出可测证据后：派发 `qa`。
-- 仅在 Gate-2 满足后：派发 `review` 且 `review_mode=code-review`。
+- `task_contract.intent == dev-feature` 且任务清晰：派发 `dev`。
+- 在 `dev-feature` 路径中：`dev` 产出可测证据后派发 `qa`，且仅在 Gate-2 满足后派发 `review` + `review_mode=code-review`。
 
 Gate 定义：
 - Gate-1（Plan Ready）：任务拆分、目标文件、验收标准、风险齐全后，才可选触发 `plan-review`。
@@ -81,6 +95,18 @@ expected_outputs:
 acceptance_criteria:
 risks:
 deadline:
+
+task_contract:
+  version: v1
+  intent: review-only | qa-only | debug-only | dev-feature | impact | security
+  out_of_scope:
+  target_files:
+
+gate0_evidence:
+  scope_ready: true | false
+  source: scoper | orchestrator
+  summary:
+  refs:
 ```
 
 结果输出（subagent -> primary）：

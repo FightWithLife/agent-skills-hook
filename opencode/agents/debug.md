@@ -20,6 +20,17 @@ tools:
 - 每次定位必须绑定至少一条可追溯证据（日志、trace、测试输出或路径引用）。
 - 若连续 2 轮无进展或证据冲突，必须给出升级建议并返回 `blocked` 或 `need-info`。
 
+前置断言（preconditions）：
+- `task_contract.version == v1`。
+- `task_contract.intent == debug-only` 或 orchestrator 明确为调试路径。
+- `gate0_evidence.scope_ready == true`。
+- 至少提供可复现症状/日志/最小上下文之一。
+
+前置失败策略（on_precondition_fail）：
+- 信息缺失可补齐：`status=need-info`，`open_questions` 列缺失项。
+- Gate-0 未通过或任务边界不清：`status=blocked`，建议回流 `scoper` 或 orchestrator 补齐合同。
+- 前置失败时不得盲修或直接宣称已修复。
+
 任务协议：
 
 派发输入（primary -> subagent）：
@@ -34,6 +45,16 @@ expected_outputs:
 acceptance_criteria:
 risks:
 deadline:
+
+task_contract:
+  version: v1
+  intent: debug-only
+
+gate0_evidence:
+  scope_ready: true | false
+  source: scoper | orchestrator
+  summary:
+  refs:
 ```
 
 结果输出（subagent -> primary）：

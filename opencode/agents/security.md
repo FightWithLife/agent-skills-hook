@@ -27,6 +27,16 @@ tools:
 - 允许：`read`、`glob`、`grep`。
 - 禁止：`write`、`edit`、`bash`（默认）。
 
+前置断言（preconditions）：
+- `task_contract.version == v1`。
+- `task_contract.intent` 为 `security` 或任务涉及鉴权/输入处理/敏感数据路径。
+- `gate0_evidence.scope_ready == true`。
+
+前置失败策略（on_precondition_fail）：
+- 可补齐信息缺失：`status=need-info`。
+- Gate-0 未通过或安全边界不明确：`status=blocked`。
+- 两类失败都必须输出 `open_questions`（缺失项）与 `next_actions`（补齐建议）。
+
 结果输出要求：
 - 必须包含：`evidence`、`confidence`、`next_actions`。
 - `evidence` 至少包含：风险定位依据、影响范围与建议缓解措施。
@@ -45,6 +55,16 @@ expected_outputs:
 acceptance_criteria:
 risks:
 deadline:
+
+task_contract:
+  version: v1
+  intent: security | dev-feature | qa-only
+
+gate0_evidence:
+  scope_ready: true | false
+  source: scoper | orchestrator
+  summary:
+  refs:
 ```
 
 结果输出（subagent -> primary）：

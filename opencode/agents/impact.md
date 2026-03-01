@@ -27,6 +27,16 @@ tools:
 - 允许：`read`、`glob`、`grep`。
 - 禁止：`write`、`edit`、`bash`（默认）。
 
+前置断言（preconditions）：
+- `task_contract.version == v1`。
+- `task_contract.intent` 为 `impact` 或 orchestrator 明确要求影响面分析。
+- `gate0_evidence.scope_ready == true`。
+
+前置失败策略（on_precondition_fail）：
+- 可补齐信息缺失：`status=need-info`。
+- Gate-0 未通过或任务边界缺失：`status=blocked`。
+- 两类失败都必须在 `open_questions` 给出缺失项，并在 `next_actions` 给出回流建议。
+
 结果输出要求：
 - 必须包含：`evidence`、`confidence`、`next_actions`。
 - `evidence` 至少包含：影响路径依据（文件/模块/调用关系）与风险等级理由。
@@ -45,6 +55,16 @@ expected_outputs:
 acceptance_criteria:
 risks:
 deadline:
+
+task_contract:
+  version: v1
+  intent: impact | dev-feature | qa-only
+
+gate0_evidence:
+  scope_ready: true | false
+  source: scoper | orchestrator
+  summary:
+  refs:
 ```
 
 结果输出（subagent -> primary）：

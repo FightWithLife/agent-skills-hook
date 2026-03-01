@@ -19,6 +19,16 @@ tools:
 - 必须提供 `evidence.commands`，且至少一条验证命令含 `cmd` 与 `result_summary`。
 - 若任务未完成，必须说明当前阻塞点和下一步建议。
 
+前置断言（preconditions）：
+- `task_contract.version == v1`。
+- `task_contract.intent == dev-feature`（仅该意图允许进入实现）。
+- `gate0_evidence.scope_ready == true`。
+
+前置失败策略（on_precondition_fail）：
+- 缺失 `task_contract` 或 Gate-0 证据：`status=need-info`，`open_questions` 列出缺失字段。
+- `intent != dev-feature`：`status=blocked`（非实现任务），建议回流 orchestrator 按 intent 分流。
+- 前置失败时不得编码或提交“已实现”结论。
+
 建议证据结构：
 
 ```yaml
@@ -43,6 +53,16 @@ expected_outputs:
 acceptance_criteria:
 risks:
 deadline:
+
+task_contract:
+  version: v1
+  intent: dev-feature
+
+gate0_evidence:
+  scope_ready: true
+  source: scoper | orchestrator
+  summary:
+  refs:
 ```
 
 结果输出（subagent -> primary）：
