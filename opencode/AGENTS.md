@@ -25,9 +25,11 @@ These instructions are loaded globally by OpenCode.
   - Suggested next step (if any)
 
 ## OpenCode Agent Teams
-- Agent configs live in `opencode/agents/` and define two primary agents and four subagents.
+- Agent configs live in `opencode/agents/` and define two primary agents plus native/extended subagents.
 - Primary agents: `orchestrator` (development team) and `triage` (hard-problem team, manual only).
-- Subagents: `dev`, `qa`, `review`, `debug`.
+- Subagents:
+  - Native: `explore` (OpenCode upstream native subagent; do not add local `explore.md` pseudo-implementation)
+  - Local: `dev`, `qa`, `review`, `debug`, `scoper`, `impact`, `security`
 - Escalation rule: `orchestrator` runs one quick `debug` pass on hard issues, then suggests manual `triage` if unresolved. No auto `triage`.
 
 ## Defaults (v2)
@@ -43,11 +45,25 @@ These instructions are loaded globally by OpenCode.
 - `orchestrator` can only self-execute when all are true: low risk, single-file change, <= 20 changed lines, no cross-role verification needed.
 - Use parallel dispatch for independent tasks (up to 4 workers). Use serial dispatch for shared-file dependencies.
 - `triage` is manual-only and must never be auto-called.
+- Route hints:
+  - Unknown context / unclear scope first goes to `explore` (native).
+  - Scope ambiguity can route to `scoper`.
+  - Cross-module regression risk can route to `impact`.
+  - Sensitive paths (auth/input/data exposure) can route to `security`.
 
 ## Completion Gates (v2)
 - No evidence, no done.
 - `triage` can return `done` only if `confidence >= triage_done_confidence_threshold`.
 - `need-info` and `blocked` must include missing evidence and concrete `open_questions`.
+- Phase order: `explore/scoper/impact/security (optional)` -> `dev` -> `qa` -> `review`.
+- `review_mode`:
+  - `plan-review`: opt-in only (not default).
+  - `code-review`: strict gate, must satisfy all:
+    - `dev.status == done`
+    - `dev.evidence.commands` has >= 1 command with `result_summary`
+    - `qa.status == done` and `qa.verdict == pass`
+    - `qa.evidence.checks` has >= 1 check with `result` + `summary`
+  - If any condition is missing, orchestrator MUST NOT trigger `code-review`.
 
 ## State Machine (v2)
 - Allowed states: `todo -> in_progress -> done`.
