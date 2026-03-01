@@ -30,6 +30,30 @@ These instructions are loaded globally by OpenCode.
 - Subagents: `dev`, `qa`, `review`, `debug`.
 - Escalation rule: `orchestrator` runs one quick `debug` pass on hard issues, then suggests manual `triage` if unresolved. No auto `triage`.
 
+## Defaults (v2)
+- `max_parallel_workers`: `4`
+- `max_handoff_depth`: `3`
+- `max_retries_per_stage`: `2`
+- `triage_done_confidence_threshold`: `0.75`
+- `orchestrator_self_execute_line_threshold`: `20`
+- `max_state_loops`: `8`
+
+## Routing Policy (v2)
+- `orchestrator` is dispatch-first and should route work to subagents by default.
+- `orchestrator` can only self-execute when all are true: low risk, single-file change, <= 20 changed lines, no cross-role verification needed.
+- Use parallel dispatch for independent tasks (up to 4 workers). Use serial dispatch for shared-file dependencies.
+- `triage` is manual-only and must never be auto-called.
+
+## Completion Gates (v2)
+- No evidence, no done.
+- `triage` can return `done` only if `confidence >= triage_done_confidence_threshold`.
+- `need-info` and `blocked` must include missing evidence and concrete `open_questions`.
+
+## State Machine (v2)
+- Allowed states: `todo -> in_progress -> done`.
+- Exception states: `need-info`, `blocked`, `cancelled`.
+- If retries exceed `max_retries_per_stage` or handoff depth exceeds `max_handoff_depth`, escalate or stop with explicit blocker.
+
 ## Task Protocol
 
 Dispatch input (primary -> subagent):
@@ -50,9 +74,10 @@ Result output (subagent -> primary):
 
 ```text
 task_id:
-status: done | blocked | need-info
+status: todo | in_progress | done | need-info | blocked | cancelled
 findings:
 evidence:
+confidence:
 next_actions:
 open_questions:
 ```
