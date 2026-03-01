@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Teams Architecture</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --ink: #172033;
+      --muted: #4d5b7a;
+      --line: #90a0c2;
+      --team-a: #dbeafe;
+      --team-b: #fee2e2;
+      --node: #f8fafc;
+      --accent: #1e3a8a;
+      --warn: #9a3412;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(145deg, #eef3fb 0%, #f9fbff 60%, #eef7ff 100%);
+    }
+
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+      display: grid;
+      gap: 20px;
+    }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid #d4ddf1;
+      border-radius: 14px;
+      box-shadow: 0 8px 18px rgba(17, 24, 39, 0.08);
+      padding: 16px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 26px;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+    }
+
+    .lane {
+      border: 1px solid #ced8ee;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .lane h2 {
+      margin: 0 0 10px;
+      font-size: 16px;
+    }
+
+    .team-a { background: linear-gradient(180deg, var(--team-a), #eff6ff); }
+    .team-b { background: linear-gradient(180deg, var(--team-b), #fff1f2); }
+
+    .nodes {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(120px, 1fr));
+      gap: 10px;
+    }
+
+    .nodes.team-b-grid {
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+    }
+
+    .node {
+      border: 1px solid #b7c6e8;
+      background: var(--node);
+      border-radius: 10px;
+      padding: 10px;
+      min-height: 88px;
+    }
+
+    .node strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 14px;
+    }
+
+    .node small {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+      display: block;
+    }
+
+    .flow {
+      margin-top: 10px;
+      padding: 10px;
+      border-left: 3px solid var(--accent);
+      background: #eff6ff;
+      font-size: 13px;
+      color: #1f2a44;
+    }
+
+    .side h3 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+
+    .list {
+      margin: 0;
+      padding-left: 18px;
+      color: #243352;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .tag {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      border: 1px solid #a8b7db;
+      background: #eef2ff;
+      color: #233870;
+    }
+
+    .warning {
+      margin-top: 8px;
+      border-left: 3px solid var(--warn);
+      background: #fff7ed;
+      padding: 8px 10px;
+      font-size: 12px;
+      color: #7c2d12;
+    }
+
+    .footer {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+      .nodes { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+      .nodes.team-b-grid { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section class="panel">
+      <h1>Two-Agent-Team Architecture</h1>
+      <p class="subtitle">Documentation implementation for OpenCode AGENTS workflows</p>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <div class="lane team-a">
+          <h2>Team A - Development Team</h2>
+          <div class="nodes">
+            <article class="node">
+              <strong>orchestrator</strong>
+              <small>Primary planner and dispatcher for development work.</small>
+              <span class="tag">Model: GPT-5.2</span>
+            </article>
+            <article class="node">
+              <strong>dev</strong>
+              <small>Implements features and fixes with verifiable outputs.</small>
+              <span class="tag">Model: GPT-5.3 Codex</span>
+            </article>
+            <article class="node">
+              <strong>qa</strong>
+              <small>Runs acceptance and regression checks.</small>
+              <span class="tag">Model: GPT-5.3 Codex</span>
+            </article>
+            <article class="node">
+              <strong>review</strong>
+              <small>Performs structured risk-focused code review.</small>
+              <span class="tag">Model: GPT-5.2 Codex</span>
+            </article>
+            <article class="node">
+              <strong>debug</strong>
+              <small>Auto-callable quick localization pass for hard issues.</small>
+              <span class="tag">Model: GPT-5.3 Codex</span>
+            </article>
+          </div>
+          <div class="flow">
+            Flow: User request -> orchestrator -> (dev, qa, review) -> integrated result.
+            If a hard issue appears, orchestrator can auto-dispatch one quick debug pass.
+          </div>
+        </div>
+
+        <div class="lane team-b">
+          <h2>Team B - Hard-Problem Team (Manual Trigger)</h2>
+          <div class="nodes team-b-grid">
+            <article class="node">
+              <strong>triage</strong>
+              <small>Manual-only root-cause lead. Runs hypothesis loops.</small>
+              <span class="tag">Model: GPT-5.2</span>
+            </article>
+            <article class="node">
+              <strong>dev</strong>
+              <small>Verifies candidate fixes against narrowed focus points.</small>
+              <span class="tag">Model: GPT-5.3 Codex</span>
+            </article>
+            <article class="node">
+              <strong>debug (shared)</strong>
+              <small>Shared from Team A for focused localization loops.</small>
+              <span class="tag">Model: GPT-5.3 Codex</span>
+            </article>
+          </div>
+          <div class="flow">
+            Flow: Manual @triage -> uses shared debug verification loops -> focused hypotheses -> dev fix validation -> root-cause report.
+          </div>
+        </div>
+      </div>
+
+      <aside class="panel side">
+        <h3>Implementation Method</h3>
+        <ul class="list">
+          <li>Keep one shared role vocabulary across platforms.</li>
+          <li>Write OpenCode AGENTS instruction blocks with matching role contracts.</li>
+          <li>Use fixed task protocol fields for dispatch and result collection.</li>
+          <li>Enforce manual-only triage invocation policy.</li>
+          <li>Preserve evidence-first output in debug, qa, and review.</li>
+        </ul>
+
+        <h3 style="margin-top: 14px;">Escalation Policy</h3>
+        <ul class="list">
+          <li>`orchestrator` runs one quick `debug` pass on suspected hard issues.</li>
+          <li>If unresolved, suggest user to manually invoke `triage`.</li>
+          <li>No automatic promotion from `orchestrator` to `triage`.</li>
+          <li>`triage` is manual-only; `debug` is not manual-only.</li>
+        </ul>
+
+        <div class="warning">
+          This architecture is instruction-driven. Runtime orchestration is controlled by OpenCode AGENTS behavior and user invocation policy.
+        </div>
+      </aside>
+    </section>
+
+    <section class="panel footer">
+      Paths: docs/plans/2026-03-01-agent-teams-implementation-plan.md and docs/architecture/agent-teams-architecture.html (OpenCode-only)
+    </section>
+  </main>
+</body>
+</html>
