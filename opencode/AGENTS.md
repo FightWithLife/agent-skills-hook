@@ -23,3 +23,36 @@ These instructions are loaded globally by OpenCode.
   - What changed
   - Tests/verification (or "Not run")
   - Suggested next step (if any)
+
+## OpenCode Agent Teams
+- Agent configs live in `opencode/agents/` and define two primary agents and four subagents.
+- Primary agents: `orchestrator` (development team) and `triage` (hard-problem team, manual only).
+- Subagents: `dev`, `qa`, `review`, `debug`.
+- Escalation rule: `orchestrator` runs one quick `debug` pass on hard issues, then suggests manual `triage` if unresolved. No auto `triage`.
+
+## Task Protocol
+
+Dispatch input (primary -> subagent):
+
+```text
+task_id:
+goal:
+context:
+constraints:
+inputs:
+expected_outputs:
+acceptance_criteria:
+risks:
+deadline:
+```
+
+Result output (subagent -> primary):
+
+```text
+task_id:
+status: done | blocked | need-info
+findings:
+evidence:
+next_actions:
+open_questions:
+```
