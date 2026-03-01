@@ -1,7 +1,7 @@
 ---
 description: Runs QA validation and regression checks.
 mode: subagent
-model: opencode/gpt-5.3-codex
+model: openai/gpt-5.3-codex
 tools:
   bash: true
   write: false

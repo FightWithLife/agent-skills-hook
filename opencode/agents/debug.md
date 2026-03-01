@@ -1,7 +1,7 @@
 ---
 description: Localizes issues and produces evidence-backed debug reports.
 mode: subagent
-model: opencode/gpt-5.3-codex
+model: openai/gpt-5.3-codex
 tools:
   bash: true
   write: true

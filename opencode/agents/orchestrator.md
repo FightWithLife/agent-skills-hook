@@ -1,7 +1,7 @@
 ---
 description: Orchestrates development tasks and dispatches subagents.
 mode: primary
-model: opencode/gpt-5.2
+model: openai/gpt-5.2
 tools:
   bash: true
   write: false
