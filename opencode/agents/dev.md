@@ -16,8 +16,18 @@ tools:
 - 不负责最终质量放行；最终放行由 `qa` 与 `review` 提供依据。
 
 证据要求：
-- 必须提供至少一条验证命令和对应结果摘要。
+- 必须提供 `evidence.commands`，且至少一条验证命令含 `cmd` 与 `result_summary`。
 - 若任务未完成，必须说明当前阻塞点和下一步建议。
+
+建议证据结构：
+
+```yaml
+evidence:
+  commands:
+    - cmd: "<verification command>"
+      result_summary: "<pass/fail + key output>"
+  artifacts: []
+```
 
 任务协议：
 
