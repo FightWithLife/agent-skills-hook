@@ -14,6 +14,7 @@
 
 ## 目录
 - [快速开始（给人）](#快速开始给人)
+- [OpenCode Agents 部署（给人）](#opencode-agents-部署给人)
 - [AI 部署规范（给 AI，English）](#ai-deployment-spec-english-for-ai)
 - [验证与回滚](#验证与回滚)
 - [AI 环境依赖清单](#ai-环境依赖清单)
@@ -33,6 +34,37 @@ git submodule update --init --recursive agents/skills
 目标：Codex CLI / OpenCode / Claude Code 使用同一份 skills（仓库内 agents/skills）。
 要求：先备份，再部署，再验证，最后回报变更与验证结果。
 ```
+
+## OpenCode Agents 部署（给人）
+本仓库里 OpenCode Agents 定义文件：
+- `opencode/AGENTS.md`
+- `opencode/agents/*.md`
+
+OpenCode 全局读取位置：
+- `~/.config/opencode/AGENTS.md`
+- `~/.config/opencode/agents/`
+
+从仓库根目录执行（先备份再覆盖）：
+
+```bash
+set -euo pipefail
+
+STAMP="$(date +%Y%m%d-%H%M%S)"
+BACKUP="$HOME/.opencode-backups/agent-skills-hook-$STAMP/opencode"
+
+mkdir -p "$BACKUP" "$HOME/.config/opencode/agents"
+
+[ -f "$HOME/.config/opencode/AGENTS.md" ] && cp -a "$HOME/.config/opencode/AGENTS.md" "$BACKUP/AGENTS.md"
+[ -d "$HOME/.config/opencode/agents" ] && cp -a "$HOME/.config/opencode/agents" "$BACKUP/"
+
+cp -a "./opencode/AGENTS.md" "$HOME/.config/opencode/AGENTS.md"
+cp -a "./opencode/agents/." "$HOME/.config/opencode/agents/"
+
+echo "OpenCode Agents 已部署。备份目录：$BACKUP"
+```
+
+部署后请重启 OpenCode 生效。
+另外，模型 ID 建议统一使用 `openai/*`（例如 `openai/gpt-5.3-codex`）。
 
 ## AI Deployment Spec (English, for AI)
 Use this section as the source of truth for deployment behavior.
@@ -379,4 +411,3 @@ npm install -g @tarquinen/opencode-dcp@latest
 1. 定位冲突目录：`ls -1 ~/.npm/_npx`
 2. 备份冲突目录：`mv ~/.npm/_npx/<hash> ~/.npm/_npx/<hash>.bak.$(date +%Y%m%d-%H%M%S)`
 3. 重新验证连接：`opencode mcp list`
-
