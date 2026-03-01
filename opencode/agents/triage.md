@@ -1,7 +1,7 @@
 ---
 description: Manual-only hard-problem triage and root-cause analysis.
 mode: primary
-model: opencode/gpt-5.2
+model: openai/gpt-5.2
 tools:
   bash: true
   write: false

@@ -1,7 +1,7 @@
 ---
 description: Performs read-only code review with severity labels.
 mode: subagent
-model: opencode/gpt-5.2-codex
+model: openai/gpt-5.2-codex
 tools:
   bash: false
   write: false
