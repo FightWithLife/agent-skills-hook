@@ -40,6 +40,17 @@ git submodule update --init --recursive agents/skills
 - `opencode/AGENTS.md`
 - `opencode/agents/*.md`
 
+当前 agents 清单（OpenCode）：
+- Primary：`orchestrator`、`triage`（`triage` 仅手动调用）
+- Native subagent：`explore`（由 OpenCode upstream 提供，**不要**在本地创建 `explore.md`）
+- Local subagents：`dev`、`qa`、`review`、`debug`、`scoper`、`impact`、`security`
+
+本次新增能力/门禁摘要：
+- 新增 `scoper/impact/security` 三个本地子代理，并纳入路由策略。
+- 引入 strict review gate：`code-review` 触发前必须满足 `dev.status=done` + `dev` 有命令级证据 + `qa.status=done` 且 `qa.verdict=pass`。
+- `plan-review` 改为 opt-in（默认不启用）。
+- `explore` 明确为原生子代理，不走本地伪实现。
+
 OpenCode 全局读取位置：
 - `~/.config/opencode/AGENTS.md`
 - `~/.config/opencode/agents/`
@@ -168,13 +179,15 @@ if [ "$TARGET" = "opencode" ] || [ "$TARGET" = "both" ] || [ "$TARGET" = "all" ]
   mkdir -p "$BACKUP_O/opencode" "$BACKUP_O/agents" "$BACKUP_O/claude" "$BACKUP_O/repo"
 
   [ -f "$HOME/.config/opencode/AGENTS.md" ] && cp -a "$HOME/.config/opencode/AGENTS.md" "$BACKUP_O/opencode/AGENTS.md"
+  [ -d "$HOME/.config/opencode/agents" ] && cp -a "$HOME/.config/opencode/agents" "$BACKUP_O/opencode/"
   [ -e "$HOME/.config/opencode/skills" ] && cp -a "$HOME/.config/opencode/skills" "$BACKUP_O/opencode/"
   [ -e "$HOME/.agents/skills" ] && cp -a "$HOME/.agents/skills" "$BACKUP_O/agents/"
   [ -e "$HOME/.claude/skills" ] && cp -a "$HOME/.claude/skills" "$BACKUP_O/claude/"
   cp -a "$REPO_SKILLS" "$BACKUP_O/repo/"
 
-  mkdir -p "$HOME/.config/opencode"
+  mkdir -p "$HOME/.config/opencode" "$HOME/.config/opencode/agents"
   cp -a "$REPO_ROOT/opencode/AGENTS.md" "$HOME/.config/opencode/AGENTS.md"
+  cp -a "$REPO_ROOT/opencode/agents/." "$HOME/.config/opencode/agents/"
 
   merge_missing_skills "$HOME/.config/opencode/skills"
   merge_missing_skills "$HOME/.agents/skills"
@@ -263,6 +276,23 @@ After running deployment, output:
 2. Backup directory paths.
 3. Verification results.
 4. Any blocked step with exact reason.
+
+### OpenCode Post-Deploy Quick Verification
+Run these checks to confirm new gates and agent files are in place:
+
+```bash
+test -f ~/.config/opencode/AGENTS.md && grep -n 'strict_review_gate\|plan-review\|code-review' ~/.config/opencode/AGENTS.md
+```
+
+```bash
+test -f ~/.config/opencode/agents/scoper.md && test -f ~/.config/opencode/agents/impact.md && test -f ~/.config/opencode/agents/security.md
+```
+
+```bash
+test ! -f ~/.config/opencode/agents/explore.md && echo 'OK: explore is native (no local explore.md)'
+```
+
+Rollback hint: restore `~/.config/opencode/AGENTS.md` and `~/.config/opencode/agents/` from latest `$BACKUP_O/opencode/`.
 
 ## 验证与回滚
 ### 验证
