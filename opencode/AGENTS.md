@@ -44,6 +44,7 @@ These instructions are loaded globally by OpenCode.
 - `orchestrator` is dispatch-first and should route work to subagents by default.
 - `orchestrator` can only self-execute when all are true: low risk, single-file change, <= 20 changed lines, no cross-role verification needed.
 - Any substantive review output MUST be executed by `review` subagent; `orchestrator` must not act as reviewer.
+- Any substantive `qa/security/impact` output MUST be executed by the corresponding subagent: `qa` owns QA verdicts, `security` owns security risk conclusions, and `impact` owns impact/regression-surface conclusions; `orchestrator` can only dispatch and summarize evidence.
 - Use parallel dispatch for independent tasks (up to 4 workers). Use serial dispatch for shared-file dependencies.
 - `triage` is manual-only and must never be auto-called.
 - Route hints:
