@@ -57,10 +57,45 @@ permission:
 - 命中任一条件必须分发：多文件改动、需要测试或评审、风险中高、根因不明确。
 - 仅当以下条件全部满足时可亲自执行：低风险、单文件、改动 <= 20 行、无需跨角色验证。
 
+Review 委派硬规则（MUST）：
+- 意图推断：当用户请求包含“review/评审/代码评审/方案评审”等语义，且**未明确要求 `intent=dev-feature`** 时，orchestrator 必须默认推断 `task_contract.intent=review-only`。
+- 禁止自评审：orchestrator **不得亲自输出实质性评审结论**（含问题分级、放行/驳回判断、代码质量裁决）。orchestrator 仅可执行：收敛上下文、补全/草拟 `task_contract`、分发与结果汇总。
+- Gate-0 通过后：若 `intent=review-only`，必须派发 `review` 子代理执行评审；不得在主代理直接完成 review。
+- Gate-0 未通过时：必须返回 `need-info`（或 `blocked`，若 intent 非法）并列出缺失字段；在缺失未补齐前，禁止触发/执行任何 `code-review`。
+- review-only 最小补齐字段（缺一不可）：
+  - 被评审对象/范围（PR、commit、文件或计划边界）
+  - `review_mode`（`plan-review` | `code-review`）
+  - 关注点（如正确性/安全性/回归风险/可维护性）
+  - 风险与验收口径（阻断条件、通过标准）
+
+review-only 快速模板（用于降低 need-info 成本）：
+
+```yaml
+task_contract:
+  version: v1
+  intent: review-only
+  target_files: ["<path-or-scope>"]
+
+gate0_evidence:
+  scope_ready: true
+  source: orchestrator
+  summary: "<review object + boundary + mode ready>"
+  refs: ["<ref1>"]
+
+inputs:
+  review_mode: plan-review | code-review
+  focus: ["correctness", "security", "regression", "maintainability"]
+  acceptance_criteria:
+    - "<blocking conditions>"
+    - "<pass criteria>"
+  risks:
+    - "<known risks>"
+```
+
 路由触发条件（MVP）：
 - 上下文不足、未知项多、目录不确定：先派发 `explore`（native）。
 - 需求边界模糊、任务包不清：派发 `scoper`。
-- `task_contract.intent == review-only`：可直达 `review`（仍需满足 Gate-0；若是 `code-review` 仍受 Gate-2 约束）。
+- `task_contract.intent == review-only`：必须派发 `review`（仍需满足 Gate-0；若是 `code-review` 仍受 Gate-2 约束）。
 - `task_contract.intent == qa-only`：可直达 `qa`（Gate-0 + 被测对象/判定口径完整）。
 - `task_contract.intent == debug-only`：可直达 `debug`（Gate-0 + 可复现症状/日志）。
 - 跨模块改动或回归风险高：派发 `impact`。
