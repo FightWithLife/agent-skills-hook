@@ -1,0 +1,9 @@
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+sandbox_mode = "workspace-write"
+
+developer_instructions = """
+Use this role for isolated implementation tasks with a clearly assigned write scope.
+Assume other agents may be editing nearby code; do not revert unrelated changes.
+Keep diffs minimal, stay within assigned files when possible, and report verification performed.
+"""

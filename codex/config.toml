@@ -1,0 +1,86 @@
+model = "gpt-5.4"
+model_reasoning_effort = "xhigh"
+model_verbosity = "medium"
+disable_response_storage = true
+sandbox_mode = "danger-full-access"
+windows_wsl_setup_acknowledged = true
+approval_policy = "never"
+profile = "fast"
+file_opener = "vscode"
+model_provider = "synai"
+web_search = "cached"
+suppress_unstable_features_warning = true
+
+[history]
+persistence = "save-all"
+
+[tui]
+notifications = true
+
+[shell_environment_policy]
+inherit = "all"
+ignore_default_excludes = false
+
+[sandbox_workspace_write]
+network_access = true
+
+[features]
+plan_tool = true
+apply_patch_freeform = true
+view_image_tool = true
+unified_exec = false
+streamable_shell = false
+rmcp_client = true
+elevated_windows_sandbox = true
+multi_agent = true
+
+[agents]
+max_threads = 4
+max_depth = 1
+
+[agents.explorer]
+description = "Read-only investigation for codebase questions, root-cause analysis, and locating relevant files or symbols."
+config_file = "agents/explorer.toml"
+
+[agents.worker]
+description = "Implementation worker for bounded code changes with a clear file or module ownership boundary."
+config_file = "agents/worker.toml"
+
+[agents.monitor]
+description = "Background watcher for long-running commands, polling, or wait-heavy tasks that should not block the main agent."
+config_file = "agents/monitor.toml"
+
+[agents.reviewer]
+description = "Review-focused agent for correctness, test risk, maintainability, and scoped code-quality feedback."
+config_file = "agents/reviewer.toml"
+
+[profiles.auto-max]
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+model = "gpt-5.3-codex"
+model_reasoning_effort = "xhigh"
+
+[profiles.fast]
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+model = "gpt-5.4"
+model_reasoning_effort = "xhigh"
+model_verbosity = "medium"
+service_tier = "fast"
+
+[profiles.review]
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[notice]
+hide_gpt5_1_migration_prompt = true
+hide_full_access_warning = true
+
+[notice.model_migrations]
+"gpt-5.2-codex" = "gpt-5.3-codex"
+
+[model_providers.synai]
+name = "synai"
+base_url = "https://api.zybulid.xyz/v1"
+wire_api = "responses"
+requires_openai_auth = true

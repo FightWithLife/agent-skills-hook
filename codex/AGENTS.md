@@ -25,8 +25,10 @@ These instructions are loaded globally by Codex CLI.
 - Prefer `worker` for isolated implementation tasks with a clearly assigned file or module scope.
 - Prefer `monitor` for long waits, polling, or background observation that would otherwise block the main agent.
 - Prefer `reviewer` for code review, change-risk checks, and scoped verification feedback before finalizing.
-- Prefer `security-reviewer` for authentication, authorization, secrets handling, input validation, command execution, sandboxing, and trust-boundary reviews.
 - After subagents finish, integrate results, resolve conflicts, and verify before answering.
+
+## Code Comment Requirement
+- Any code you write or modify must include Chinese Doxygen-standard comments.
 
 ## Stop (when task is complete)
 - End with a short "Stop" block:
