@@ -18,6 +18,16 @@ These instructions are loaded globally by Codex CLI.
 ## Tool Safety
 - Obey execpolicy rules. Never bypass safety checks unless the user explicitly asks and it is safe.
 
+## Multi-Agent Defaults
+- When a task has 2 or more independent subtasks, proactively use subagents without waiting for the user to ask.
+- Stay single-agent for trivial tasks, tightly coupled refactors, or work that is likely to edit the same files.
+- Prefer `explorer` for read-only investigation, root-cause analysis, and answering scoped codebase questions.
+- Prefer `worker` for isolated implementation tasks with a clearly assigned file or module scope.
+- Prefer `monitor` for long waits, polling, or background observation that would otherwise block the main agent.
+- Prefer `reviewer` for code review, change-risk checks, and scoped verification feedback before finalizing.
+- Prefer `security-reviewer` for authentication, authorization, secrets handling, input validation, command execution, sandboxing, and trust-boundary reviews.
+- After subagents finish, integrate results, resolve conflicts, and verify before answering.
+
 ## Stop (when task is complete)
 - End with a short "Stop" block:
   - What changed
