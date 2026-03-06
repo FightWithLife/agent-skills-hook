@@ -160,18 +160,24 @@ if [ "$TARGET" = "codex" ] || [ "$TARGET" = "both" ] || [ "$TARGET" = "all" ]; t
   mkdir -p "$BACKUP_C/codex" "$BACKUP_C/agents" "$BACKUP_C/repo"
 
   [ -f "$HOME/.codex/AGENTS.md" ] && cp -a "$HOME/.codex/AGENTS.md" "$BACKUP_C/codex/AGENTS.md"
+  [ -f "$HOME/.codex/config.toml" ] && cp -a "$HOME/.codex/config.toml" "$BACKUP_C/codex/config.toml"
+  [ -e "$HOME/.codex/agents" ] && cp -a "$HOME/.codex/agents" "$BACKUP_C/codex/"
   [ -d "$HOME/.codex/rules" ] && cp -a "$HOME/.codex/rules" "$BACKUP_C/codex/"
   [ -e "$HOME/.codex/skills" ] && cp -a "$HOME/.codex/skills" "$BACKUP_C/codex/"
   [ -e "$HOME/.agents/skills" ] && cp -a "$HOME/.agents/skills" "$BACKUP_C/agents/"
   cp -a "$REPO_SKILLS" "$BACKUP_C/repo/"
 
-  mkdir -p "$HOME/.codex/rules"
+  mkdir -p "$HOME/.codex/rules" "$REPO_ROOT/codex/agents"
+  [ -f "$HOME/.codex/config.toml" ] && cp -an "$HOME/.codex/config.toml" "$REPO_ROOT/codex/config.toml"
   cp -a "$REPO_ROOT/codex/AGENTS.md" "$HOME/.codex/AGENTS.md"
   cp -a "$REPO_ROOT/codex/rules/." "$HOME/.codex/rules/"
+  [ -d "$HOME/.codex/agents" ] && cp -an "$HOME/.codex/agents/." "$REPO_ROOT/codex/agents/"
 
   merge_missing_skills "$HOME/.codex/skills"
   merge_missing_skills "$HOME/.agents/skills"
 
+  safe_link "$HOME/.codex/config.toml" "$REPO_ROOT/codex/config.toml"
+  safe_link "$HOME/.codex/agents" "$REPO_ROOT/codex/agents"
   safe_link "$HOME/.codex/skills" "$REPO_SKILLS"
   safe_link "$HOME/.agents/skills" "$HOME/.codex/skills"
 
@@ -308,10 +314,20 @@ Rollback hint: restore `~/.config/opencode/AGENTS.md` and `~/.config/opencode/ag
 ```bash
 codex execpolicy check --pretty --rules ~/.codex/rules/default.rules -- rm -rf /
 ```
+- Codex 配置检查：`readlink -f ~/.codex/config.toml` 应指向 `<repo>/codex/config.toml`。
+- Codex agents 检查：`readlink -f ~/.codex/agents` 应指向 `<repo>/codex/agents`。
 - 新会话首条回复应出现：`SessionStart` 与 `Skill Match`。
 - OpenCode 新会话首条回复应出现：`SessionStart` 与 `Skill Match`。
 - Claude Code 新会话首条回复应出现：`SessionStart` 与 `Skill Match`。
 - Claude 检查：`readlink -f ~/.claude/skills` 应指向 `<repo>/agents/skills`。
+
+```bash
+readlink -f ~/.codex/config.toml
+```
+
+```bash
+readlink -f ~/.codex/agents
+```
 
 ```bash
 readlink -f ~/.claude/skills
@@ -351,7 +367,7 @@ test -x ~/.claude/hooks/user-prompt-skill-forced-eval.sh
 
 ### 回滚
 从最近备份目录手动恢复以下路径即可：
-- Codex：`~/.codex/AGENTS.md`、`~/.codex/rules/`、`~/.codex/skills`、`~/.agents/skills`
+- Codex：`~/.codex/AGENTS.md`、`~/.codex/config.toml`、`~/.codex/agents/`、`~/.codex/rules/`、`~/.codex/skills`、`~/.agents/skills`
 - OpenCode：`~/.config/opencode/AGENTS.md`、`~/.config/opencode/skills`、`~/.agents/skills`、`~/.claude/skills`
 - Claude：`~/.claude/CLAUDE.md`、`~/.claude/AGENTS.md`、`~/.claude/settings.json`、`~/.claude/hooks/`、`~/.claude/skills`、`~/.agents/skills`
 
