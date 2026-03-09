@@ -21,8 +21,6 @@ import {
 import { state } from "./state";
 import { dom } from "./ui/dom";
 import { setStatus, setServiceHint } from "./ui/status";
-import { createFeedbackHandlers } from "./ui/feedback";
-import { createThemeController } from "./ui/theme";
 import {
   buildEnvOverrideDescription,
   buildEnvOverrideOptionLabel,
@@ -33,7 +31,6 @@ import {
   normalizeStringList,
 } from "./ui/env-overrides";
 import { withButtonBusy } from "./ui/button-busy";
-import { createStartupMaskController } from "./ui/startup-mask";
 import { normalizeUpstreamProxyUrl } from "./utils/upstream-proxy.js";
 import {
   ensureConnected,
@@ -69,52 +66,23 @@ import {
 import { renderApiKeys, openApiKeyModal, closeApiKeyModal, populateApiKeyModelSelect } from "./views/apikeys";
 import { openUsageModal, closeUsageModal, renderUsageSnapshot } from "./views/usage";
 import { renderRequestLogs } from "./views/requestlogs";
-import { createNavigationHandlers } from "./views/navigation";
-import { bindMainEvents } from "./views/event-bindings";
-import { bindSettingsEvents } from "./settings/bind-settings-events.js";
-import { createSettingsController } from "./settings/controller.js";
-import { createSettingsServiceSync } from "./settings/service-sync.js";
 import { createAppRuntime } from "./runtime/app-runtime.js";
 import { createBootstrapRunner } from "./runtime/app-bootstrap.js";
+import { createAppShellRuntime } from "./runtime/app-shell.js";
 import { createAccountsPageCoordinator } from "./runtime/accounts-page-coordinator.js";
 import { createManagementRuntime } from "./runtime/management-runtime.js";
+import { createMainSettingsRuntime } from "./runtime/main-settings-runtime.js";
 
-const { showToast, showConfirmDialog } = createFeedbackHandlers({ dom });
-let settingsController = null;
-let settingsServiceSync = null;
 let serviceLifecycle = null;
+let settingsRuntime = null;
 
 function saveAppSettingsPatch(patch = {}) {
-  if (!settingsController) {
-    throw new Error("settings controller is not ready");
+  if (!settingsRuntime) {
+    throw new Error("settings runtime is not ready");
   }
-  return settingsController.saveAppSettingsPatch(patch);
+  return settingsRuntime.saveAppSettingsPatch(patch);
 }
 
-const {
-  renderThemeButtons,
-  setTheme,
-  restoreTheme,
-  closeThemePanel,
-  toggleThemePanel,
-} = createThemeController({
-  dom,
-  onThemeChange: (theme) => saveAppSettingsPatch({ theme }),
-});
-
-const { switchPage, updateRequestLogFilterButtons } = createNavigationHandlers({
-  state,
-  dom,
-  closeThemePanel,
-  onPageActivated: (page) => {
-    renderCurrentPageView(page);
-    if (page === "accounts") {
-      void reloadAccountsPage({ silent: true, latestOnly: true });
-    }
-  },
-});
-
-const { setStartupMask } = createStartupMaskController({ dom, state });
 const UPDATE_CHECK_DELAY_MS = 1200;
 
 function isTauriRuntime() {
@@ -129,7 +97,124 @@ function normalizeErrorMessage(err) {
   return raw.length > 120 ? `${raw.slice(0, 120)}...` : raw;
 }
 
-settingsController = createSettingsController({
+const {
+  bindEvents,
+  closeThemePanel,
+  renderThemeButtons,
+  restoreTheme,
+  setStartupMask,
+  setTheme,
+  showConfirmDialog,
+  showToast,
+  switchPage,
+  toggleThemePanel,
+  updateRequestLogFilterButtons,
+} = createAppShellRuntime({
+  dom,
+  state,
+  saveAppSettingsPatch,
+  onPageActivated: (page) => {
+    renderCurrentPageView(page);
+    if (page === "accounts") {
+      void reloadAccountsPage({ silent: true, latestOnly: true });
+    }
+  },
+});
+
+let loadAppSettings;
+let getAppSettingsSnapshot;
+let applyBrowserModeUi;
+let readUpdateAutoCheckSetting;
+let saveUpdateAutoCheckSetting;
+let initUpdateAutoCheckSetting;
+let readCloseToTrayOnCloseSetting;
+let saveCloseToTrayOnCloseSetting;
+let setCloseToTrayOnCloseToggle;
+let applyCloseToTrayOnCloseSetting;
+let initCloseToTrayOnCloseSetting;
+let readLightweightModeOnCloseToTraySetting;
+let saveLightweightModeOnCloseToTraySetting;
+let setLightweightModeOnCloseToTrayToggle;
+let syncLightweightModeOnCloseToTrayAvailability;
+let applyLightweightModeOnCloseToTraySetting;
+let initLightweightModeOnCloseToTraySetting;
+let readLowTransparencySetting;
+let saveLowTransparencySetting;
+let applyLowTransparencySetting;
+let initLowTransparencySetting;
+let normalizeServiceListenMode;
+let serviceListenModeLabel;
+let buildServiceListenModeHint;
+let setServiceListenModeSelect;
+let setServiceListenModeHint;
+let readServiceListenModeSetting;
+let initServiceListenModeSetting;
+let applyServiceListenModeToService;
+let syncServiceListenModeOnStartup;
+let normalizeRouteStrategy;
+let routeStrategyLabel;
+let readRouteStrategySetting;
+let saveRouteStrategySetting;
+let setRouteStrategySelect;
+let initRouteStrategySetting;
+let normalizeCpaNoCookieHeaderMode;
+let readCpaNoCookieHeaderModeSetting;
+let saveCpaNoCookieHeaderModeSetting;
+let setCpaNoCookieHeaderModeToggle;
+let initCpaNoCookieHeaderModeSetting;
+let readUpstreamProxyUrlSetting;
+let saveUpstreamProxyUrlSetting;
+let setUpstreamProxyInput;
+let setUpstreamProxyHint;
+let initUpstreamProxySetting;
+let normalizeBackgroundTasksSettings;
+let readBackgroundTasksSetting;
+let saveBackgroundTasksSetting;
+let setBackgroundTasksForm;
+let readBackgroundTasksForm;
+let updateBackgroundTasksHint;
+let initBackgroundTasksSetting;
+let getEnvOverrideSelectedKey;
+let findEnvOverrideCatalogItem;
+let setEnvOverridesHint;
+let readEnvOverridesSetting;
+let buildEnvOverrideHint;
+let saveEnvOverridesSetting;
+let renderEnvOverrideEditor;
+let initEnvOverridesSetting;
+let updateWebAccessPasswordState;
+let syncWebAccessPasswordInputs;
+let saveWebAccessPassword;
+let clearWebAccessPassword;
+let openWebSecurityModal;
+let closeWebSecurityModal;
+let persistServiceAddrInput;
+let uiLowTransparencyToggleId;
+let upstreamProxyHintText;
+let backgroundTasksRestartKeysDefault;
+let applyRouteStrategyToService;
+let applyCpaNoCookieHeaderModeToService;
+let applyUpstreamProxyToService;
+let applyBackgroundTasksToService;
+let syncRuntimeSettingsForCurrentProbe;
+let syncRuntimeSettingsOnStartup;
+
+serviceLifecycle = createServiceLifecycle({
+  state,
+  dom,
+  setServiceHint,
+  normalizeAddr,
+  startService,
+  stopService,
+  waitForConnection,
+  refreshAll: () => refreshAll(),
+  maybeRefreshApiModelsCache: (options) => maybeRefreshApiModelsCache(options),
+  ensureAutoRefreshTimer,
+  stopAutoRefreshTimer,
+  onStartupState: (loading, message) => setStartupMask(loading, message),
+});
+
+settingsRuntime = createMainSettingsRuntime({
   dom,
   state,
   appSettingsGet,
@@ -137,6 +222,7 @@ settingsController = createSettingsController({
   showToast,
   normalizeErrorMessage,
   isTauriRuntime,
+  ensureConnected,
   normalizeAddr,
   normalizeUpstreamProxyUrl,
   buildEnvOverrideDescription,
@@ -146,9 +232,14 @@ settingsController = createSettingsController({
   normalizeEnvOverrideCatalog,
   normalizeEnvOverrides,
   normalizeStringList,
+  serviceLifecycle,
+  serviceGatewayRouteStrategySet,
+  serviceGatewayHeaderPolicySet,
+  serviceGatewayUpstreamProxySet,
+  serviceGatewayBackgroundTasksSet,
 });
 
-const {
+({
   loadAppSettings,
   getAppSettingsSnapshot,
   applyBrowserModeUi,
@@ -220,22 +311,13 @@ const {
   uiLowTransparencyToggleId,
   upstreamProxyHintText,
   backgroundTasksRestartKeysDefault,
-} = settingsController;
-
-serviceLifecycle = createServiceLifecycle({
-  state,
-  dom,
-  setServiceHint,
-  normalizeAddr,
-  startService,
-  stopService,
-  waitForConnection,
-  refreshAll: () => refreshAll(),
-  maybeRefreshApiModelsCache: (options) => maybeRefreshApiModelsCache(options),
-  ensureAutoRefreshTimer,
-  stopAutoRefreshTimer,
-  onStartupState: (loading, message) => setStartupMask(loading, message),
-});
+  applyRouteStrategyToService,
+  applyCpaNoCookieHeaderModeToService,
+  applyUpstreamProxyToService,
+  applyBackgroundTasksToService,
+  syncRuntimeSettingsForCurrentProbe,
+  syncRuntimeSettingsOnStartup,
+} = settingsRuntime);
 
 const {
   buildMainRenderActions,
@@ -291,11 +373,7 @@ const {
   populateApiKeyModelSelect,
 });
 
-const {
-  handleCheckUpdateClick,
-  scheduleStartupUpdateCheck,
-  bootstrapUpdateStatus,
-} = createUpdateController({
+const { handleCheckUpdateClick, scheduleStartupUpdateCheck, bootstrapUpdateStatus } = createUpdateController({
   dom,
   showToast,
   showConfirmDialog,
@@ -311,71 +389,6 @@ const {
   nextPaintTick,
   updateCheckDelayMs: UPDATE_CHECK_DELAY_MS,
 });
-
-settingsServiceSync = createSettingsServiceSync({
-  state,
-  showToast,
-  normalizeErrorMessage,
-  isTauriRuntime,
-  ensureConnected,
-  serviceLifecycle,
-  serviceGatewayRouteStrategySet,
-  serviceGatewayHeaderPolicySet,
-  serviceGatewayUpstreamProxySet,
-  serviceGatewayBackgroundTasksSet,
-  readRouteStrategySetting,
-  saveRouteStrategySetting,
-  setRouteStrategySelect,
-  normalizeRouteStrategy,
-  routeStrategyLabel,
-  readCpaNoCookieHeaderModeSetting,
-  saveCpaNoCookieHeaderModeSetting,
-  setCpaNoCookieHeaderModeToggle,
-  normalizeCpaNoCookieHeaderMode,
-  readUpstreamProxyUrlSetting,
-  saveUpstreamProxyUrlSetting,
-  setUpstreamProxyInput,
-  setUpstreamProxyHint,
-  normalizeUpstreamProxyUrl,
-  upstreamProxyHintText,
-  readBackgroundTasksSetting,
-  saveBackgroundTasksSetting,
-  setBackgroundTasksForm,
-  normalizeBackgroundTasksSettings,
-  updateBackgroundTasksHint,
-  backgroundTasksRestartKeysDefault,
-});
-
-function requireSettingsServiceSync() {
-  if (!settingsServiceSync) {
-    throw new Error("settings service sync is not ready");
-  }
-  return settingsServiceSync;
-}
-
-async function applyRouteStrategyToService(strategy, options) {
-  return requireSettingsServiceSync().applyRouteStrategyToService(strategy, options);
-}
-
-async function applyCpaNoCookieHeaderModeToService(enabled, options) {
-  return requireSettingsServiceSync().applyCpaNoCookieHeaderModeToService(enabled, options);
-}
-
-async function applyUpstreamProxyToService(proxyUrl, options) {
-  return requireSettingsServiceSync().applyUpstreamProxyToService(proxyUrl, options);
-}
-
-async function applyBackgroundTasksToService(settings, options) {
-  return requireSettingsServiceSync().applyBackgroundTasksToService(settings, options);
-}
-
-async function syncRuntimeSettingsForCurrentProbe() {
-  return requireSettingsServiceSync().syncRuntimeSettingsForCurrentProbe();
-}
-
-async function syncRuntimeSettingsOnStartup() {
-  return requireSettingsServiceSync().syncRuntimeSettingsOnStartup();
-}
 
 const loginFlow = createLoginFlow({
   dom,
@@ -425,117 +438,6 @@ const {
   renderApiKeys,
 });
 
-function bindEvents() {
-  bindMainEvents({
-    dom,
-    state,
-    switchPage,
-    openAccountModal,
-    openApiKeyModal,
-    closeAccountModal,
-    handleLogin: loginFlow.handleLogin,
-    handleCancelLogin: loginFlow.handleCancelLogin,
-    showToast,
-    handleManualCallback: loginFlow.handleManualCallback,
-    closeUsageModal,
-    refreshUsageForAccount,
-    closeApiKeyModal,
-    createApiKey,
-    handleClearRequestLogs,
-    refreshRequestLogs,
-    renderRequestLogs,
-    refreshAll: handleRefreshAllClick,
-    ensureConnected,
-    refreshApiModels,
-    refreshApiModelsNow,
-    populateApiKeyModelSelect,
-    importAccountsFromFiles,
-    importAccountsFromDirectory,
-    deleteSelectedAccounts,
-    deleteUnavailableFreeAccounts,
-    exportAccountsByFile,
-    toggleThemePanel,
-    closeThemePanel,
-    setTheme,
-    handleServiceToggle: serviceLifecycle.handleServiceToggle,
-    renderAccountsView,
-    refreshAccountsPage: (options) => reloadAccountsPage(options),
-    updateRequestLogFilterButtons,
-  });
-
-  bindSettingsEvents({
-    dom,
-    showToast,
-    withButtonBusy,
-    normalizeErrorMessage,
-    saveAppSettingsPatch,
-    handleCheckUpdateClick,
-    isTauriRuntime,
-    readUpdateAutoCheckSetting,
-    saveUpdateAutoCheckSetting,
-    readCloseToTrayOnCloseSetting,
-    saveCloseToTrayOnCloseSetting,
-    setCloseToTrayOnCloseToggle,
-    applyCloseToTrayOnCloseSetting,
-    readLightweightModeOnCloseToTraySetting,
-    saveLightweightModeOnCloseToTraySetting,
-    setLightweightModeOnCloseToTrayToggle,
-    syncLightweightModeOnCloseToTrayAvailability,
-    applyLightweightModeOnCloseToTraySetting,
-    readRouteStrategySetting,
-    normalizeRouteStrategy,
-    saveRouteStrategySetting,
-    setRouteStrategySelect,
-    applyRouteStrategyToService,
-    routeStrategyLabel,
-    readServiceListenModeSetting,
-    normalizeServiceListenMode,
-    setServiceListenModeSelect,
-    setServiceListenModeHint,
-    buildServiceListenModeHint,
-    applyServiceListenModeToService,
-    readCpaNoCookieHeaderModeSetting,
-    saveCpaNoCookieHeaderModeSetting,
-    setCpaNoCookieHeaderModeToggle,
-    normalizeCpaNoCookieHeaderMode,
-    applyCpaNoCookieHeaderModeToService,
-    readUpstreamProxyUrlSetting,
-    saveUpstreamProxyUrlSetting,
-    setUpstreamProxyInput,
-    setUpstreamProxyHint,
-    normalizeUpstreamProxyUrl,
-    applyUpstreamProxyToService,
-    upstreamProxyHintText,
-    readBackgroundTasksSetting,
-    readBackgroundTasksForm,
-    saveBackgroundTasksSetting,
-    setBackgroundTasksForm,
-    normalizeBackgroundTasksSettings,
-    updateBackgroundTasksHint,
-    applyBackgroundTasksToService,
-    backgroundTasksRestartKeysDefault,
-    getEnvOverrideSelectedKey,
-    findEnvOverrideCatalogItem,
-    setEnvOverridesHint,
-    readEnvOverridesSetting,
-    buildEnvOverrideHint,
-    normalizeEnvOverrides,
-    normalizeEnvOverrideCatalog,
-    saveEnvOverridesSetting,
-    renderEnvOverrideEditor,
-    persistServiceAddrInput,
-    uiLowTransparencyToggleId,
-    readLowTransparencySetting,
-    saveLowTransparencySetting,
-    applyLowTransparencySetting,
-    syncWebAccessPasswordInputs,
-    saveWebAccessPassword,
-    clearWebAccessPassword,
-    openWebSecurityModal,
-    closeWebSecurityModal,
-  });
-}
-
 const bootstrap = createBootstrapRunner({
   setStartupMask,
   setStatus,
@@ -558,7 +460,103 @@ const bootstrap = createBootstrapRunner({
   updateWebAccessPasswordState,
   bootstrapUpdateStatus,
   serviceLifecycle,
-  bindEvents,
+  bindEvents: () => bindEvents({
+    handleLogin: loginFlow.handleLogin,
+    handleCancelLogin: loginFlow.handleCancelLogin,
+    handleManualCallback: loginFlow.handleManualCallback,
+    closeAccountModal,
+    closeUsageModal,
+    refreshUsageForAccount,
+    closeApiKeyModal,
+    createApiKey,
+    handleClearRequestLogs,
+    refreshRequestLogs,
+    renderRequestLogs,
+    handleRefreshAllClick,
+    ensureConnected,
+    refreshApiModels,
+    refreshApiModelsNow,
+    populateApiKeyModelSelect,
+    importAccountsFromFiles,
+    importAccountsFromDirectory,
+    deleteSelectedAccounts,
+    deleteUnavailableFreeAccounts,
+    exportAccountsByFile,
+    handleServiceToggle: serviceLifecycle.handleServiceToggle,
+    renderAccountsView,
+    reloadAccountsPage,
+    normalizeErrorMessage,
+    handleCheckUpdateClick,
+    isTauriRuntime,
+    openAccountModal,
+    openApiKeyModal,
+    settingsBindings: {
+      withButtonBusy,
+      saveAppSettingsPatch,
+      readUpdateAutoCheckSetting,
+      saveUpdateAutoCheckSetting,
+      readCloseToTrayOnCloseSetting,
+      saveCloseToTrayOnCloseSetting,
+      setCloseToTrayOnCloseToggle,
+      applyCloseToTrayOnCloseSetting,
+      readLightweightModeOnCloseToTraySetting,
+      saveLightweightModeOnCloseToTraySetting,
+      setLightweightModeOnCloseToTrayToggle,
+      syncLightweightModeOnCloseToTrayAvailability,
+      applyLightweightModeOnCloseToTraySetting,
+      readRouteStrategySetting,
+      normalizeRouteStrategy,
+      saveRouteStrategySetting,
+      setRouteStrategySelect,
+      applyRouteStrategyToService,
+      routeStrategyLabel,
+      readServiceListenModeSetting,
+      normalizeServiceListenMode,
+      setServiceListenModeSelect,
+      setServiceListenModeHint,
+      buildServiceListenModeHint,
+      applyServiceListenModeToService,
+      readCpaNoCookieHeaderModeSetting,
+      saveCpaNoCookieHeaderModeSetting,
+      setCpaNoCookieHeaderModeToggle,
+      normalizeCpaNoCookieHeaderMode,
+      applyCpaNoCookieHeaderModeToService,
+      readUpstreamProxyUrlSetting,
+      saveUpstreamProxyUrlSetting,
+      setUpstreamProxyInput,
+      setUpstreamProxyHint,
+      normalizeUpstreamProxyUrl,
+      applyUpstreamProxyToService,
+      upstreamProxyHintText,
+      readBackgroundTasksSetting,
+      readBackgroundTasksForm,
+      saveBackgroundTasksSetting,
+      setBackgroundTasksForm,
+      normalizeBackgroundTasksSettings,
+      updateBackgroundTasksHint,
+      applyBackgroundTasksToService,
+      backgroundTasksRestartKeysDefault,
+      getEnvOverrideSelectedKey,
+      findEnvOverrideCatalogItem,
+      setEnvOverridesHint,
+      readEnvOverridesSetting,
+      buildEnvOverrideHint,
+      normalizeEnvOverrides,
+      normalizeEnvOverrideCatalog,
+      saveEnvOverridesSetting,
+      renderEnvOverrideEditor,
+      persistServiceAddrInput,
+      uiLowTransparencyToggleId,
+      readLowTransparencySetting,
+      saveLowTransparencySetting,
+      applyLowTransparencySetting,
+      syncWebAccessPasswordInputs,
+      saveWebAccessPassword,
+      clearWebAccessPassword,
+      openWebSecurityModal,
+      closeWebSecurityModal,
+    },
+  }),
   renderCurrentPageView,
   updateRequestLogFilterButtons,
   scheduleStartupUpdateCheck,
