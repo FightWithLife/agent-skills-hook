@@ -25,7 +25,15 @@ These instructions are loaded globally by Codex CLI.
 - Prefer `worker` for isolated implementation tasks with a clearly assigned file or module scope.
 - Prefer `monitor` for long waits, polling, or background observation that would otherwise block the main agent.
 - Prefer `reviewer` for code review, change-risk checks, and scoped verification feedback before finalizing.
-- After subagents finish, integrate results, resolve conflicts, and verify before answering.
+- Treat subagents as scoped resources with an explicit lifecycle.
+- Default to temporary subagents. Keep a subagent open only when near-term follow-up work will materially benefit from preserved context.
+- Before spawning a new subagent, first decide whether an existing subagent can be reused for the same role and scope.
+- If no reuse is justified, close completed or idle subagents that are no longer needed before spawning another one.
+- Temporary subagents must be closed immediately after their output has been integrated.
+- Long-lived subagents may be reused across related work, but must be explicitly closed as soon as they are no longer needed, including before ending the turn.
+- If a subagent errors, is abandoned, or is being replaced, explicitly close it before spawning a replacement.
+- If concurrent subagent slots are full or nearly full, do not spawn blindly; reclaim capacity through reuse or close-out first.
+- After subagents finish, integrate results, close them according to the lifecycle rule, resolve conflicts, and verify before answering.
 
 ## Code Comment Requirement
 - Any code you write or modify must include Chinese Doxygen-standard comments.
