@@ -11,6 +11,11 @@ These instructions are loaded globally by Codex CLI.
 
 ## Skill Forced Eval (every user request)
 - Before any work, always run `Skill(skill-forced-eval)` and follow its steps.
+- If the current Codex environment does not expose a `Skill(...)` tool, do the equivalent manual fallback instead:
+  - announce the fallback once;
+  - read the needed `SKILL.md` files from the configured skills directories with normal file/shell tools;
+  - follow the skill workflow as closely as possible;
+  - never use placeholder no-op commands such as `true` just to satisfy the instruction.
 
 ## Review Output Language
 - When the user asks for a "review", write the final response in Chinese while keeping the required review structure and formatting rules intact.
