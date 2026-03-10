@@ -9,13 +9,16 @@ These instructions are loaded globally by Codex CLI.
   - Skill sources (`~/.agents/skills`, `./.agents/skills`)
   - Execpolicy rules path (`~/.codex/rules/*.rules`)
 
-## Skill Forced Eval (every user request)
-- Before any work, always run `Skill(skill-forced-eval)` and follow its steps.
-- If the current Codex environment does not expose a `Skill(...)` tool, do the equivalent manual fallback instead:
-  - announce the fallback once;
-  - read the needed `SKILL.md` files from the configured skills directories with normal file/shell tools;
-  - follow the skill workflow as closely as possible;
-  - never use placeholder no-op commands such as `true` just to satisfy the instruction.
+## Skills (every user request)
+- Before any substantial work, evaluate whether any available skill matches the request using Codex's native skill mechanism.
+- Use Codex-native skill semantics:
+  - explicit invocation uses `$skill-name`;
+  - implicit invocation is allowed when the request clearly matches a skill `description`;
+  - load full `SKILL.md` content only for the skills that are actually selected.
+- Do not require or simulate non-native function-style calls such as `Skill(...)` or `skills(...)`.
+- Prefer repository and user skill metadata first; only read the selected skill's files when needed.
+- If the current runtime does not expose native skill selection UI or native skill mentions, manually read only the matched `SKILL.md` files with normal file/shell tools and follow them quietly.
+- Do not emit boilerplate fallback text, fake tool calls, or no-op commands just to satisfy the skill workflow.
 
 ## Review Output Language
 - When the user asks for a "review", write the final response in Chinese while keeping the required review structure and formatting rules intact.
