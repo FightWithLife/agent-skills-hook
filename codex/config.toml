@@ -1,5 +1,5 @@
 model = "gpt-5.4"
-model_reasoning_effort = "xhigh"
+model_reasoning_effort = "low"
 model_verbosity = "medium"
 disable_response_storage = true
 sandbox_mode = "danger-full-access"
@@ -66,7 +66,7 @@ model_reasoning_effort = "xhigh"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
 model = "gpt-5.4"
-model_reasoning_effort = "xhigh"
+model_reasoning_effort = "medium"
 model_verbosity = "medium"
 service_tier = "fast"
 
@@ -79,7 +79,7 @@ hide_gpt5_1_migration_prompt = true
 hide_full_access_warning = true
 
 [notice.model_migrations]
-"gpt-5.2-codex" = "gpt-5.3-codex"
+"gpt-5.2-codex" = "gpt-5.4"
 
 [model_providers.synai]
 name = "synai"
@@ -89,3 +89,9 @@ requires_openai_auth = true
 
 [mcp_servers.openaiDeveloperDocs]
 url = "https://developers.openai.com/mcp"
+
+[projects."/home/xmg/code/PCL"]
+trust_level = "trusted"
+
+[projects."/home/xmg"]
+trust_level = "trusted"
