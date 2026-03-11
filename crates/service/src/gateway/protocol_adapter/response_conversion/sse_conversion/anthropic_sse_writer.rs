@@ -1,4 +1,4 @@
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 
 pub(super) fn convert_anthropic_json_to_sse(
     body: &[u8],
@@ -28,6 +28,14 @@ pub(super) fn convert_anthropic_json_to_sse(
         .and_then(|usage| usage.get("input_tokens"))
         .and_then(Value::as_i64)
         .unwrap_or(0);
+    let cache_creation_input_tokens = value
+        .get("usage")
+        .and_then(|usage| usage.get("cache_creation_input_tokens"))
+        .and_then(Value::as_i64);
+    let cache_read_input_tokens = value
+        .get("usage")
+        .and_then(|usage| usage.get("cache_read_input_tokens"))
+        .and_then(Value::as_i64);
     let output_tokens = value
         .get("usage")
         .and_then(|usage| usage.get("output_tokens"))
@@ -43,6 +51,16 @@ pub(super) fn convert_anthropic_json_to_sse(
         .cloned()
         .unwrap_or_default();
 
+    let mut start_usage = Map::new();
+    start_usage.insert("input_tokens".to_string(), Value::from(input_tokens));
+    start_usage.insert("output_tokens".to_string(), Value::from(0));
+    if let Some(value) = cache_creation_input_tokens {
+        start_usage.insert("cache_creation_input_tokens".to_string(), Value::from(value));
+    }
+    if let Some(value) = cache_read_input_tokens {
+        start_usage.insert("cache_read_input_tokens".to_string(), Value::from(value));
+    }
+
     let mut out = String::new();
     append_sse_event(
         &mut out,
@@ -57,10 +75,7 @@ pub(super) fn convert_anthropic_json_to_sse(
                 "content": [],
                 "stop_reason": Value::Null,
                 "stop_sequence": Value::Null,
-                "usage": {
-                    "input_tokens": input_tokens,
-                    "output_tokens": 0,
-                }
+                "usage": Value::Object(start_usage)
             }
         }),
     );

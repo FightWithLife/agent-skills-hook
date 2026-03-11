@@ -12,6 +12,8 @@ pub(super) fn convert_anthropic_sse_to_json(
     let mut response_model = "unknown".to_string();
     let mut input_tokens: i64 = 0;
     let mut output_tokens: i64 = 0;
+    let mut cache_creation_input_tokens: Option<i64> = None;
+    let mut cache_read_input_tokens: Option<i64> = None;
     let mut stop_reason = "end_turn".to_string();
     let mut content_blocks: BTreeMap<usize, Value> = BTreeMap::new();
 
@@ -51,6 +53,16 @@ pub(super) fn convert_anthropic_sse_to_json(
                         .and_then(|usage| usage.get("input_tokens"))
                         .and_then(Value::as_i64)
                         .unwrap_or(input_tokens);
+                    cache_creation_input_tokens = message
+                        .get("usage")
+                        .and_then(|usage| usage.get("cache_creation_input_tokens"))
+                        .and_then(Value::as_i64)
+                        .or(cache_creation_input_tokens);
+                    cache_read_input_tokens = message
+                        .get("usage")
+                        .and_then(|usage| usage.get("cache_read_input_tokens"))
+                        .and_then(Value::as_i64)
+                        .or(cache_read_input_tokens);
                 }
             }
             Some("content_block_start") => {
@@ -184,6 +196,16 @@ pub(super) fn convert_anthropic_sse_to_json(
         }));
     }
 
+    let mut usage = serde_json::Map::new();
+    usage.insert("input_tokens".to_string(), Value::from(input_tokens));
+    usage.insert("output_tokens".to_string(), Value::from(output_tokens));
+    if let Some(value) = cache_creation_input_tokens {
+        usage.insert("cache_creation_input_tokens".to_string(), Value::from(value));
+    }
+    if let Some(value) = cache_read_input_tokens {
+        usage.insert("cache_read_input_tokens".to_string(), Value::from(value));
+    }
+
     let out = json!({
         "id": response_id,
         "type": "message",
@@ -192,10 +214,7 @@ pub(super) fn convert_anthropic_sse_to_json(
         "content": blocks,
         "stop_reason": stop_reason,
         "stop_sequence": Value::Null,
-        "usage": {
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-        }
+        "usage": Value::Object(usage)
     });
     let bytes = serde_json::to_vec(&out)
         .map_err(|err| format!("serialize anthropic json failed: {err}"))?;

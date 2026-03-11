@@ -235,6 +235,41 @@ fn anthropic_json_response_maps_custom_tool_call_to_tool_use() {
 }
 
 #[test]
+fn anthropic_json_response_maps_cache_usage_fields() {
+    let upstream = serde_json::json!({
+        "id": "resp_usage_cache_1",
+        "object": "response",
+        "created": 1700001305,
+        "model": "gpt-5.3-codex",
+        "output": [{
+            "type": "message",
+            "content": [{"type": "output_text", "text": "ok"}]
+        }],
+        "usage": {
+            "input_tokens": 21,
+            "output_tokens": 5,
+            "total_tokens": 26,
+            "cache_creation_input_tokens": 7,
+            "input_tokens_details": {
+                "cached_tokens": 9
+            }
+        }
+    });
+    let (body, content_type) = adapt_upstream_response(
+        ResponseAdapter::AnthropicJson,
+        Some("application/json"),
+        &serde_json::to_vec(&upstream).expect("serialize upstream"),
+    )
+    .expect("convert response");
+    let value: serde_json::Value = serde_json::from_slice(&body).expect("parse converted body");
+    assert_eq!(content_type, "application/json");
+    assert_eq!(value["usage"]["input_tokens"], 21);
+    assert_eq!(value["usage"]["output_tokens"], 5);
+    assert_eq!(value["usage"]["cache_creation_input_tokens"], 7);
+    assert_eq!(value["usage"]["cache_read_input_tokens"], 9);
+}
+
+#[test]
 fn anthropic_json_response_maps_web_search_call_to_text_block() {
     let upstream = serde_json::json!({
         "id": "resp_web_search_anthropic_1",
@@ -422,4 +457,27 @@ data: [DONE]
     let text = String::from_utf8(body).expect("parse sse body");
     assert_eq!(content_type, "text/event-stream");
     assert!(text.contains("mcp__plugin_super_long_workspace_namespace__tool_server_namespace_for_codex_manager_gateway_adapter_alignment__very_long_tool_operation_name"));
+}
+
+#[test]
+fn anthropic_sse_response_maps_cache_usage_fields() {
+    let upstream = r#"data: {"type":"response.output_text.delta","delta":"hello"}
+
+data: {"type":"response.completed","response":{"id":"resp_usage_stream_1","model":"gpt-5.3-codex","output":[{"type":"message","content":[{"type":"output_text","text":"hello"}]}],"usage":{"input_tokens":11,"output_tokens":3,"cache_creation_input_tokens":4,"input_tokens_details":{"cached_tokens":6}}}}
+
+data: [DONE]
+
+"#;
+    let (body, content_type) = adapt_upstream_response(
+        ResponseAdapter::AnthropicSse,
+        Some("text/event-stream"),
+        upstream.as_bytes(),
+    )
+    .expect("convert response");
+    let text = String::from_utf8(body).expect("parse sse body");
+    assert_eq!(content_type, "text/event-stream");
+    assert!(text.contains("\"cache_creation_input_tokens\":4"));
+    assert!(text.contains("\"cache_read_input_tokens\":6"));
+    assert!(text.contains("\"input_tokens\":11"));
+    assert!(text.contains("\"output_tokens\":3"));
 }

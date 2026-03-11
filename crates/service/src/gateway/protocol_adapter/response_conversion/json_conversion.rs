@@ -1,4 +1,4 @@
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 
 use super::tool_mapping::restore_openai_tool_name;
 use super::ToolNameRestoreMap;
@@ -135,26 +135,7 @@ fn build_anthropic_message_from_chat_completions(
         }));
     }
 
-    let input_tokens = value
-        .get("usage")
-        .and_then(|usage| usage.get("prompt_tokens"))
-        .or_else(|| {
-            value
-                .get("usage")
-                .and_then(|usage| usage.get("input_tokens"))
-        })
-        .and_then(Value::as_i64)
-        .unwrap_or(0);
-    let output_tokens = value
-        .get("usage")
-        .and_then(|usage| usage.get("completion_tokens"))
-        .or_else(|| {
-            value
-                .get("usage")
-                .and_then(|usage| usage.get("output_tokens"))
-        })
-        .and_then(Value::as_i64)
-        .unwrap_or(0);
+    let usage = build_anthropic_usage(value.get("usage").and_then(Value::as_object));
 
     Ok(json!({
         "id": id,
@@ -164,10 +145,7 @@ fn build_anthropic_message_from_chat_completions(
         "content": content_blocks,
         "stop_reason": stop_reason,
         "stop_sequence": Value::Null,
-        "usage": {
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-        }
+        "usage": usage,
     }))
 }
 
@@ -307,26 +285,7 @@ fn build_anthropic_message_from_responses(
         }));
     }
 
-    let input_tokens = value
-        .get("usage")
-        .and_then(|usage| usage.get("input_tokens"))
-        .or_else(|| {
-            value
-                .get("usage")
-                .and_then(|usage| usage.get("prompt_tokens"))
-        })
-        .and_then(Value::as_i64)
-        .unwrap_or(0);
-    let output_tokens = value
-        .get("usage")
-        .and_then(|usage| usage.get("output_tokens"))
-        .or_else(|| {
-            value
-                .get("usage")
-                .and_then(|usage| usage.get("completion_tokens"))
-        })
-        .and_then(Value::as_i64)
-        .unwrap_or(0);
+    let usage = build_anthropic_usage(value.get("usage").and_then(Value::as_object));
 
     let stop_reason = if has_tool_use {
         "tool_use".to_string()
@@ -342,11 +301,63 @@ fn build_anthropic_message_from_responses(
         "content": content_blocks,
         "stop_reason": stop_reason,
         "stop_sequence": Value::Null,
-        "usage": {
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-        }
+        "usage": usage,
     }))
+}
+
+fn build_anthropic_usage(usage: Option<&Map<String, Value>>) -> Value {
+    let mut out = Map::new();
+    out.insert(
+        "input_tokens".to_string(),
+        Value::from(extract_usage_i64(usage, &["input_tokens", "prompt_tokens"]).unwrap_or(0)),
+    );
+    out.insert(
+        "output_tokens".to_string(),
+        Value::from(extract_usage_i64(usage, &["output_tokens", "completion_tokens"]).unwrap_or(0)),
+    );
+
+    if let Some(cache_creation_input_tokens) = extract_usage_i64(
+        usage,
+        &["cache_creation_input_tokens", "input_tokens_details.cache_creation_tokens"],
+    ) {
+        out.insert(
+            "cache_creation_input_tokens".to_string(),
+            Value::from(cache_creation_input_tokens),
+        );
+    }
+    if let Some(cache_read_input_tokens) = extract_usage_i64(
+        usage,
+        &[
+            "cache_read_input_tokens",
+            "input_tokens_details.cached_tokens",
+            "prompt_tokens_details.cached_tokens",
+        ],
+    ) {
+        out.insert(
+            "cache_read_input_tokens".to_string(),
+            Value::from(cache_read_input_tokens),
+        );
+    }
+
+    Value::Object(out)
+}
+
+fn extract_usage_i64(usage: Option<&Map<String, Value>>, paths: &[&str]) -> Option<i64> {
+    let usage = usage?;
+    for path in paths {
+        let mut cursor = None;
+        for (index, segment) in path.split('.').enumerate() {
+            cursor = if index == 0 {
+                usage.get(segment)
+            } else {
+                cursor.and_then(Value::as_object).and_then(|map| map.get(segment))
+            };
+        }
+        if let Some(value) = cursor.and_then(Value::as_i64) {
+            return Some(value);
+        }
+    }
+    None
 }
 
 fn push_anthropic_text_block(content_blocks: &mut Vec<Value>, text: &str) -> bool {

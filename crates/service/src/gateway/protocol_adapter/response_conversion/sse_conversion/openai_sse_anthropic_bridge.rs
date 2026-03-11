@@ -21,6 +21,8 @@ pub(super) fn convert_openai_sse_to_anthropic(
     let mut finish_reason: Option<String> = None;
     let mut input_tokens: i64 = 0;
     let mut output_tokens: i64 = 0;
+    let mut cache_creation_input_tokens: Option<i64> = None;
+    let mut cache_read_input_tokens: Option<i64> = None;
     let mut content_text = String::new();
     let mut reasoning_blocks: BTreeMap<usize, StreamingReasoningBlock> = BTreeMap::new();
     let mut tool_calls: BTreeMap<usize, StreamingToolCall> = BTreeMap::new();
@@ -177,6 +179,33 @@ pub(super) fn convert_openai_sse_to_anthropic(
                                 .and_then(Value::as_i64)
                                 .or_else(|| usage.get("input_tokens").and_then(Value::as_i64))
                                 .unwrap_or(input_tokens);
+                            cache_creation_input_tokens = cache_creation_input_tokens.or_else(|| {
+                                usage
+                                    .get("cache_creation_input_tokens")
+                                    .and_then(Value::as_i64)
+                                    .or_else(|| {
+                                        usage.get("input_tokens_details").and_then(|details| {
+                                            details
+                                                .get("cache_creation_tokens")
+                                                .and_then(Value::as_i64)
+                                        })
+                                    })
+                            });
+                            cache_read_input_tokens = cache_read_input_tokens.or_else(|| {
+                                usage
+                                    .get("cache_read_input_tokens")
+                                    .and_then(Value::as_i64)
+                                    .or_else(|| {
+                                        usage.get("input_tokens_details").and_then(|details| {
+                                            details.get("cached_tokens").and_then(Value::as_i64)
+                                        })
+                                    })
+                                    .or_else(|| {
+                                        usage.get("prompt_tokens_details").and_then(|details| {
+                                            details.get("cached_tokens").and_then(Value::as_i64)
+                                        })
+                                    })
+                            });
                             output_tokens = usage
                                 .get("completion_tokens")
                                 .and_then(Value::as_i64)
@@ -208,6 +237,33 @@ pub(super) fn convert_openai_sse_to_anthropic(
                 .and_then(Value::as_i64)
                 .or_else(|| usage.get("input_tokens").and_then(Value::as_i64))
                 .unwrap_or(input_tokens);
+            cache_creation_input_tokens = cache_creation_input_tokens.or_else(|| {
+                usage
+                    .get("cache_creation_input_tokens")
+                    .and_then(Value::as_i64)
+                    .or_else(|| {
+                        usage.get("input_tokens_details").and_then(|details| {
+                            details
+                                .get("cache_creation_tokens")
+                                .and_then(Value::as_i64)
+                        })
+                    })
+            });
+            cache_read_input_tokens = cache_read_input_tokens.or_else(|| {
+                usage
+                    .get("cache_read_input_tokens")
+                    .and_then(Value::as_i64)
+                    .or_else(|| {
+                        usage.get("input_tokens_details").and_then(|details| {
+                            details.get("cached_tokens").and_then(Value::as_i64)
+                        })
+                    })
+                    .or_else(|| {
+                        usage.get("prompt_tokens_details").and_then(|details| {
+                            details.get("cached_tokens").and_then(Value::as_i64)
+                        })
+                    })
+            });
             output_tokens = usage
                 .get("completion_tokens")
                 .and_then(Value::as_i64)
@@ -289,6 +345,15 @@ pub(super) fn convert_openai_sse_to_anthropic(
     };
     let response_id = response_id.unwrap_or_else(|| "msg_codexmanager".to_string());
     let response_model = model.unwrap_or_else(|| "unknown".to_string());
+    let mut start_usage = serde_json::Map::new();
+    start_usage.insert("input_tokens".to_string(), Value::from(input_tokens));
+    start_usage.insert("output_tokens".to_string(), Value::from(0));
+    if let Some(value) = cache_creation_input_tokens {
+        start_usage.insert("cache_creation_input_tokens".to_string(), Value::from(value));
+    }
+    if let Some(value) = cache_read_input_tokens {
+        start_usage.insert("cache_read_input_tokens".to_string(), Value::from(value));
+    }
 
     let mut out = String::new();
     let mut content_block_index: usize = 0;
@@ -305,10 +370,7 @@ pub(super) fn convert_openai_sse_to_anthropic(
                 "content": [],
                 "stop_reason": Value::Null,
                 "stop_sequence": Value::Null,
-                "usage": {
-                    "input_tokens": input_tokens,
-                    "output_tokens": 0,
-                }
+                "usage": Value::Object(start_usage)
             }
         }),
     );
