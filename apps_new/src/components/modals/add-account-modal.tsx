@@ -53,15 +53,18 @@ export function AddAccountModal({ open, onOpenChange }: AddAccountModalProps) {
   const handleStartLogin = async () => {
     setIsLoading(true);
     try {
-      const url = await accountClient.startLogin({
+      const result = await accountClient.startLogin({
         tags: tags.split(",").map(t => t.trim()).filter(Boolean),
         note,
         group: group || null,
       });
-      setLoginUrl(url);
+      setLoginUrl(result.authUrl);
+      if (result.warning) {
+        toast.warning(result.warning);
+      }
       toast.success("已生成登录链接，请在浏览器中完成授权");
-    } catch (err: any) {
-      toast.error(`启动登录失败: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`启动登录失败: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsLoading(false);
     }
@@ -81,11 +84,15 @@ export function AddAccountModal({ open, onOpenChange }: AddAccountModalProps) {
       
       await accountClient.completeLogin(state, code, redirectUri);
       toast.success("登录回调解析成功");
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+        queryClient.invalidateQueries({ queryKey: ["usage"] }),
+        queryClient.invalidateQueries({ queryKey: ["startup-snapshot"] }),
+      ]);
       onOpenChange(false);
       setManualCallback("");
-    } catch (err: any) {
-      toast.error(`解析失败: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`解析失败: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsLoading(false);
     }
@@ -98,11 +105,15 @@ export function AddAccountModal({ open, onOpenChange }: AddAccountModalProps) {
       const lines = bulkContent.split("\n").filter(l => l.trim());
       await accountClient.import(lines);
       toast.success(`成功导入 ${lines.length} 个账号内容`);
-      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["accounts"] }),
+        queryClient.invalidateQueries({ queryKey: ["usage"] }),
+        queryClient.invalidateQueries({ queryKey: ["startup-snapshot"] }),
+      ]);
       onOpenChange(false);
       setBulkContent("");
-    } catch (err: any) {
-      toast.error(`导入失败: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`导入失败: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsLoading(false);
     }

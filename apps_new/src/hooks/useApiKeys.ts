@@ -33,8 +33,20 @@ export function useApiKeys() {
       accountClient.updateApiKey(id, params),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["apikeys"] });
-      toast.success("密钥已更新");
+      toast.success("密钥配置已更新");
     },
+  });
+
+  const toggleStatusMutation = useMutation({
+    mutationFn: ({ id, enabled }: { id: string; enabled: boolean }) => 
+      enabled ? accountClient.enableApiKey(id) : accountClient.disableApiKey(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["apikeys"] });
+      toast.success("状态已更新");
+    },
+    onError: (err: any) => {
+      toast.error(`更新状态失败: ${err.message}`);
+    }
   });
 
   return {
@@ -43,5 +55,7 @@ export function useApiKeys() {
     createApiKey: createMutation.mutate,
     deleteApiKey: deleteMutation.mutate,
     updateApiKey: updateMutation.mutate,
+    toggleApiKeyStatus: toggleStatusMutation.mutate,
+    isToggling: toggleStatusMutation.isPending,
   };
 }

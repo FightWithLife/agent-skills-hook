@@ -40,14 +40,14 @@ export function WebPasswordModal({ open, onOpenChange }: WebPasswordModalProps) 
 
     setIsLoading(true);
     try {
-      await appClient.setSettings({ webAccessPassword: password });
-      setAppSettings({ webAccessPasswordConfigured: true });
+      const settings = await appClient.setSettings({ webAccessPassword: password });
+      setAppSettings(settings);
       toast.success("Web 访问密码已设置");
       onOpenChange(false);
       setPassword("");
       setConfirmPassword("");
-    } catch (err: any) {
-      toast.error(`保存失败: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`保存失败: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsLoading(false);
     }
@@ -56,12 +56,12 @@ export function WebPasswordModal({ open, onOpenChange }: WebPasswordModalProps) 
   const handleClear = async () => {
     setIsLoading(true);
     try {
-      await appClient.setSettings({ webAccessPassword: null });
-      setAppSettings({ webAccessPasswordConfigured: false });
+      const settings = await appClient.setSettings({ webAccessPassword: "" });
+      setAppSettings(settings);
       toast.success("Web 访问密码已清除");
       onOpenChange(false);
-    } catch (err: any) {
-      toast.error(`清除失败: ${err.message}`);
+    } catch (err: unknown) {
+      toast.error(`清除失败: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsLoading(false);
     }

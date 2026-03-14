@@ -18,16 +18,16 @@ import {
   RefreshCw, 
   Trash2, 
   Search, 
-  Filter,
-  CheckCircle2,
-  AlertCircle,
-  Clock
+  Clock,
+  Zap,
+  Shield
 } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export default function LogsPage() {
   const { serviceStatus } = useAppStore();
@@ -50,7 +50,7 @@ export default function LogsPage() {
     },
   });
 
-  const filteredLogs = logs?.filter((log: any) => {
+  const filteredLogs = (logs as any[])?.filter((log: any) => {
     if (filter === "all") return true;
     if (filter === "2xx") return log.status >= 200 && log.status < 300;
     if (filter === "4xx") return log.status >= 400 && log.status < 500;
@@ -65,26 +65,27 @@ export default function LogsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex flex-1 items-center gap-2 max-w-md">
           <div className="relative w-full">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="搜索方法、路径或密钥..."
-              className="pl-9 h-10"
+              className="pl-9 h-10 glass-card"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <div className="flex border rounded-lg p-1 bg-card">
+          <div className="flex border rounded-lg p-1 bg-muted/30">
             {["all", "2xx", "4xx", "5xx"].map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-3 py-1 text-xs rounded-md transition-all ${
-                  filter === f ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"
-                }`}
+                className={cn(
+                  "px-3 py-1 text-[10px] font-bold rounded-md transition-all",
+                  filter === f ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-muted"
+                )}
               >
                 {f.toUpperCase()}
               </button>
@@ -93,7 +94,7 @@ export default function LogsPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => queryClient.invalidateQueries({ queryKey: ["logs"] })}>
+          <Button variant="outline" size="sm" className="glass-card" onClick={() => queryClient.invalidateQueries({ queryKey: ["logs"] })}>
             <RefreshCw className="h-4 w-4 mr-2" /> 刷新
           </Button>
           <Button variant="destructive" size="sm" onClick={() => clearMutation.mutate()}>
@@ -102,17 +103,19 @@ export default function LogsPage() {
         </div>
       </div>
 
-      <Card className="border-none bg-card/50 shadow-md">
+      <Card className="border-none glass-card shadow-xl backdrop-blur-md overflow-hidden">
         <CardContent className="p-0">
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-muted/30">
               <TableRow>
-                <TableHead className="w-[180px]">时间</TableHead>
+                <TableHead className="w-[160px]">时间</TableHead>
                 <TableHead>方法 / 路径</TableHead>
+                <TableHead>账号 / 密钥</TableHead>
                 <TableHead>模型</TableHead>
                 <TableHead>状态</TableHead>
-                <TableHead>延迟</TableHead>
-                <TableHead>错误信息</TableHead>
+                <TableHead>耗时</TableHead>
+                <TableHead>令牌</TableHead>
+                <TableHead>上游 / 错误</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -121,42 +124,70 @@ export default function LogsPage() {
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-40" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-32" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                     <TableCell><Skeleton className="h-6 w-12 rounded-full" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-12" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-full" /></TableCell>
                   </TableRow>
                 ))
               ) : filteredLogs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="h-48 text-center text-muted-foreground">
                     {!serviceStatus.connected ? "服务未连接，无法获取日志" : "暂无请求日志"}
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredLogs.map((log: any) => (
-                  <TableRow key={log.id} className="text-xs group hover:bg-muted/30">
+                  <TableRow key={log.id} className="text-[11px] group hover:bg-muted/30">
                     <TableCell className="text-muted-foreground font-mono">
-                      {format(new Date(log.timestamp), "yyyy-MM-dd HH:mm:ss")}
+                      {(() => {
+                        try {
+                          const date = new Date(log.timestamp);
+                          if (isNaN(date.getTime())) return "未知时间";
+                          return format(date, "MM/dd HH:mm:ss");
+                        } catch {
+                          return "格式错误";
+                        }
+                      })()}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="font-bold text-primary">{log.method}</span>
-                        <span className="text-muted-foreground truncate max-w-[200px]">{log.path}</span>
+                        <span className="text-muted-foreground truncate max-w-[150px]">{log.path}</span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="font-normal text-[10px]">{log.model || "-"}</Badge>
+                      <div className="flex flex-col gap-0.5 opacity-80">
+                        <div className="flex items-center gap-1">
+                          <Zap className="h-3 w-3 text-yellow-500" />
+                          <span className="truncate max-w-[120px]">{log.account_name || "默认账号"}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-[9px] text-muted-foreground">
+                          <Shield className="h-2.5 w-2.5" />
+                          <span className="font-mono">{log.api_key_id ? `gk_${log.api_key_id.slice(0, 6)}` : "-"}</span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="font-normal text-[9px] bg-accent/30">{log.model || "-"}</Badge>
                     </TableCell>
                     <TableCell>{getStatusBadge(log.status)}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                       <div className="flex items-center gap-1">
+                    <TableCell>
+                       <div className="flex items-center gap-1 font-mono text-primary font-medium">
                          <Clock className="h-3 w-3" />
                          {log.latency_ms ? `${log.latency_ms}ms` : "-"}
                        </div>
                     </TableCell>
-                    <TableCell className="text-red-400 max-w-[300px] truncate" title={log.error}>
-                      {log.error || "-"}
+                    <TableCell>
+                       <div className="flex flex-col text-[9px] text-muted-foreground">
+                         <span>总 {log.total_tokens?.toLocaleString() || 0}</span>
+                         <span className="opacity-60">缓存 {log.cached_tokens?.toLocaleString() || 0}</span>
+                       </div>
+                    </TableCell>
+                    <TableCell className={cn("max-w-[200px] truncate font-medium", log.error ? "text-red-400" : "text-muted-foreground")} title={log.error}>
+                      {log.error || "默认"}
                     </TableCell>
                   </TableRow>
                 ))

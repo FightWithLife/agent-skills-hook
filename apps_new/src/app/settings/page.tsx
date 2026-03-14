@@ -1,58 +1,51 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTheme } from "next-themes";
+import { toast } from "sonner";
 import { appClient } from "@/lib/api/app-client";
 import { useAppStore } from "@/lib/store/useAppStore";
-import { AppSettings } from "@/types";
-import { useTheme } from "next-themes";
-import { 
-  Tabs, 
-  TabsContent, 
-  TabsList, 
-  TabsTrigger 
-} from "@/components/ui/tabs";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
+import { AppSettings, BackgroundTaskSettings } from "@/types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
 } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
-import { 
-  Settings as SettingsIcon, 
-  Globe, 
-  Cpu, 
-  Variable,
-  Save,
-  Search,
-  RotateCcw,
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AppWindow,
+  Check,
+  Cpu,
+  Globe,
   Info,
   Palette,
-  Check,
-  AppWindow
+  RotateCcw,
+  Save,
+  Search,
+  Settings as SettingsIcon,
+  Variable,
 } from "lucide-react";
-import { toast } from "sonner";
-import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
-// Descriptions for environment variables
 const ENV_DESCRIPTION_MAP: Record<string, string> = {
-  CODEXMANAGER_UPSTREAM_TOTAL_TIMEOUT_MS: "控制单次上游请求允许持续的最长时间，单位毫秒；超过后会主动结束请求并返回超时错误。",
-  CODEXMANAGER_UPSTREAM_STREAM_TIMEOUT_MS: "控制流式上游请求允许持续的最长时间，单位毫秒；填 0 可关闭流式超时上限，适合长时间持续输出的 SSE/流式连接。",
-  CODEXMANAGER_SSE_KEEPALIVE_INTERVAL_MS: "控制向下游补发 SSE keep-alive 帧的间隔，单位毫秒；上游长时间安静时可避免客户端误判连接中断。",
-  CODEXMANAGER_UPSTREAM_CONNECT_TIMEOUT_SECS: "控制连接上游服务器时的超时时间，单位秒；主要影响握手和网络建立阶段。",
-  CODEXMANAGER_UPSTREAM_BASE_URL: "控制默认上游地址；修改后，网关会把请求转发到新的目标地址。",
+  CODEXMANAGER_UPSTREAM_TOTAL_TIMEOUT_MS:
+    "控制单次上游请求允许持续的最长时间，单位毫秒；超过后会主动结束请求并返回超时错误。",
+  CODEXMANAGER_UPSTREAM_STREAM_TIMEOUT_MS:
+    "控制流式上游请求允许持续的最长时间，单位毫秒；填 0 可关闭流式超时上限。",
+  CODEXMANAGER_SSE_KEEPALIVE_INTERVAL_MS:
+    "控制向下游补发 SSE keep-alive 帧的间隔，单位毫秒；上游长时间安静时可避免客户端误判连接中断。",
+  CODEXMANAGER_UPSTREAM_CONNECT_TIMEOUT_SECS:
+    "控制连接上游服务器时的超时时间，单位秒；主要影响握手和网络建立阶段。",
+  CODEXMANAGER_UPSTREAM_BASE_URL:
+    "控制默认上游地址；修改后，网关会把请求转发到新的目标地址。",
 };
 
 const THEMES = [
@@ -70,99 +63,216 @@ const THEMES = [
   { id: "aurora", name: "极光青", color: "#0d9488" },
 ];
 
+function stringifyNumber(value: number | null | undefined): string {
+  return value == null ? "" : String(value);
+}
+
+function parseIntegerInput(value: string, minimum = 0): number | null {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  const rounded = Math.trunc(numeric);
+  if (rounded < minimum) return null;
+  return rounded;
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error || "");
+}
+
 export default function SettingsPage() {
   const { setAppSettings: setStoreSettings } = useAppStore();
   const { theme, setTheme } = useTheme();
   const queryClient = useQueryClient();
   const [envSearch, setEnvSearch] = useState("");
   const [selectedEnvKey, setSelectedEnvKey] = useState<string | null>(null);
-  const [envEditValue, setEnvEditValue] = useState("");
+  const [envDrafts, setEnvDrafts] = useState<Record<string, string>>({});
+  const [upstreamProxyDraft, setUpstreamProxyDraft] = useState<string | null>(null);
+  const [transportDraft, setTransportDraft] = useState<
+    Partial<Record<"sseKeepaliveIntervalMs" | "upstreamStreamTimeoutMs", string>>
+  >({});
+  const [backgroundTaskDraft, setBackgroundTaskDraft] = useState<Record<string, string>>({});
 
-  // Fetches full snapshot
   const { data: snapshot, isLoading } = useQuery({
     queryKey: ["app-settings-snapshot"],
     queryFn: () => appClient.getSettings(),
   });
 
-  // Mutations
   const updateSettings = useMutation({
-    mutationFn: (patch: any) => appClient.setSettings(patch),
-    onSuccess: (newSnapshot) => {
-      const typedSnapshot = newSnapshot as AppSettings;
-      queryClient.setQueryData(["app-settings-snapshot"], typedSnapshot);
-      setStoreSettings(typedSnapshot);
-      
-      // Sync transparency class
-      if (typedSnapshot.lowTransparency) {
+    mutationFn: (patch: Partial<AppSettings>) => appClient.setSettings(patch),
+    onSuccess: (nextSnapshot) => {
+      queryClient.setQueryData(["app-settings-snapshot"], nextSnapshot);
+      setStoreSettings(nextSnapshot);
+      if (nextSnapshot.lowTransparency) {
         document.body.classList.add("low-transparency");
       } else {
         document.body.classList.remove("low-transparency");
       }
-      
       toast.success("设置已更新");
     },
-    onError: (err: any) => toast.error(`更新失败: ${err.message}`),
+    onError: (error: unknown) => {
+      toast.error(`更新失败: ${getErrorMessage(error)}`);
+    },
   });
 
-  // Handle theme change with persistence
-  const handleThemeChange = (newTheme: string) => {
-    setTheme(newTheme);
-    updateSettings.mutate({ theme: newTheme });
-  };
-
-  // Sync initial theme from snapshot if needed
   useEffect(() => {
     if (snapshot?.theme && snapshot.theme !== theme) {
       setTheme(snapshot.theme);
     }
-  }, [snapshot?.theme]);
+  }, [setTheme, snapshot?.theme, theme]);
 
-  // Derived Environment Overrides
-  const envCatalog = useMemo(() => snapshot?.envOverrideCatalog || [], [snapshot]);
-  const envOverrides = useMemo(() => snapshot?.envOverrides || {}, [snapshot]);
-  
   const filteredEnvCatalog = useMemo(() => {
-    if (!envSearch) return envCatalog;
-    const s = envSearch.toLowerCase();
-    return envCatalog.filter((item: any) => 
-      item.key.toLowerCase().includes(s) || item.label.toLowerCase().includes(s)
+    const catalog = snapshot?.envOverrideCatalog || [];
+    if (!envSearch) return catalog;
+    const keyword = envSearch.toLowerCase();
+    return catalog.filter(
+      (item) =>
+        item.key.toLowerCase().includes(keyword) ||
+        item.label.toLowerCase().includes(keyword)
     );
-  }, [envCatalog, envSearch]);
+  }, [envSearch, snapshot?.envOverrideCatalog]);
 
-  const selectedEnvItem = useMemo(() => 
-    envCatalog.find((item: any) => item.key === selectedEnvKey),
-    [envCatalog, selectedEnvKey]
+  const selectedEnvItem = useMemo(
+    () => snapshot?.envOverrideCatalog.find((item) => item.key === selectedEnvKey),
+    [selectedEnvKey, snapshot?.envOverrideCatalog]
   );
 
-  useEffect(() => {
-    if (selectedEnvKey) {
-      setEnvEditValue(envOverrides[selectedEnvKey] ?? selectedEnvItem?.defaultValue ?? "");
+  const upstreamProxyInput = upstreamProxyDraft ?? (snapshot?.upstreamProxyUrl || "");
+  const transportInputValues = {
+    sseKeepaliveIntervalMs:
+      transportDraft.sseKeepaliveIntervalMs ??
+      stringifyNumber(snapshot?.sseKeepaliveIntervalMs),
+    upstreamStreamTimeoutMs:
+      transportDraft.upstreamStreamTimeoutMs ??
+      stringifyNumber(snapshot?.upstreamStreamTimeoutMs),
+  };
+  const selectedEnvValue = selectedEnvKey
+    ? envDrafts[selectedEnvKey] ??
+      snapshot?.envOverrides[selectedEnvKey] ??
+      selectedEnvItem?.defaultValue ??
+      ""
+    : "";
+
+  const handleThemeChange = (nextTheme: string) => {
+    setTheme(nextTheme);
+    updateSettings.mutate({ theme: nextTheme });
+  };
+
+  const updateBackgroundTasks = (patch: Partial<BackgroundTaskSettings>) => {
+    if (!snapshot) return;
+    updateSettings.mutate({
+      backgroundTasks: {
+        ...snapshot.backgroundTasks,
+        ...patch,
+      },
+    });
+  };
+
+  const saveTransportField = (
+    key: "sseKeepaliveIntervalMs" | "upstreamStreamTimeoutMs",
+    minimum: number
+  ) => {
+    const nextValue = parseIntegerInput(transportInputValues[key], minimum);
+    if (nextValue == null) {
+      toast.error("请输入合法的数值");
+      setTransportDraft((current) => {
+        const nextDraft = { ...current };
+        delete nextDraft[key];
+        return nextDraft;
+      });
+      return;
     }
-  }, [selectedEnvKey, envOverrides, selectedEnvItem]);
+    void updateSettings
+      .mutateAsync({ [key]: nextValue } as Partial<AppSettings>)
+      .then(() => {
+        setTransportDraft((current) => {
+          const nextDraft = { ...current };
+          delete nextDraft[key];
+          return nextDraft;
+        });
+      })
+      .catch(() => undefined);
+  };
+
+  const saveBackgroundTaskField = (key: keyof BackgroundTaskSettings, minimum = 1) => {
+    if (!snapshot) return;
+    const draftKey = String(key);
+    const sourceValue =
+      backgroundTaskDraft[draftKey] ?? stringifyNumber(snapshot.backgroundTasks[key] as number);
+    const nextValue = parseIntegerInput(sourceValue, minimum);
+    if (nextValue == null) {
+      toast.error("请输入合法的数值");
+      setBackgroundTaskDraft((current) => {
+        const nextDraft = { ...current };
+        delete nextDraft[draftKey];
+        return nextDraft;
+      });
+      return;
+    }
+    void updateSettings
+      .mutateAsync({
+        backgroundTasks: {
+          ...snapshot.backgroundTasks,
+          [key]: nextValue,
+        },
+      })
+      .then(() => {
+        setBackgroundTaskDraft((current) => {
+          const nextDraft = { ...current };
+          delete nextDraft[draftKey];
+          return nextDraft;
+        });
+      })
+      .catch(() => undefined);
+  };
 
   const handleSaveEnv = () => {
-    if (!selectedEnvKey) return;
-    const newOverrides = { ...envOverrides, [selectedEnvKey]: envEditValue };
-    updateSettings.mutate({ envOverrides: newOverrides });
+    if (!selectedEnvKey || !snapshot) return;
+    void updateSettings
+      .mutateAsync({
+        envOverrides: {
+          ...snapshot.envOverrides,
+          [selectedEnvKey]: selectedEnvValue,
+        },
+      })
+      .then(() => {
+        setEnvDrafts((current) => {
+          const nextDraft = { ...current };
+          delete nextDraft[selectedEnvKey];
+          return nextDraft;
+        });
+      })
+      .catch(() => undefined);
   };
 
   const handleResetEnv = () => {
-    if (!selectedEnvKey) return;
-    const { [selectedEnvKey]: _, ...rest } = envOverrides;
-    updateSettings.mutate({ envOverrides: rest });
+    if (!selectedEnvKey || !snapshot) return;
+    const nextOverrides = { ...snapshot.envOverrides };
+    delete nextOverrides[selectedEnvKey];
+    void updateSettings
+      .mutateAsync({ envOverrides: nextOverrides })
+      .then(() => {
+        setEnvDrafts((current) => {
+          const nextDraft = { ...current };
+          delete nextDraft[selectedEnvKey];
+          return nextDraft;
+        });
+      })
+      .catch(() => undefined);
   };
 
-  if (isLoading) return <div className="flex h-64 items-center justify-center text-muted-foreground">加载配置中...</div>;
+  if (isLoading || !snapshot) {
+    return <div className="flex h-64 items-center justify-center text-muted-foreground">加载配置中...</div>;
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div>
         <h2 className="text-xl font-bold tracking-tight">系统设置</h2>
-        <p className="text-sm text-muted-foreground mt-1">管理应用行为、网关策略及后台任务</p>
+        <p className="mt-1 text-sm text-muted-foreground">管理应用行为、网关策略及后台任务</p>
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="bg-muted/50 p-1 rounded-xl h-11 w-full lg:w-fit overflow-x-auto no-scrollbar justify-start mb-6">
+        <TabsList className="mb-6 flex h-11 w-full justify-start overflow-x-auto rounded-xl bg-muted/50 p-1 no-scrollbar lg:w-fit">
           <TabsTrigger value="general" className="gap-2 px-5 shrink-0">
             <SettingsIcon className="h-4 w-4" /> 通用
           </TabsTrigger>
@@ -195,9 +305,9 @@ export default function SettingsPage() {
                   <Label>自动检查更新</Label>
                   <p className="text-xs text-muted-foreground">启动时自动检测新版本</p>
                 </div>
-                <Switch 
-                  checked={snapshot?.updateAutoCheck} 
-                  onCheckedChange={(val) => updateSettings.mutate({ updateAutoCheck: val })}
+                <Switch
+                  checked={snapshot.updateAutoCheck}
+                  onCheckedChange={(value) => updateSettings.mutate({ updateAutoCheck: value })}
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -205,9 +315,12 @@ export default function SettingsPage() {
                   <Label>关闭时最小化到托盘</Label>
                   <p className="text-xs text-muted-foreground">点击关闭按钮不会直接退出程序</p>
                 </div>
-                <Switch 
-                  checked={snapshot?.closeToTrayOnClose} 
-                  onCheckedChange={(val) => updateSettings.mutate({ closeToTrayOnClose: val })}
+                <Switch
+                  checked={snapshot.closeToTrayOnClose}
+                  disabled={!snapshot.closeToTraySupported}
+                  onCheckedChange={(value) =>
+                    updateSettings.mutate({ closeToTrayOnClose: value })
+                  }
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -215,9 +328,9 @@ export default function SettingsPage() {
                   <Label>视觉性能模式</Label>
                   <p className="text-xs text-muted-foreground">关闭毛玻璃等特效以提升低配电脑性能</p>
                 </div>
-                <Switch 
-                  checked={snapshot?.lowTransparency} 
-                  onCheckedChange={(val) => updateSettings.mutate({ lowTransparency: val })}
+                <Switch
+                  checked={snapshot.lowTransparency}
+                  onCheckedChange={(value) => updateSettings.mutate({ lowTransparency: value })}
                 />
               </div>
             </CardContent>
@@ -234,33 +347,37 @@ export default function SettingsPage() {
               <CardDescription>选择您喜爱的配色方案，适配不同工作心情</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 gap-4">
-                {THEMES.map((t) => (
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12">
+                {THEMES.map((item) => (
                   <button
-                    key={t.id}
-                    onClick={() => handleThemeChange(t.id)}
+                    key={item.id}
+                    onClick={() => handleThemeChange(item.id)}
                     className={cn(
-                      "group relative flex flex-col items-center gap-2.5 p-4 rounded-2xl border transition-all duration-300 hover:scale-105",
-                      theme === t.id 
-                        ? "border-primary bg-primary/10 shadow-lg ring-1 ring-primary" 
+                      "group relative flex flex-col items-center gap-2.5 rounded-2xl border p-4 transition-all duration-300 hover:scale-105",
+                      theme === item.id
+                        ? "border-primary bg-primary/10 shadow-lg ring-1 ring-primary"
                         : "border-transparent bg-muted/20 hover:bg-accent/40"
                     )}
                   >
-                    <div 
-                      className="h-10 w-10 rounded-full shadow-md border-2 border-white/20" 
-                      style={{ backgroundColor: t.color }}
+                    <div
+                      className="h-10 w-10 rounded-full border-2 border-white/20 shadow-md"
+                      style={{ backgroundColor: item.color }}
                     />
-                    <span className={cn(
-                      "text-[10px] font-semibold whitespace-nowrap transition-colors",
-                      theme === t.id ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
-                    )}>
-                      {t.name}
+                    <span
+                      className={cn(
+                        "whitespace-nowrap text-[10px] font-semibold transition-colors",
+                        theme === item.id
+                          ? "text-primary"
+                          : "text-muted-foreground group-hover:text-foreground"
+                      )}
+                    >
+                      {item.name}
                     </span>
-                    {theme === t.id && (
-                      <div className="absolute top-2 right-2 bg-primary text-primary-foreground rounded-full p-0.5 shadow-sm">
+                    {theme === item.id ? (
+                      <div className="absolute right-2 top-2 rounded-full bg-primary p-0.5 text-primary-foreground shadow-sm">
                         <Check className="h-2.5 w-2.5" />
                       </div>
-                    )}
+                    ) : null}
                   </button>
                 ))}
               </div>
@@ -269,17 +386,19 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="gateway" className="space-y-4">
-           <Card className="border-none bg-card/50 shadow-md backdrop-blur-md">
+          <Card className="border-none bg-card/50 shadow-md backdrop-blur-md">
             <CardHeader>
               <CardTitle className="text-base">网关策略</CardTitle>
               <CardDescription>配置账号选路和请求头处理方式</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-               <div className="grid gap-2">
+              <div className="grid gap-2">
                 <Label>账号选路策略</Label>
-                <Select 
-                  value={snapshot?.routeStrategy || "ordered"} 
-                  onValueChange={(val) => updateSettings.mutate({ routeStrategy: val })}
+                <Select
+                  value={snapshot.routeStrategy || "ordered"}
+                  onValueChange={(value) =>
+                    updateSettings.mutate({ routeStrategy: value || "ordered" })
+                  }
                 >
                   <SelectTrigger className="w-full md:w-[300px]">
                     <SelectValue placeholder="选择策略" />
@@ -289,7 +408,9 @@ export default function SettingsPage() {
                     <SelectItem value="balanced">均衡轮询 (Balanced)</SelectItem>
                   </SelectContent>
                 </Select>
-                <p className="text-[10px] text-muted-foreground">顺序优先：始终尝试第一个可用账号；均衡轮询：在可用账号间平均分配。</p>
+                <p className="text-[10px] text-muted-foreground">
+                  顺序优先：始终尝试第一个可用账号；均衡轮询：在可用账号间平均分配。
+                </p>
               </div>
 
               <div className="flex items-center justify-between border-t pt-6">
@@ -297,44 +418,63 @@ export default function SettingsPage() {
                   <Label>请求头收敛策略</Label>
                   <p className="text-xs text-muted-foreground">移除高风险会话头，降低 Cloudflare 验证命中率</p>
                 </div>
-                <Switch 
-                  checked={snapshot?.cpaNoCookieHeaderModeEnabled} 
-                  onCheckedChange={(val) => updateSettings.mutate({ cpaNoCookieHeaderModeEnabled: val })}
+                <Switch
+                  checked={snapshot.cpaNoCookieHeaderModeEnabled}
+                  onCheckedChange={(value) =>
+                    updateSettings.mutate({ cpaNoCookieHeaderModeEnabled: value })
+                  }
                 />
               </div>
 
               <div className="grid gap-2 pt-2">
                 <Label>上游代理 (Proxy)</Label>
-                <div className="flex gap-2">
-                  <Input 
-                    placeholder="http://127.0.0.1:7890" 
-                    className="max-w-md font-mono h-10"
-                    defaultValue={snapshot?.upstreamProxyUrl}
-                    onBlur={(e) => {
-                      if (snapshot && e.target.value !== snapshot.upstreamProxyUrl) {
-                        updateSettings.mutate({ upstreamProxyUrl: e.target.value });
-                      }
-                    }}
-                  />
-                </div>
+                <Input
+                  placeholder="http://127.0.0.1:7890"
+                  className="h-10 max-w-md font-mono"
+                  value={upstreamProxyInput}
+                  onChange={(event) => setUpstreamProxyDraft(event.target.value)}
+                  onBlur={() => {
+                    if (upstreamProxyDraft == null) return;
+                    if (upstreamProxyInput === (snapshot.upstreamProxyUrl || "")) {
+                      setUpstreamProxyDraft(null);
+                      return;
+                    }
+                    void updateSettings
+                      .mutateAsync({ upstreamProxyUrl: upstreamProxyInput })
+                      .then(() => setUpstreamProxyDraft(null))
+                      .catch(() => undefined);
+                  }}
+                />
                 <p className="text-[10px] text-muted-foreground">支持 http/https/socks5，留空表示直连。</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4 border-t pt-6">
                 <div className="grid gap-2">
                   <Label>SSE 保活间隔 (ms)</Label>
-                  <Input 
+                  <Input
                     type="number"
-                    defaultValue={snapshot?.sseKeepaliveIntervalMs}
-                    onBlur={(e) => updateSettings.mutate({ sseKeepaliveIntervalMs: parseInt(e.target.value) })}
+                    value={transportInputValues.sseKeepaliveIntervalMs}
+                    onChange={(event) =>
+                      setTransportDraft((current) => ({
+                        ...current,
+                        sseKeepaliveIntervalMs: event.target.value,
+                      }))
+                    }
+                    onBlur={() => saveTransportField("sseKeepaliveIntervalMs", 1)}
                   />
                 </div>
                 <div className="grid gap-2">
                   <Label>上游流式超时 (ms)</Label>
-                  <Input 
+                  <Input
                     type="number"
-                    defaultValue={snapshot?.upstreamStreamTimeoutMs}
-                    onBlur={(e) => updateSettings.mutate({ upstreamStreamTimeoutMs: parseInt(e.target.value) })}
+                    value={transportInputValues.upstreamStreamTimeoutMs}
+                    onChange={(event) =>
+                      setTransportDraft((current) => ({
+                        ...current,
+                        upstreamStreamTimeoutMs: event.target.value,
+                      }))
+                    }
+                    onBlur={() => saveTransportField("upstreamStreamTimeoutMs", 0)}
                   />
                 </div>
               </div>
@@ -343,44 +483,69 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="tasks" className="space-y-4">
-           <Card className="border-none bg-card/50 shadow-md backdrop-blur-md">
+          <Card className="border-none bg-card/50 shadow-md backdrop-blur-md">
             <CardHeader>
               <CardTitle className="text-base">后台任务线程</CardTitle>
               <CardDescription>管理自动轮询和保活任务</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {[
-                { label: "用量轮询线程", enabledKey: "usagePollingEnabled", intervalKey: "usagePollIntervalSecs" },
-                { label: "网关保活线程", enabledKey: "gatewayKeepaliveEnabled", intervalKey: "gatewayKeepaliveIntervalSecs" },
-                { label: "令牌刷新轮询", enabledKey: "tokenRefreshPollingEnabled", intervalKey: "tokenRefreshPollIntervalSecs" },
+                {
+                  label: "用量轮询线程",
+                  enabledKey: "usagePollingEnabled",
+                  intervalKey: "usagePollIntervalSecs",
+                },
+                {
+                  label: "网关保活线程",
+                  enabledKey: "gatewayKeepaliveEnabled",
+                  intervalKey: "gatewayKeepaliveIntervalSecs",
+                },
+                {
+                  label: "令牌刷新轮询",
+                  enabledKey: "tokenRefreshPollingEnabled",
+                  intervalKey: "tokenRefreshPollIntervalSecs",
+                },
               ].map((task) => (
-                <div key={task.enabledKey} className="flex items-center justify-between gap-4 p-3 rounded-lg bg-accent/20">
+                <div
+                  key={task.enabledKey}
+                  className="flex items-center justify-between gap-4 rounded-lg bg-accent/20 p-3"
+                >
                   <div className="flex items-center gap-3">
-                    <Switch 
-                      checked={snapshot?.backgroundTasks?.[task.enabledKey]} 
-                      onCheckedChange={(val) => {
-                        if (snapshot) {
-                          updateSettings.mutate({ 
-                            backgroundTasks: { ...snapshot.backgroundTasks, [task.enabledKey]: val } 
-                          });
-                        }
-                      }}
+                    <Switch
+                      checked={snapshot.backgroundTasks[task.enabledKey as keyof BackgroundTaskSettings] as boolean}
+                      onCheckedChange={(value) =>
+                        updateBackgroundTasks({
+                          [task.enabledKey]: value,
+                        } as Partial<BackgroundTaskSettings>)
+                      }
                     />
                     <Label>{task.label}</Label>
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">间隔(秒)</span>
-                    <Input 
-                      className="w-20 h-8" 
+                    <Input
+                      className="h-8 w-20"
                       type="number"
-                      defaultValue={snapshot?.backgroundTasks?.[task.intervalKey]}
-                      onBlur={(e) => {
-                        if (snapshot) {
-                          updateSettings.mutate({ 
-                            backgroundTasks: { ...snapshot.backgroundTasks, [task.intervalKey]: parseInt(e.target.value) } 
-                          });
-                        }
-                      }}
+                      value={
+                        backgroundTaskDraft[task.intervalKey] ||
+                        stringifyNumber(
+                          snapshot.backgroundTasks[
+                            task.intervalKey as keyof BackgroundTaskSettings
+                          ] as number
+                        )
+                      }
+                      onChange={(event) =>
+                        setBackgroundTaskDraft((current) => ({
+                          ...current,
+                          [task.intervalKey]: event.target.value,
+                        }))
+                      }
+                      onBlur={() =>
+                        saveBackgroundTaskField(
+                          task.intervalKey as keyof BackgroundTaskSettings,
+                          1
+                        )
+                      }
                     />
                   </div>
                 </div>
@@ -393,7 +558,7 @@ export default function SettingsPage() {
               <CardTitle className="text-base">Worker 并发参数</CardTitle>
               <CardDescription>调整执行单元并发规模（重启后生效）</CardDescription>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CardContent className="grid grid-cols-1 gap-4 md:grid-cols-2">
               {[
                 { label: "用量刷新并发", key: "usageRefreshWorkers" },
                 { label: "HTTP 因子", key: "httpWorkerFactor" },
@@ -403,17 +568,26 @@ export default function SettingsPage() {
               ].map((worker) => (
                 <div key={worker.key} className="grid gap-1.5">
                   <Label className="text-xs">{worker.label}</Label>
-                  <Input 
-                    type="number" 
+                  <Input
+                    type="number"
                     className="h-9"
-                    defaultValue={snapshot?.backgroundTasks?.[worker.key]}
-                    onBlur={(e) => {
-                      if (snapshot) {
-                        updateSettings.mutate({ 
-                          backgroundTasks: { ...snapshot.backgroundTasks, [worker.key]: parseInt(e.target.value) } 
-                        });
-                      }
-                    }}
+                    value={
+                      backgroundTaskDraft[worker.key] ||
+                      stringifyNumber(
+                        snapshot.backgroundTasks[
+                          worker.key as keyof BackgroundTaskSettings
+                        ] as number
+                      )
+                    }
+                    onChange={(event) =>
+                      setBackgroundTaskDraft((current) => ({
+                        ...current,
+                        [worker.key]: event.target.value,
+                      }))
+                    }
+                    onBlur={() =>
+                      saveBackgroundTaskField(worker.key as keyof BackgroundTaskSettings, 1)
+                    }
                   />
                 </div>
               ))}
@@ -422,67 +596,81 @@ export default function SettingsPage() {
         </TabsContent>
 
         <TabsContent value="env" className="space-y-4">
-          <div className="grid md:grid-cols-[300px_1fr] gap-6">
-            <Card className="border-none bg-card/50 shadow-md flex flex-col h-[500px]">
+          <div className="grid gap-6 md:grid-cols-[300px_1fr]">
+            <Card className="flex h-[500px] flex-col border-none bg-card/50 shadow-md">
               <CardHeader className="pb-3">
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input 
-                    placeholder="搜索变量..." 
-                    className="pl-9 h-9" 
+                  <Input
+                    placeholder="搜索变量..."
+                    className="h-9 pl-9"
                     value={envSearch}
-                    onChange={(e) => setEnvSearch(e.target.value)}
+                    onChange={(event) => setEnvSearch(event.target.value)}
                   />
                 </div>
               </CardHeader>
               <CardContent className="flex-1 overflow-y-auto p-2">
                 <div className="space-y-1">
-                  {filteredEnvCatalog.map((item: any) => (
+                  {filteredEnvCatalog.map((item) => (
                     <button
                       key={item.key}
                       onClick={() => setSelectedEnvKey(item.key)}
                       className={cn(
-                        "w-full text-left px-3 py-2 rounded-md text-sm transition-colors",
-                        selectedEnvKey === item.key ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                        "w-full rounded-md px-3 py-2 text-left text-sm transition-colors",
+                        selectedEnvKey === item.key
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-accent"
                       )}
                     >
-                      <div className="font-medium truncate">{item.label}</div>
-                      <code className="text-[10px] opacity-70 truncate block">{item.key}</code>
+                      <div className="truncate font-medium">{item.label}</div>
+                      <code className="block truncate text-[10px] opacity-70">{item.key}</code>
                     </button>
                   ))}
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-none bg-card/50 shadow-md min-h-[500px]">
+            <Card className="min-h-[500px] border-none bg-card/50 shadow-md">
               {selectedEnvKey ? (
                 <>
                   <CardHeader>
                     <div className="flex flex-col gap-1">
                       <CardTitle className="text-lg">{selectedEnvItem?.label}</CardTitle>
-                      <code className="text-xs text-primary bg-primary/10 px-2 py-0.5 rounded w-fit">{selectedEnvKey}</code>
+                      <code className="w-fit rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                        {selectedEnvKey}
+                      </code>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    <div className="rounded-lg bg-accent/30 p-4 text-sm text-muted-foreground border leading-relaxed">
-                      <Info className="h-4 w-4 inline-block mr-2 text-primary" />
-                      {ENV_DESCRIPTION_MAP[selectedEnvKey] || `${selectedEnvItem?.label} 对应环境变量，修改后会应用到相关模块。`}
+                    <div className="rounded-lg border bg-accent/30 p-4 text-sm leading-relaxed text-muted-foreground">
+                      <Info className="mr-2 inline-block h-4 w-4 text-primary" />
+                      {ENV_DESCRIPTION_MAP[selectedEnvKey] ||
+                        `${selectedEnvItem?.label} 对应环境变量，修改后会应用到相关模块。`}
                     </div>
 
                     <div className="space-y-2">
                       <Label>当前值</Label>
-                      <Input 
-                        value={envEditValue}
-                        onChange={(e) => setEnvEditValue(e.target.value)}
-                        className="font-mono h-11"
+                      <Input
+                        value={selectedEnvValue}
+                        onChange={(event) => {
+                          if (!selectedEnvKey) return;
+                          setEnvDrafts((current) => ({
+                            ...current,
+                            [selectedEnvKey]: event.target.value,
+                          }));
+                        }}
+                        className="h-11 font-mono"
                         placeholder="输入变量值"
                       />
                       <p className="text-[10px] text-muted-foreground">
-                        默认值: <span className="font-mono italic">{selectedEnvItem?.defaultValue || "空"}</span>
+                        默认值:{" "}
+                        <span className="font-mono italic">
+                          {selectedEnvItem?.defaultValue || "空"}
+                        </span>
                       </p>
                     </div>
 
-                    <div className="flex gap-3 pt-4 border-t">
+                    <div className="flex gap-3 border-t pt-4">
                       <Button onClick={handleSaveEnv} className="gap-2">
                         <Save className="h-4 w-4" /> 保存修改
                       </Button>
@@ -493,8 +681,8 @@ export default function SettingsPage() {
                   </CardContent>
                 </>
               ) : (
-                <CardContent className="h-full flex flex-col items-center justify-center text-muted-foreground gap-4">
-                  <div className="p-4 rounded-full bg-accent/30">
+                <CardContent className="flex h-full flex-col items-center justify-center gap-4 text-muted-foreground">
+                  <div className="rounded-full bg-accent/30 p-4">
                     <Variable className="h-12 w-12 opacity-20" />
                   </div>
                   <p>请从左侧列表选择一个环境变量进行配置</p>

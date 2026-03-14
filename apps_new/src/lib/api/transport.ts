@@ -2,11 +2,27 @@ import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { fetchWithRetry, runWithControl, RequestOptions } from "../utils/request";
 import { useAppStore } from "../store/useAppStore";
 
-export function isTauriRuntime(): boolean {
-  return typeof window !== "undefined" && Boolean((window as any).__TAURI__);
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
 }
 
-export function withAddr(params: Record<string, any> = {}): Record<string, any> {
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error || "");
+}
+
+export function isTauriRuntime(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    Boolean((window as typeof window & { __TAURI__?: unknown }).__TAURI__)
+  );
+}
+
+export function withAddr(
+  params: Record<string, unknown> = {}
+): Record<string, unknown> {
   const addr = useAppStore.getState().serviceStatus.addr;
   return {
     addr: addr || null,
@@ -14,8 +30,8 @@ export function withAddr(params: Record<string, any> = {}): Record<string, any> 
   };
 }
 
-export function isCommandMissingError(err: any): boolean {
-  const msg = String(err?.message || err || "").toLowerCase();
+export function isCommandMissingError(err: unknown): boolean {
+  const msg = getErrorMessage(err).toLowerCase();
   return (
     msg.includes("unknown command") ||
     msg.includes("not found") ||
@@ -25,10 +41,10 @@ export function isCommandMissingError(err: any): boolean {
 
 export async function invokeFirst<T>(
   methods: string[],
-  params?: Record<string, any>,
+  params?: Record<string, unknown>,
   options: RequestOptions = {}
 ): Promise<T> {
-  let lastErr: any;
+  let lastErr: unknown;
   for (const method of methods) {
     try {
       return await invoke<T>(method, params, options);
@@ -44,46 +60,62 @@ export async function invokeFirst<T>(
 
 export async function invoke<T>(
   method: string,
-  params?: Record<string, any>,
+  params?: Record<string, unknown>,
   options: RequestOptions = {}
 ): Promise<T> {
   if (!isTauriRuntime()) {
     throw new Error("桌面接口不可用（请在桌面端运行）");
   }
 
-  const res = await runWithControl(
+  const response = await runWithControl<unknown>(
     () => tauriInvoke(method, params || {}),
     options
-  ) as any;
+  );
 
-  if (res && typeof res === "object" && "error" in res) {
-    const err = res.error;
-    throw new Error(typeof err === "string" ? err : err?.message || JSON.stringify(err));
+  const responseRecord = asRecord(response);
+  if (responseRecord && "error" in responseRecord) {
+    const error = responseRecord.error;
+    throw new Error(
+      typeof error === "string"
+        ? error
+        : asRecord(error)?.message
+          ? String(asRecord(error)?.message)
+          : JSON.stringify(error)
+    );
   }
 
-  const throwIfBusinessError = (payload: any) => {
+  const throwIfBusinessError = (payload: unknown) => {
     const msg = resolveBusinessErrorMessage(payload);
     if (msg) throw new Error(msg);
   };
 
-  if (res && "result" in res) {
-    const payload = res.result;
+  if (responseRecord && "result" in responseRecord) {
+    const payload = responseRecord.result as T;
     throwIfBusinessError(payload);
     return payload;
   }
   
-  throwIfBusinessError(res);
-  return res;
+  throwIfBusinessError(response);
+  return response as T;
 }
 
-function resolveBusinessErrorMessage(payload: any): string {
-  if (!payload || typeof payload !== "object") return "";
-  const err = payload.error;
-  if (payload.ok === false) {
-    return typeof err === "string" ? err : err?.message || "操作失败";
+function resolveBusinessErrorMessage(payload: unknown): string {
+  const source = asRecord(payload);
+  if (!source) return "";
+  const error = source.error;
+  if (source.ok === false) {
+    return typeof error === "string"
+      ? error
+      : asRecord(error)?.message
+        ? String(asRecord(error)?.message)
+        : "操作失败";
   }
-  if (err) {
-    return typeof err === "string" ? err : err?.message || "";
+  if (error) {
+    return typeof error === "string"
+      ? error
+      : asRecord(error)?.message
+        ? String(asRecord(error)?.message)
+        : "";
   }
   return "";
 }
@@ -118,6 +150,6 @@ export async function requestlogListViaHttpRpc<T>(
   );
 
   if (!response.ok) throw new Error(`RPC 请求失败（HTTP ${response.status}）`);
-  const payload = await response.json();
-  return payload.result ?? payload;
+  const payload = (await response.json()) as Record<string, unknown>;
+  return ((payload.result ?? payload) as T);
 }

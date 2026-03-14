@@ -10,10 +10,7 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { 
-  Card, 
-  CardContent 
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { 
@@ -24,10 +21,10 @@ import {
   Trash2, 
   ExternalLink,
   FolderOpen,
-  Download,
-  Upload,
   ArrowUpDown,
-  Filter
+  Clock,
+  Calendar,
+  BarChart3
 } from "lucide-react";
 import { 
   DropdownMenu, 
@@ -46,47 +43,69 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { AddAccountModal } from "@/components/modals/add-account-modal";
+import UsageModal from "@/components/modals/usage-modal";
 import { cn } from "@/lib/utils";
+import { Account } from "@/types";
 
 type StatusFilter = "all" | "available" | "low_quota";
 
+function QuotaProgress({ label, used, total, icon: Icon }: { label: string, used: number, total: number, icon: any }) {
+  const percentage = total > 0 ? Math.min(Math.round((used / total) * 100), 100) : 0;
+  const remaining = Math.max(total - used, 0);
+  
+  return (
+    <div className="flex flex-col gap-1 min-w-[100px]">
+      <div className="flex items-center justify-between text-[10px]">
+        <div className="flex items-center gap-1 text-muted-foreground">
+          <Icon className="h-3 w-3" />
+          <span>{label}</span>
+        </div>
+        <span className="font-medium">{remaining}/{total}</span>
+      </div>
+      <Progress value={percentage} className="h-1.5" />
+    </div>
+  );
+}
+
 export default function AccountsPage() {
-  const { accounts, groups, isLoading, refreshAccount, deleteAccount, deleteUnavailableFree, importByDirectory } = useAccounts();
+  const { accounts, groups, isLoading, refreshAccount, deleteAccount, deleteUnavailableFree, importByDirectory, isRefreshing } = useAccounts();
   const [search, setSearch] = useState("");
-  const [groupFilter, setGroupFilter] = useState("all");
+  const [groupFilter, setGroupFilter] = useState("ALL_GROUPS");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [pageSize, setPageSize] = useState("20");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  
+  // Modals
   const [addAccountModalOpen, setAddAccountModalOpen] = useState(false);
+  const [usageModalOpen, setUsageModalOpen] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState<Account | null>(null);
 
-  // Advanced Filtering
   const filteredAccounts = useMemo(() => {
     return accounts.filter(acc => {
       const matchSearch = !search || 
         acc.name.toLowerCase().includes(search.toLowerCase()) ||
         acc.id.toLowerCase().includes(search.toLowerCase());
-      
-      const matchGroup = groupFilter === "all" || (acc.group || "默认") === groupFilter;
-      
+      const matchGroup = groupFilter === "ALL_GROUPS" || (acc.group || "默认") === groupFilter;
       const matchStatus = statusFilter === "all" || 
         (statusFilter === "available" && acc.is_available) ||
         (statusFilter === "low_quota" && acc.is_low_quota);
-
       return matchSearch && matchGroup && matchStatus;
     });
   }, [accounts, search, groupFilter, statusFilter]);
 
   const toggleSelect = (id: string) => {
-    setSelectedIds(prev => 
-      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
-    );
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
   const toggleSelectAll = () => {
-    setSelectedIds(prev => 
-      prev.length === filteredAccounts.length ? [] : filteredAccounts.map(a => a.id)
-    );
+    setSelectedIds(prev => prev.length === filteredAccounts.length ? [] : filteredAccounts.map(a => a.id));
+  };
+
+  const openUsage = (account: Account) => {
+    setSelectedAccount(account);
+    setUsageModalOpen(true);
   };
 
   return (
@@ -103,43 +122,36 @@ export default function AccountsPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-
             <Select value={groupFilter} onValueChange={(val) => val && setGroupFilter(val)}>
               <SelectTrigger className="w-[160px] h-10 bg-card/50">
                 <SelectValue placeholder="全部分组" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">全部分组 ({accounts.length})</SelectItem>
+                <SelectItem value="ALL_GROUPS">全部分组 ({accounts.length})</SelectItem>
                 {groups.map(g => (
                   <SelectItem key={g.label} value={g.label}>{g.label} ({g.count})</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-
             <div className="flex items-center rounded-lg border bg-muted/30 p-1">
-              {[
-                { id: "all", label: "全部" },
-                { id: "available", label: "可用" },
-                { id: "low_quota", label: "低配额" },
-              ].map((f) => (
+              {["all", "available", "low_quota"].map((f) => (
                 <button
-                  key={f.id}
-                  onClick={() => setStatusFilter(f.id as StatusFilter)}
+                  key={f}
+                  onClick={() => setStatusFilter(f as StatusFilter)}
                   className={cn(
                     "px-4 py-1.5 text-xs font-medium rounded-md transition-all",
-                    statusFilter === f.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                    statusFilter === f ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                   )}
                 >
-                  {f.label}
+                  {f === "all" ? "全部" : f === "available" ? "可用" : "低配额"}
                 </button>
               ))}
             </div>
           </div>
-
           <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger>
-                <Button variant="outline" className="gap-2 h-10">
+                <Button variant="outline" className="gap-2 h-10" nativeButton={false}>
                   账号操作 <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -153,9 +165,6 @@ export default function AccountsPage() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-primary">
                   <RefreshCw className="h-4 w-4 mr-2" /> 刷新所有账号
-                </DropdownMenuItem>
-                <DropdownMenuItem className={cn(selectedIds.length === 0 && "opacity-50")}>
-                  <Download className="h-4 w-4 mr-2" /> 导出选中账号
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem disabled={selectedIds.length === 0} className="text-destructive">
@@ -184,16 +193,12 @@ export default function AccountsPage() {
                     onCheckedChange={toggleSelectAll}
                   />
                 </TableHead>
-                <TableHead>账号名称</TableHead>
-                <TableHead>分组</TableHead>
-                <TableHead className="w-24">
-                  <div className="flex items-center gap-1">
-                    顺序 <ArrowUpDown className="h-3 w-3" />
-                  </div>
-                </TableHead>
+                <TableHead className="max-w-[220px]">账号信息</TableHead>
+                <TableHead>5h 额度</TableHead>
+                <TableHead>7d 额度</TableHead>
+                <TableHead className="w-20">顺序</TableHead>
                 <TableHead>状态</TableHead>
-                <TableHead>最近刷新</TableHead>
-                <TableHead className="text-right">操作</TableHead>
+                <TableHead className="text-center">操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -202,22 +207,13 @@ export default function AccountsPage() {
                   <TableRow key={i}>
                     <TableCell><Skeleton className="h-4 w-4 mx-auto" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                    <TableCell><Skeleton className="h-4 w-12" /></TableCell>
-                    <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                    <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-10" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-24 mx-auto" /></TableCell>
                   </TableRow>
                 ))
-              ) : filteredAccounts.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-48 text-center">
-                    <div className="flex flex-col items-center justify-center text-muted-foreground gap-2">
-                      <Search className="h-8 w-8 opacity-20" />
-                      <p>未找到符合条件的账号</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
               ) : (
                 filteredAccounts.map((account) => (
                   <TableRow key={account.id} className="group transition-colors hover:bg-muted/30">
@@ -227,16 +223,30 @@ export default function AccountsPage() {
                         onCheckedChange={() => toggleSelect(account.id)}
                       />
                     </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="font-semibold text-sm">{account.name}</span>
-                        <span className="text-[10px] text-muted-foreground font-mono opacity-60 uppercase">{account.id.slice(0, 8)}...</span>
+                    <TableCell className="max-w-[220px]">
+                      <div className="flex flex-col overflow-hidden">
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <span className="font-semibold text-sm truncate">{account.name}</span>
+                          <Badge variant="secondary" className="text-[9px] px-1.5 h-4 bg-accent/50 shrink-0">{account.group || "默认"}</Badge>
+                        </div>
+                        <span className="text-[10px] text-muted-foreground font-mono opacity-60 uppercase truncate">{account.id.slice(0, 16)}...</span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary" className="font-normal px-2 py-0 h-5 bg-accent/50 text-accent-foreground border-none">
-                        {account.group || "默认"}
-                      </Badge>
+                      <QuotaProgress 
+                        label="5小时" 
+                        used={account.usage?.used || 0} 
+                        total={account.usage?.total || 0} 
+                        icon={Clock} 
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <QuotaProgress 
+                        label="7天" 
+                        used={account.usage?.used || 0} 
+                        total={account.usage?.total || 0} 
+                        icon={Calendar} 
+                      />
                     </TableCell>
                     <TableCell>
                       <span className="text-xs font-mono bg-muted/50 px-2 py-0.5 rounded">{account.priority || 0}</span>
@@ -244,41 +254,48 @@ export default function AccountsPage() {
                     <TableCell>
                       {account.is_available ? (
                         <div className="flex items-center gap-1.5">
-                          <div className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                          <span className="text-xs text-green-600 dark:text-green-400 font-medium">可用</span>
+                          <div className="h-1.5 w-1.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                          <span className="text-[11px] text-green-600 font-medium">可用</span>
                         </div>
                       ) : (
                         <div className="flex items-center gap-1.5">
-                          <div className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                          <span className="text-xs text-red-600 dark:text-red-400 font-medium">不可用</span>
+                          <div className="h-1.5 w-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]" />
+                          <span className="text-[11px] text-red-600 font-medium">不可用</span>
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {account.last_refresh_at || "从未刷新"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <TableCell>
+                      <div className="table-action-cell gap-1">
                         <Button 
                           variant="ghost" 
                           size="icon" 
-                          className="h-8 w-8 text-muted-foreground hover:text-primary"
-                          onClick={() => refreshAccount(account.id)}
+                          className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
+                          onClick={() => openUsage(account)}
+                          title="用量查询"
                         >
-                          <RefreshCw className="h-4 w-4" />
+                          <BarChart3 className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-muted-foreground hover:text-primary transition-colors"
+                          onClick={() => refreshAccount(account.id)}
+                          title="立即刷新"
+                        >
+                          <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
                         </Button>
                         <DropdownMenu>
                           <DropdownMenuTrigger>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" nativeButton={false}>
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem className="gap-2">
-                              <ExternalLink className="h-4 w-4" /> 详情与日志
+                              <ExternalLink className="h-4 w-4" /> 详情
                             </DropdownMenuItem>
                             <DropdownMenuItem className="gap-2 text-red-500" onClick={() => deleteAccount(account.id)}>
-                              <Trash2 className="h-4 w-4" /> 删除账号
+                              <Trash2 className="h-4 w-4" /> 删除
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -318,9 +335,13 @@ export default function AccountsPage() {
         </div>
       </div>
 
-      <AddAccountModal 
-        open={addAccountModalOpen} 
-        onOpenChange={setAddAccountModalOpen} 
+      <AddAccountModal open={addAccountModalOpen} onOpenChange={setAddAccountModalOpen} />
+      <UsageModal 
+        account={selectedAccount} 
+        open={usageModalOpen} 
+        onOpenChange={setUsageModalOpen} 
+        onRefresh={refreshAccount}
+        isRefreshing={isRefreshing}
       />
     </div>
   );

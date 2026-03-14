@@ -31,7 +31,7 @@ export interface ApiKey {
   protocol: "openai_compat" | "azure_openai" | "anthropic_native";
   model: string;
   reasoning_level?: string;
-  status: "enabled" | "disabled";
+  status: "active" | "disabled";
   secret?: string;
   endpoint?: string;
 }
@@ -47,6 +47,9 @@ export interface RequestLog {
   level: string;
   status: number;
   error?: string;
+  total_tokens?: number;
+  cached_tokens?: number;
+  latency_ms?: number;
 }
 
 export interface AppSettings {
@@ -56,27 +59,20 @@ export interface AppSettings {
   lightweightModeOnCloseToTray: boolean;
   webAccessPasswordConfigured: boolean;
   serviceAddr: string;
+  theme?: string;
   [key: string]: any;
 }
 
-export interface GatewaySettings {
-  route_strategy: "ordered" | "balanced";
-  header_policy: "converged" | "passthrough";
-  upstream_proxy?: string;
-  sse_keepalive_interval_ms: number;
-  upstream_stream_timeout_ms: number;
-}
-
 export interface BackgroundTaskSettings {
-  usage_polling_enabled: boolean;
-  usage_poll_interval_secs: number;
-  gateway_keepalive_enabled: boolean;
-  gateway_keepalive_interval_secs: number;
-  token_refresh_polling_enabled: boolean;
-  token_refresh_poll_interval_secs: number;
-  usage_refresh_workers: number;
-  http_worker_factor: number;
-  http_worker_min: number;
-  http_stream_worker_factor: number;
-  http_stream_worker_min: number;
+  usagePollingEnabled: boolean;
+  usagePollIntervalSecs: number;
+  gatewayKeepaliveEnabled: boolean;
+  gatewayKeepaliveIntervalSecs: number;
+  tokenRefreshPollingEnabled: boolean;
+  tokenRefreshPollIntervalSecs: number;
+  usageRefreshWorkers: number;
+  httpWorkerFactor: number;
+  httpWorkerMin: number;
+  httpStreamWorkerFactor: number;
+  httpStreamWorkerMin: number;
 }

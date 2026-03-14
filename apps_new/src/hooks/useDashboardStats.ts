@@ -1,44 +1,51 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { accountClient } from "@/lib/api/account-client";
 import { serviceClient } from "@/lib/api/service-client";
+import { pickBestRecommendations, pickCurrentAccount } from "@/lib/utils/usage";
 
 export function useDashboardStats() {
-  const accountsQuery = useQuery({
-    queryKey: ["accounts"],
-    queryFn: () => accountClient.list(),
+  const snapshotQuery = useQuery({
+    queryKey: ["startup-snapshot", 120],
+    queryFn: () => serviceClient.getStartupSnapshot({ requestLogLimit: 120 }),
     retry: 1,
   });
 
-  const aggregateQuery = useQuery({
-    queryKey: ["usage-aggregate"],
-    queryFn: () => accountClient.aggregateUsage(),
-    retry: 1,
-  });
-
-  const todaySummaryQuery = useQuery({
-    queryKey: ["today-summary"],
-    queryFn: () => serviceClient.getTodaySummary(),
-    retry: 1,
-  });
-
-  const accounts = Array.isArray(accountsQuery.data) ? accountsQuery.data : [];
+  const data = snapshotQuery.data;
+  const accounts = data?.accounts || [];
   const totalAccounts = accounts.length;
-  const availableAccounts = accounts.filter(a => a.is_available).length;
+  const availableAccounts = accounts.filter((item) => item.isAvailable).length;
   const unavailableAccounts = totalAccounts - availableAccounts;
+  const currentAccount = pickCurrentAccount(
+    accounts,
+    data?.requestLogs || [],
+    data?.manualPreferredAccountId
+  );
+  const recommendations = pickBestRecommendations(accounts);
 
   return {
     stats: {
       total: totalAccounts,
       available: availableAccounts,
       unavailable: unavailableAccounts,
-      todayTokens: todaySummaryQuery.data?.total_tokens || 0,
-      cachedTokens: todaySummaryQuery.data?.cached_input_tokens || 0,
-      reasoningTokens: todaySummaryQuery.data?.reasoning_output_tokens || 0,
-      todayCost: todaySummaryQuery.data?.estimated_cost || 0,
-      poolRemain: aggregateQuery.data || { primary: "--", secondary: "--" },
+      todayTokens: data?.requestLogTodaySummary.todayTokens || 0,
+      cachedTokens: data?.requestLogTodaySummary.cachedInputTokens || 0,
+      reasoningTokens: data?.requestLogTodaySummary.reasoningOutputTokens || 0,
+      todayCost: data?.requestLogTodaySummary.estimatedCost || 0,
+      poolRemain: {
+        primary: data?.usageAggregateSummary.primaryRemainPercent ?? null,
+        secondary: data?.usageAggregateSummary.secondaryRemainPercent ?? null,
+        primaryKnownCount: data?.usageAggregateSummary.primaryKnownCount ?? 0,
+        primaryBucketCount: data?.usageAggregateSummary.primaryBucketCount ?? 0,
+        secondaryKnownCount: data?.usageAggregateSummary.secondaryKnownCount ?? 0,
+        secondaryBucketCount: data?.usageAggregateSummary.secondaryBucketCount ?? 0,
+      },
     },
-    isLoading: accountsQuery.isLoading || aggregateQuery.isLoading || todaySummaryQuery.isLoading,
+    currentAccount,
+    recommendations,
+    requestLogs: data?.requestLogs || [],
+    isLoading: snapshotQuery.isLoading,
+    isError: snapshotQuery.isError,
+    error: snapshotQuery.error,
   };
 }

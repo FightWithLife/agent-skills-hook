@@ -22,15 +22,16 @@ import {
 import { accountClient } from "@/lib/api/account-client";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { Key, Globe, Layers, Clipboard, ShieldCheck } from "lucide-react";
+import { Key, Globe, Clipboard, ShieldCheck } from "lucide-react";
+import { ApiKey } from "@/types";
 
 interface ApiKeyModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  keyId?: string; // If provided, edit mode
+  apiKey?: ApiKey | null;
 }
 
-export function ApiKeyModal({ open, onOpenChange, keyId }: ApiKeyModalProps) {
+export function ApiKeyModal({ open, onOpenChange, apiKey }: ApiKeyModalProps) {
   const [name, setName] = useState("");
   const [protocolType, setProtocolType] = useState("openai_compat");
   const [modelSlug, setModelSlug] = useState("");
@@ -44,10 +45,49 @@ export function ApiKeyModal({ open, onOpenChange, keyId }: ApiKeyModalProps) {
   const queryClient = useQueryClient();
 
   const { data: models } = useQuery({
-    queryKey: ["available-models"],
-    queryFn: () => accountClient.listModels(),
+    queryKey: ["apikey-models"],
+    queryFn: () => accountClient.listModels(false),
     enabled: open,
   });
+
+  useEffect(() => {
+    if (!open) return;
+
+    if (!apiKey) {
+      setName("");
+      setProtocolType("openai_compat");
+      setModelSlug("");
+      setReasoningEffort("");
+      setUpstreamBaseUrl("");
+      setAzureEndpoint("");
+      setAzureApiKey("");
+      setGeneratedKey("");
+      return;
+    }
+
+    setName(apiKey.name || "");
+    setProtocolType(apiKey.protocol || "openai_compat");
+    setModelSlug(apiKey.modelSlug || "");
+    setReasoningEffort(apiKey.reasoningEffort || "");
+    setGeneratedKey("");
+
+    if (apiKey.protocol === "azure_openai") {
+      setAzureEndpoint(apiKey.upstreamBaseUrl || "");
+      try {
+        const headers = apiKey.staticHeadersJson
+          ? JSON.parse(apiKey.staticHeadersJson)
+          : {};
+        setAzureApiKey(typeof headers["api-key"] === "string" ? headers["api-key"] : "");
+      } catch {
+        setAzureApiKey("");
+      }
+      setUpstreamBaseUrl("");
+    } else {
+      setUpstreamBaseUrl(apiKey.upstreamBaseUrl || "");
+      setAzureEndpoint("");
+      setAzureApiKey("");
+    }
+  }, [apiKey, open]);
 
   const handleSave = async () => {
     setIsLoading(true);
@@ -66,19 +106,23 @@ export function ApiKeyModal({ open, onOpenChange, keyId }: ApiKeyModalProps) {
         staticHeadersJson: Object.keys(staticHeaders).length > 0 ? JSON.stringify(staticHeaders) : null,
       };
 
-      if (keyId) {
-        await accountClient.updateApiKey(keyId, params);
+      if (apiKey?.id) {
+        await accountClient.updateApiKey(apiKey.id, params);
         toast.success("密钥配置已更新");
       } else {
         const result = await accountClient.createApiKey(params);
-        setGeneratedKey(result.id);
+        setGeneratedKey(result.key);
         toast.success("平台密钥已创建");
       }
       
-      queryClient.invalidateQueries({ queryKey: ["apikeys"] });
-      if (keyId) onOpenChange(false);
-    } catch (err: any) {
-      toast.error(`操作失败: ${err.message}`);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["apikeys"] }),
+        queryClient.invalidateQueries({ queryKey: ["apikey-models"] }),
+        queryClient.invalidateQueries({ queryKey: ["startup-snapshot"] }),
+      ]);
+      if (apiKey?.id) onOpenChange(false);
+    } catch (err: unknown) {
+      toast.error(`操作失败: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsLoading(false);
     }
@@ -97,7 +141,7 @@ export function ApiKeyModal({ open, onOpenChange, keyId }: ApiKeyModalProps) {
             <div className="p-2 rounded-full bg-primary/10">
               <Key className="h-5 w-5 text-primary" />
             </div>
-            <DialogTitle>{keyId ? "编辑平台密钥" : "创建平台密钥"}</DialogTitle>
+            <DialogTitle>{apiKey?.id ? "编辑平台密钥" : "创建平台密钥"}</DialogTitle>
           </div>
           <DialogDescription>
             配置网关访问凭据，您可以绑定特定模型、推理等级或自定义上游。
@@ -137,8 +181,10 @@ export function ApiKeyModal({ open, onOpenChange, keyId }: ApiKeyModalProps) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="auto">跟随请求</SelectItem>
-                  {models?.map((m) => (
-                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  {models?.map((model) => (
+                    <SelectItem key={model.slug} value={model.slug}>
+                      {model.displayName}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

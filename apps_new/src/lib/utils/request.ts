@@ -4,7 +4,7 @@ export interface RequestOptions {
   retries?: number;
   retryDelayMs?: number;
   maxRetryDelayMs?: number;
-  shouldRetry?: (error: any) => boolean;
+  shouldRetry?: (error: unknown) => boolean;
   shouldRetryStatus?: (status: number) => boolean;
 }
 
@@ -21,7 +21,7 @@ export async function fetchWithRetry(
     shouldRetryStatus = (status) => status >= 500 || status === 429,
   } = options;
 
-  let lastError: any;
+  let lastError: unknown;
   for (let i = 0; i <= retries; i++) {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
@@ -39,10 +39,10 @@ export async function fetchWithRetry(
       if (response.ok || !shouldRetryStatus(response.status) || i === retries) {
         return response;
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       clearTimeout(id);
       lastError = err;
-      if (err.name === "AbortError" && !options.signal?.aborted) {
+      if (err instanceof Error && err.name === "AbortError" && !options.signal?.aborted) {
         // Timeout retry
       } else if (i === retries) {
         throw err;
@@ -66,11 +66,11 @@ export async function runWithControl<T>(
     shouldRetry = () => true,
   } = options;
 
-  let lastError: any;
+  let lastError: unknown;
   for (let i = 0; i <= retries; i++) {
     try {
       return await fn();
-    } catch (err: any) {
+    } catch (err: unknown) {
       lastError = err;
       if (i === retries || !shouldRetry(err)) {
         throw err;
