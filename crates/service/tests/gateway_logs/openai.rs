@@ -1894,7 +1894,7 @@ fn gateway_unauthorized_refreshes_access_token_and_retries_once() {
 }
 
 #[test]
-fn gateway_invalid_refresh_token_marks_first_account_inactive_and_fails_over() {
+fn gateway_invalid_refresh_token_marks_first_account_unavailable_and_fails_over() {
     let _lock = lock_env();
     let dir = new_test_dir("codexmanager-gateway-invalid-refresh-failover");
     let db_path: PathBuf = dir.join("codexmanager.db");
@@ -2060,5 +2060,5 @@ fn gateway_invalid_refresh_token_marks_first_account_inactive_and_fails_over() {
         .find_account_by_id("acc_refresh_bad")
         .expect("find first account")
         .expect("first account exists");
-    assert_eq!(bad_account.status, "inactive");
+    assert_eq!(bad_account.status, "unavailable");
 }

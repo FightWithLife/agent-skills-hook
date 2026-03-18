@@ -5,6 +5,17 @@
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-03-18
+
+### Fixed
+- 修复 Web / Docker 版误走桌面专属命令分支、账号启用 / 禁用缺少 `sort` 参数导致无法切换状态，以及账号详情刷新失败后状态列不及时回刷的问题。
+- 修复禁用账号仍参与手动批量刷新与后台用量轮询的问题；批量刷新与后台轮询现已跳过手动禁用账号，并按并发 worker 执行。
+- 修复账号状态语义混乱问题：手动禁用统一为 `disabled`，额度用尽与 `usage endpoint 401` 统一为 `unavailable`，`refresh token 401` 相关链路也统一落成 `unavailable`，前端状态展示同步收口为“已禁用 / 不可用”。
+- 修复 Windows 本地 Web 启动器关闭控制台窗口后 `codexmanager-service` / `codexmanager-web` 仍残留后台的问题；启动器现在会通过 Job Object 一并回收子进程。
+
+### Changed
+- 发布版本提升到 `0.1.10`，同步更新 workspace、Tauri 桌面端、前端包版本、README 最新版本说明和版本一致性测试。
+
 ## [0.1.9] - 2026-03-18
 
 ### Added
@@ -98,7 +109,8 @@
 ### Changed
 - 账号管理页操作区整合为单一“账号操作”下拉菜单，替代右侧多按钮堆叠，界面更简洁。
 
-[Unreleased]: https://github.com/qxcnm/Codex-Manager/compare/v0.1.9...HEAD
+[Unreleased]: https://github.com/qxcnm/Codex-Manager/compare/v0.1.10...HEAD
+[0.1.10]: https://github.com/qxcnm/Codex-Manager/releases/tag/v0.1.10
 [0.1.9]: https://github.com/qxcnm/Codex-Manager/releases/tag/v0.1.9
 [0.1.8]: https://github.com/qxcnm/Codex-Manager/releases/tag/v0.1.8
 [0.1.7]: https://github.com/qxcnm/Codex-Manager/releases/tag/v0.1.7

@@ -9,7 +9,7 @@ use crate::account_identity::{
     build_account_storage_id, build_fallback_subject_key, clean_value,
     pick_existing_account_id_by_identity,
 };
-use crate::account_status::mark_account_inactive_for_refresh_token_error;
+use crate::account_status::mark_account_unavailable_for_refresh_token_error;
 use crate::app_settings::{get_persisted_app_setting, save_persisted_app_setting};
 use crate::gateway::clear_manual_preferred_account_if;
 use crate::storage_helpers::open_storage;
@@ -216,7 +216,7 @@ pub(crate) fn read_current_account(refresh_token: bool) -> Result<AccountReadRes
         if let Err(err) =
             refresh_and_persist_access_token(&storage, &mut token, &issuer, &client_id)
         {
-            let _ = mark_account_inactive_for_refresh_token_error(&storage, &account.id, &err);
+            let _ = mark_account_unavailable_for_refresh_token_error(&storage, &account.id, &err);
             return Err(err);
         }
     }
@@ -248,7 +248,7 @@ pub(crate) fn refresh_current_chatgpt_auth_tokens(
     let client_id =
         std::env::var("CODEXMANAGER_CLIENT_ID").unwrap_or_else(|_| DEFAULT_CLIENT_ID.to_string());
     if let Err(err) = refresh_and_persist_access_token(&storage, &mut token, &issuer, &client_id) {
-        let _ = mark_account_inactive_for_refresh_token_error(&storage, &account.id, &err);
+        let _ = mark_account_unavailable_for_refresh_token_error(&storage, &account.id, &err);
         return Err(err);
     }
 

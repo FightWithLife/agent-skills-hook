@@ -187,7 +187,7 @@ checksum = "6e4de3bc4ea267985becf712dc6d9eed8b04c953b3fcfb339ebc87acd9804901"
 
 [[package]]
 name = "codexmanager-core"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "base64",
  "rand 0.8.5",
@@ -200,7 +200,7 @@ dependencies = [
 
 [[package]]
 name = "codexmanager-service"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "axum",
  "bytes",
@@ -226,17 +226,18 @@ dependencies = [
 
 [[package]]
 name = "codexmanager-start"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "codexmanager-service",
  "ctrlc",
  "webbrowser",
+ "windows-sys 0.61.2",
  "winres",
 ]
 
 [[package]]
 name = "codexmanager-web"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "axum",
  "codexmanager-service",

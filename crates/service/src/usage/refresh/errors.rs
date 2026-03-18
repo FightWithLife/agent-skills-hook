@@ -2,7 +2,7 @@ use codexmanager_core::storage::{now_ts, Event, Storage};
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 
-use crate::account_status::{mark_account_inactive_for_refresh_token_error, set_account_status};
+use crate::account_status::{mark_account_unavailable_for_refresh_token_error, set_account_status};
 
 const DEFAULT_USAGE_REFRESH_FAILURE_EVENT_WINDOW_SECS: i64 = 60;
 const USAGE_REFRESH_FAILURE_EVENT_WINDOW_ENV: &str =
@@ -34,7 +34,7 @@ pub(super) fn record_usage_refresh_failure(storage: &Storage, account_id: &str, 
 }
 
 pub(super) fn mark_usage_unreachable_if_needed(storage: &Storage, account_id: &str, err: &str) {
-    if mark_account_inactive_for_refresh_token_error(storage, account_id, err) {
+    if mark_account_unavailable_for_refresh_token_error(storage, account_id, err) {
         return;
     }
     if err.starts_with("usage endpoint status 401") {

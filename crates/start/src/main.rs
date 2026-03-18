@@ -1,4 +1,5 @@
 use std::fs;
+use std::io;
 use std::io::Write;
 use std::net::TcpStream;
 use std::net::{SocketAddr, ToSocketAddrs};
@@ -11,6 +12,70 @@ use std::time::Duration;
 const ENV_CANDIDATES: [&str; 3] = ["codexmanager.env", "CodexManager.env", ".env"];
 const DEFAULT_SERVICE_ADDR: &str = "localhost:48760";
 const DEFAULT_WEB_ADDR: &str = "localhost:48761";
+
+#[cfg(target_os = "windows")]
+mod windows_job {
+    use super::*;
+    use std::mem::size_of;
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};
+    use windows_sys::Win32::System::JobObjects::{
+        AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
+        SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+    };
+
+    pub(super) struct ChildJob {
+        handle: HANDLE,
+    }
+
+    impl ChildJob {
+        pub(super) fn new() -> io::Result<Self> {
+            let handle = unsafe { CreateJobObjectW(std::ptr::null(), std::ptr::null()) };
+            if handle.is_null() {
+                return Err(io::Error::last_os_error());
+            }
+
+            let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = unsafe { std::mem::zeroed() };
+            info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            let ok = unsafe {
+                SetInformationJobObject(
+                    handle,
+                    JobObjectExtendedLimitInformation,
+                    &info as *const _ as *const _,
+                    size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+                )
+            };
+            if ok == 0 {
+                unsafe {
+                    CloseHandle(handle);
+                }
+                return Err(io::Error::last_os_error());
+            }
+
+            Ok(Self { handle })
+        }
+
+        pub(super) fn assign(&self, child: &Child) -> io::Result<()> {
+            let process_handle = child.as_raw_handle() as HANDLE;
+            let ok = unsafe { AssignProcessToJobObject(self.handle, process_handle) };
+            if ok == 0 {
+                return Err(io::Error::last_os_error());
+            }
+            Ok(())
+        }
+    }
+
+    impl Drop for ChildJob {
+        fn drop(&mut self) {
+            if !self.handle.is_null() {
+                unsafe {
+                    CloseHandle(self.handle);
+                }
+            }
+        }
+    }
+}
 
 fn exe_dir() -> PathBuf {
     std::env::current_exe()
@@ -206,6 +271,14 @@ fn main() {
 
     let service_bin = bin_path(&dir, "codexmanager-service");
     let web_bin = bin_path(&dir, "codexmanager-web");
+    #[cfg(target_os = "windows")]
+    let child_job = match windows_job::ChildJob::new() {
+        Ok(job) => Some(job),
+        Err(err) => {
+            eprintln!("创建 Windows 子进程回收句柄失败，关闭窗口时可能遗留后台进程：{err}");
+            None
+        }
+    };
 
     println!("CodexManager 启动器");
     println!("- service: {service_addr} (bind {service_bind_addr})");
@@ -228,6 +301,12 @@ fn main() {
         println!("正在启动 service...");
         match spawn_child(&service_bin, Some(&service_bind_addr)) {
             Ok(child) => {
+                #[cfg(target_os = "windows")]
+                if let Some(job) = child_job.as_ref() {
+                    if let Err(err) = job.assign(&child) {
+                        eprintln!("service 未能加入 Windows 回收句柄，关闭窗口时可能残留：{err}");
+                    }
+                }
                 service_child = Some(child);
                 spawned_service = true;
             }
@@ -260,6 +339,12 @@ fn main() {
             std::process::exit(1);
         }
     };
+    #[cfg(target_os = "windows")]
+    if let Some(job) = child_job.as_ref() {
+        if let Err(err) = job.assign(&web_child) {
+            eprintln!("web 未能加入 Windows 回收句柄，关闭窗口时可能残留：{err}");
+        }
+    }
 
     let should_exit = Arc::new(AtomicBool::new(false));
     {

@@ -2,7 +2,7 @@ use bytes::Bytes;
 use codexmanager_core::storage::{Account, Storage, Token};
 use std::time::Instant;
 
-use crate::account_status::mark_account_inactive_for_refresh_token_error;
+use crate::account_status::mark_account_unavailable_for_refresh_token_error;
 
 use super::super::support::outcome::{decide_upstream_outcome, UpstreamOutcomeDecision};
 use super::super::support::retry::{retry_with_alternate_path, AltPathRetryResult};
@@ -133,7 +133,7 @@ where
                 Ok(None) => {}
                 Err(err) => {
                     let refresh_token_invalid =
-                        mark_account_inactive_for_refresh_token_error(storage, &account.id, &err);
+                        mark_account_unavailable_for_refresh_token_error(storage, &account.id, &err);
                     log::warn!(
                         "event=gateway_upstream_unauthorized_refresh_failed path={} account_id={} err={}",
                         path,

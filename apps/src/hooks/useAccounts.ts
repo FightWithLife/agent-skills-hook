@@ -26,6 +26,14 @@ function buildImportSummaryMessage(result: ImportByDirectoryResult): string {
   return `导入完成：共${total}，新增${created}，更新${updated}，失败${failed}`;
 }
 
+function formatUsageRefreshErrorMessage(error: unknown): string {
+  const message = getAppErrorMessage(error);
+  if (message.toLowerCase().includes("refresh token failed with status 401")) {
+    return "账号长期未登录，refresh 已过期，已改为不可用状态";
+  }
+  return message;
+}
+
 export function useAccounts() {
   const queryClient = useQueryClient();
   const serviceStatus = useAppStore((state) => state.serviceStatus);
@@ -88,23 +96,27 @@ export function useAccounts() {
 
   const refreshAccountMutation = useMutation({
     mutationFn: (accountId: string) => accountClient.refreshUsage(accountId),
-    onSuccess: async () => {
-      await invalidateAll();
+    onSuccess: () => {
       toast.success("账号用量已刷新");
     },
     onError: (error: unknown) => {
-      toast.error(`刷新失败: ${getAppErrorMessage(error)}`);
+      toast.error(`刷新失败: ${formatUsageRefreshErrorMessage(error)}`);
+    },
+    onSettled: async () => {
+      await invalidateAll();
     },
   });
 
   const refreshAllMutation = useMutation({
     mutationFn: () => accountClient.refreshUsage(),
-    onSuccess: async () => {
-      await invalidateAll();
+    onSuccess: () => {
       toast.success("账号用量已刷新");
     },
     onError: (error: unknown) => {
-      toast.error(`刷新失败: ${getAppErrorMessage(error)}`);
+      toast.error(`刷新失败: ${formatUsageRefreshErrorMessage(error)}`);
+    },
+    onSettled: async () => {
+      await invalidateAll();
     },
   });
 

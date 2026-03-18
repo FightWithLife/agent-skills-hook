@@ -14,7 +14,7 @@ pub(crate) fn set_account_status(storage: &Storage, account_id: &str, status: &s
     }
 }
 
-pub(crate) fn mark_account_inactive_for_refresh_token_error(
+pub(crate) fn mark_account_unavailable_for_refresh_token_error(
     storage: &Storage,
     account_id: &str,
     err: &str,
@@ -23,6 +23,6 @@ pub(crate) fn mark_account_inactive_for_refresh_token_error(
         return false;
     };
     let status_reason = format!("refresh_token_invalid:{}", reason.as_code());
-    set_account_status(storage, account_id, "inactive", &status_reason);
+    set_account_status(storage, account_id, "unavailable", &status_reason);
     true
 }

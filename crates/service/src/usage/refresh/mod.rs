@@ -7,7 +7,7 @@ use std::sync::OnceLock;
 use std::thread;
 use std::time::{Duration, Instant};
 
-use crate::account_status::mark_account_inactive_for_refresh_token_error;
+use crate::account_status::mark_account_unavailable_for_refresh_token_error;
 use crate::storage_helpers::open_storage;
 use crate::usage_account_meta::{
     build_workspace_map_from_accounts, clean_header_value, derive_account_meta, patch_account_meta,
@@ -226,7 +226,7 @@ pub(crate) fn refresh_tokens_before_expiry_for_all_accounts() -> Result<(), Stri
                 refreshed = refreshed.saturating_add(1);
             }
             Err(err) => {
-                let _ = mark_account_inactive_for_refresh_token_error(
+                let _ = mark_account_unavailable_for_refresh_token_error(
                     &storage,
                     &token.account_id,
                     &err,

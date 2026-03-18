@@ -31,13 +31,14 @@ A local desktop + service toolkit for managing Codex-compatible accounts, usage,
 | Build locally, package, publish, run scripts | [Build, release, and script guide](docs/release/20260310122606851_构建发布与脚本说明.md) |
 
 ## Recent Changes
-- Current latest version: `v0.1.9` (2026-03-18)
-- This release is centered on a full UI refresh and consolidation under the new `apps` frontend: the old frontend was removed, while Accounts, Platform Keys, Request Logs, Settings, the top status bar, and the sidebar were all rebuilt into a denser desktop-first layout with cleaner filtering, dialogs, and summary cards.
+- Current latest version: `v0.1.10` (2026-03-18)
+- `v0.1.10` is a hotfix release on top of `v0.1.9`, mainly fixing Web / Docker false desktop-only prompts, account enable / disable argument errors, disabled accounts still being polled, inconsistent `refresh token 401` account states, and lingering child processes after closing the local Windows Web launcher.
+- The previous major update is still the full UI refresh and consolidation under the new `apps` frontend: the old frontend was removed, while Accounts, Platform Keys, Request Logs, Settings, the top status bar, and the sidebar were all rebuilt into a denser desktop-first layout with cleaner filtering, dialogs, and summary cards.
 - The request path was further aligned to actual Codex behavior, but only where it affects real request delivery: login / callback / workspace validation, refresh semantics, `/v1/responses` and `/v1/responses/compact` rewrites, thread anchors, `session_id` / `x-client-request-id` / `x-codex-turn-state`, request compression, and fallback diagnostics were all tightened.
 - Account routing and usability also improved: free / weekly-single-window accounts now consistently use the configured model override; preferred-account routing, failover behavior, inflight limits, and refresh-token false inactivation were all corrected, and request logs now expose both the initial account and the attempted chain.
 - Observability is much stronger: request logs now use backend pagination and backend summaries, while compact false-success bodies, HTML/challenge pages, `401 refresh` reasons, and `503 no available account` failures all produce clearer diagnostics instead of ambiguous generic errors.
 - Desktop stability and startup behavior were cleaned up as well: service startup false negatives, `/rpc` empty responses, stale usage-dialog data, first-switch lag, hydration mismatches, and misleading dev render indicators were all addressed, and the Web password setting now stays in sync between desktop and Web.
-- The release path was also normalized: the product version is now `0.1.9`, the Tauri Rust side and workflow Tauri CLI / pnpm versions are aligned again, and `release-all.yml` remains the single release entry for Windows / macOS / Linux. See [CHANGELOG.md](CHANGELOG.md) for the full history.
+- The release path was also normalized: the product version is now `0.1.10`, the Tauri Rust side and workflow Tauri CLI / pnpm versions are aligned again, and `release-all.yml` remains the single release entry for Windows / macOS / Linux. See [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 ## Features
 - Account pool management: groups, tags, sorting, notes

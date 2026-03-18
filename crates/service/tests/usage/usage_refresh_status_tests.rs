@@ -2,7 +2,7 @@ use super::{
     mark_usage_unreachable_if_needed, record_usage_refresh_failure, should_retry_with_refresh,
 };
 use crate::account_availability::Availability;
-use crate::account_status::mark_account_inactive_for_refresh_token_error;
+use crate::account_status::mark_account_unavailable_for_refresh_token_error;
 use crate::usage_snapshot_store::apply_status_from_snapshot;
 use codexmanager_core::storage::{now_ts, Account, Storage, UsageSnapshotRecord};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -160,11 +160,7 @@ fn mark_usage_unreachable_only_marks_401_as_unavailable() {
         .expect("exists");
     assert_eq!(still_active_after_500.status, "active");
 
-    mark_usage_unreachable_if_needed(
-        &storage,
-        "acc-2",
-        "usage endpoint status 401 Unauthorized",
-    );
+    mark_usage_unreachable_if_needed(&storage, "acc-2", "usage endpoint status 401 Unauthorized");
     let unavailable = storage
         .list_accounts()
         .expect("list")
@@ -250,7 +246,7 @@ fn apply_status_available_preserves_manual_disabled_status() {
 }
 
 #[test]
-fn refresh_token_auth_error_marks_account_inactive() {
+fn refresh_token_auth_error_marks_account_unavailable() {
     let storage = Storage::open_in_memory().expect("open");
     storage.init().expect("init");
     let account = Account {
@@ -267,16 +263,16 @@ fn refresh_token_auth_error_marks_account_inactive() {
     };
     storage.insert_account(&account).expect("insert");
 
-    assert!(mark_account_inactive_for_refresh_token_error(
+    assert!(mark_account_unavailable_for_refresh_token_error(
         &storage,
         "acc-refresh-auth",
         "refresh token failed with status 401 Unauthorized"
     ));
-    let inactive = storage
+    let unavailable = storage
         .find_account_by_id("acc-refresh-auth")
         .expect("find")
         .expect("exists");
-    assert_eq!(inactive.status, "inactive");
+    assert_eq!(unavailable.status, "unavailable");
 }
 
 #[test]
@@ -297,7 +293,7 @@ fn refresh_token_forbidden_without_invalid_grant_keeps_account_active() {
     };
     storage.insert_account(&account).expect("insert");
 
-    assert!(!mark_account_inactive_for_refresh_token_error(
+    assert!(!mark_account_unavailable_for_refresh_token_error(
         &storage,
         "acc-refresh-forbidden",
         "refresh token failed with status 403 Forbidden"
@@ -327,7 +323,7 @@ fn refresh_token_invalid_grant_on_forbidden_keeps_account_active() {
     };
     storage.insert_account(&account).expect("insert");
 
-    assert!(!mark_account_inactive_for_refresh_token_error(
+    assert!(!mark_account_unavailable_for_refresh_token_error(
         &storage,
         "acc-refresh-invalid-grant-403",
         "refresh token failed with status 403 Forbidden: {\"error\":\"invalid_grant\"}"
@@ -340,7 +336,7 @@ fn refresh_token_invalid_grant_on_forbidden_keeps_account_active() {
 }
 
 #[test]
-fn refresh_token_unknown_401_marks_account_inactive() {
+fn refresh_token_unknown_401_marks_account_unavailable() {
     let storage = Storage::open_in_memory().expect("open");
     storage.init().expect("init");
     let account = Account {
@@ -357,16 +353,16 @@ fn refresh_token_unknown_401_marks_account_inactive() {
     };
     storage.insert_account(&account).expect("insert");
 
-    assert!(mark_account_inactive_for_refresh_token_error(
+    assert!(mark_account_unavailable_for_refresh_token_error(
         &storage,
         "acc-refresh-unknown-401",
         "refresh token failed with status 401 Unauthorized: some_unknown_backend_code"
     ));
-    let inactive = storage
+    let unavailable = storage
         .find_account_by_id("acc-refresh-unknown-401")
         .expect("find")
         .expect("exists");
-    assert_eq!(inactive.status, "inactive");
+    assert_eq!(unavailable.status, "unavailable");
 }
 
 #[test]

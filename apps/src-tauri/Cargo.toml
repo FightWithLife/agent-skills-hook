@@ -1,6 +1,6 @@
 [package]
 name = "CodexManager"
-version = "0.1.9"
+version = "0.1.10"
 description = "A Tauri App"
 authors = ["you"]
 license = ""
@@ -30,3 +30,4 @@ semver = "1.0"
 zip = { version = "2.2", default-features = false, features = ["deflate"] }
 rfd = "0.15"
 rusqlite = { version = "0.31", features = ["bundled", "backup"] }
+

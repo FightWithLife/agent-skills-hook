@@ -219,7 +219,7 @@ export function calcAvailability(
     return { text: "已禁用", level: "bad" };
   }
   if (isRecoveryRequiredAccount(account)) {
-    return { text: "需恢复", level: "bad" };
+    return { text: "不可用", level: "bad" };
   }
   if (isUnavailableAccount(account)) {
     return { text: "不可用", level: "bad" };
