@@ -43,6 +43,16 @@ These instructions are loaded globally by Codex CLI.
 - If concurrent subagent slots are full or nearly full, do not spawn blindly; reclaim capacity through reuse or close-out first.
 - After subagents finish, integrate results, close them according to the lifecycle rule, resolve conflicts, and verify before answering.
 
+## Multi-Agent Enforcement (Strong-by-Default)
+- If a task can be split into 2+ independent parallelizable subtasks, spawn subagents first instead of defaulting to single-agent trial.
+- For non-trivial tasks, use at least 2 subagents by default.
+- Treat a task as trivial only when all conditions are met: single objective, single step, no cross-module impact, no new verification chain, <=20 changed lines, and single-file completion.
+- Main agent responsibility is orchestration only: decomposition, delegation, integration, conflict handling, and final verification.
+- Delegation must include explicit ownership (file/module write scope) for each subagent.
+- If write scopes overlap and cannot be cleanly split, downgrade to single-agent or serialized execution.
+- Single-agent whitelist: one-file micro edit (<20 lines), tightly coupled same-file refactor, one-shot query/explanation task.
+- For each parallel round, record `spawn/reuse/close`, and include assignment summary, output summary, and close-out record.
+
 ## Code Comment Requirement
 - Any code you write or modify must include Chinese Doxygen-standard comments.
 
