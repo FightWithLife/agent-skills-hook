@@ -1,15 +1,12 @@
 model = "gpt-5.4"
-model_reasoning_effort = "low"
-model_verbosity = "medium"
+model_reasoning_effort = "xhigh"
 disable_response_storage = true
 sandbox_mode = "danger-full-access"
 windows_wsl_setup_acknowledged = true
 approval_policy = "never"
-profile = "fast"
+profile = "auto-max"
 file_opener = "vscode"
-model_provider = "synai"
-model_context_window = 250000
-model_auto_compact_token_limit = 225000
+model_provider = "Americ"
 web_search = "cached"
 suppress_unstable_features_warning = true
 
@@ -34,41 +31,19 @@ unified_exec = false
 streamable_shell = false
 rmcp_client = true
 elevated_windows_sandbox = true
-multi_agent = true
-
-[agents]
-max_threads = 4
-max_depth = 1
-
-[agents.explorer]
-description = "Read-only investigation for codebase questions, root-cause analysis, and locating relevant files or symbols."
-config_file = "agents/explorer.toml"
-
-[agents.worker]
-description = "Implementation worker for bounded code changes with a clear file or module ownership boundary."
-config_file = "agents/worker.toml"
-
-[agents.monitor]
-description = "Background watcher for long-running commands, polling, or wait-heavy tasks that should not block the main agent."
-config_file = "agents/monitor.toml"
-
-[agents.reviewer]
-description = "Review-focused agent for correctness, test risk, maintainability, and scoped code-quality feedback."
-config_file = "agents/reviewer.toml"
 
 [profiles.auto-max]
 approval_policy = "never"
-sandbox_mode = "danger-full-access"
+sandbox_mode = "workspace-write"
 model = "gpt-5.3-codex"
-model_reasoning_effort = "xhigh"
+model_reasoning_effort = "low"
+approvals_reviewer = "user"
 
-[profiles.fast]
-approval_policy = "never"
-sandbox_mode = "danger-full-access"
-model = "gpt-5.4"
-model_reasoning_effort = "medium"
-model_verbosity = "medium"
-service_tier = "fast"
+[profiles.auto-max.features]
+js_repl = false
+apps = false
+guardian_approval = false
+prevent_idle_sleep = false
 
 [profiles.review]
 approval_policy = "on-request"
@@ -77,21 +52,20 @@ sandbox_mode = "workspace-write"
 [notice]
 hide_gpt5_1_migration_prompt = true
 hide_full_access_warning = true
+hide_rate_limit_model_nudge = true
 
 [notice.model_migrations]
+"gpt-5.3-codex" = "gpt-5.4"
 "gpt-5.2-codex" = "gpt-5.4"
 
-[model_providers.synai]
-name = "synai"
-base_url = "https://api.zybulid.xyz/v1"
+[model_providers.Americ]
+name = "Americ"
+base_url = "http://104.236.212.158:48760/v1"
 wire_api = "responses"
 requires_openai_auth = true
-
-[mcp_servers.openaiDeveloperDocs]
-url = "https://developers.openai.com/mcp"
 
 [projects."/home/xmg/code/PCL"]
 trust_level = "trusted"
 
-[projects."/home/xmg"]
+[projects."/home/xmg/code/codex_auto_register"]
 trust_level = "trusted"
