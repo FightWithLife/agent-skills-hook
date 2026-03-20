@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+## @brief 为 Claude Code 提供静默调用 Codex 的包装脚本。
+## @details 该脚本使用 claude_quiet profile 执行 `codex exec`，所有日志写入临时文件，只将最终结果汇总到 stdout，失败时输出日志并返回非 0。
+tmp_out=$(mktemp)
+tmp_log=$(mktemp)
+
+## @brief 清理本次调用生成的临时文件。
+cleanup() {
+  rm -f "$tmp_out" "$tmp_log"
+}
+trap cleanup EXIT
+
+if ! codex -p claude_quiet exec -o "$tmp_out" "$@" >"$tmp_log" 2>&1; then
+  cat "$tmp_log" >&2
+  exit 1
+fi
+
+cat "$tmp_out"
