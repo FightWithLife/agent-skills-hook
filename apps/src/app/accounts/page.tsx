@@ -248,20 +248,6 @@ export default function AccountsPage() {
     ],
     [accounts],
   );
-  const unavailableFreeAccountCount = useMemo(
-    () =>
-      accounts.filter(
-        (account) =>
-          !account.isAvailable &&
-          String(account.group || "").trim().toLowerCase() === "free",
-      ).length,
-    [accounts],
-  );
-  const bannedAccountCount = useMemo(
-    () => accounts.filter((account) => isBannedAccount(account)).length,
-    [accounts],
-  );
-
   const pageSizeNumber = Number(pageSize) || 20;
   const totalPages = Math.max(
     1,
@@ -550,9 +536,6 @@ export default function AccountsPage() {
                     onClick={() => deleteUnavailableFree()}
                   >
                     <Trash2 className="mr-2 h-4 w-4" /> 一键清理不可用免费
-                    <DropdownMenuShortcut>
-                      {unavailableFreeAccountCount}
-                    </DropdownMenuShortcut>
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     variant="destructive"
@@ -560,7 +543,6 @@ export default function AccountsPage() {
                     onClick={handleDeleteBanned}
                   >
                     <Trash2 className="mr-2 h-4 w-4" /> 一键清理封禁账号
-                    <DropdownMenuShortcut>{bannedAccountCount}</DropdownMenuShortcut>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
               </DropdownMenuContent>
