@@ -480,4 +480,22 @@ data: [DONE]
     assert!(text.contains("\"cache_read_input_tokens\":6"));
     assert!(text.contains("\"input_tokens\":11"));
     assert!(text.contains("\"output_tokens\":3"));
+
+    let mut final_usage: Option<serde_json::Value> = None;
+    for line in text.lines() {
+        if !line.starts_with("data: ") {
+            continue;
+        }
+        let payload = &line["data: ".len()..];
+        let value: serde_json::Value =
+            serde_json::from_str(payload).expect("parse sse payload json");
+        if value["type"] == "message_delta" {
+            final_usage = value.get("usage").cloned();
+        }
+    }
+    let final_usage = final_usage.expect("message_delta usage");
+    assert_eq!(final_usage["input_tokens"], 11);
+    assert_eq!(final_usage["output_tokens"], 3);
+    assert_eq!(final_usage["cache_creation_input_tokens"], 4);
+    assert_eq!(final_usage["cache_read_input_tokens"], 6);
 }

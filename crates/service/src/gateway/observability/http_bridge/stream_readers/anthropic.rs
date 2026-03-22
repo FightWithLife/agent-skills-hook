@@ -310,10 +310,13 @@ impl AnthropicSseReader {
                     "content": [],
                     "stop_reason": Value::Null,
                     "stop_sequence": Value::Null,
-                    "usage": {
-                        "input_tokens": self.state.input_tokens.max(0),
-                        "output_tokens": 0
-                    }
+                    "usage": build_anthropic_usage(
+                        self.state.input_tokens.max(0),
+                        0,
+                        self.state.cached_input_tokens.max(0),
+                        None,
+                        None,
+                    )
                 }
             }),
         );
@@ -381,9 +384,13 @@ impl AnthropicSseReader {
                     "stop_reason": self.state.stop_reason.unwrap_or("end_turn"),
                     "stop_sequence": Value::Null
                 },
-                "usage": {
-                    "output_tokens": self.state.output_tokens.max(0)
-                }
+                "usage": build_anthropic_usage(
+                    self.state.input_tokens.max(0),
+                    self.state.output_tokens.max(0),
+                    self.state.cached_input_tokens.max(0),
+                    self.state.total_tokens.map(|value| value.max(0)),
+                    Some(self.state.reasoning_output_tokens.max(0)),
+                )
             }),
         );
         append_sse_event(&mut out, "message_stop", &json!({ "type": "message_stop" }));
@@ -415,6 +422,29 @@ fn append_sse_event(buffer: &mut String, event_name: &str, payload: &Value) {
     buffer.push_str("data: ");
     buffer.push_str(&data);
     buffer.push_str("\n\n");
+}
+
+fn build_anthropic_usage(
+    input_tokens: i64,
+    output_tokens: i64,
+    cache_read_input_tokens: i64,
+    total_tokens: Option<i64>,
+    reasoning_output_tokens: Option<i64>,
+) -> Value {
+    let mut usage = Map::new();
+    usage.insert("input_tokens".to_string(), Value::from(input_tokens));
+    usage.insert("output_tokens".to_string(), Value::from(output_tokens));
+    usage.insert(
+        "cache_read_input_tokens".to_string(),
+        Value::from(cache_read_input_tokens),
+    );
+    if let Some(value) = total_tokens {
+        usage.insert("total_tokens".to_string(), Value::from(value));
+    }
+    if let Some(value) = reasoning_output_tokens {
+        usage.insert("reasoning_output_tokens".to_string(), Value::from(value));
+    }
+    Value::Object(usage)
 }
 
 fn extract_function_call_input(item_obj: &Map<String, Value>) -> Option<Value> {

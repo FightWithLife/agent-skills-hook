@@ -250,7 +250,12 @@ pub(super) fn convert_anthropic_json_to_sse(
         &json!({
             "type": "message_delta",
             "delta": { "stop_reason": stop_reason, "stop_sequence": Value::Null },
-            "usage": { "output_tokens": output_tokens }
+            "usage": build_final_usage(
+                input_tokens,
+                output_tokens,
+                cache_creation_input_tokens,
+                cache_read_input_tokens,
+            )
         }),
     );
     append_sse_event(&mut out, "message_stop", &json!({ "type": "message_stop" }));
@@ -264,6 +269,27 @@ pub(super) fn to_tool_input_partial_json(value: &Value) -> Option<String> {
         return None;
     }
     Some(serialized)
+}
+
+pub(super) fn build_final_usage(
+    input_tokens: i64,
+    output_tokens: i64,
+    cache_creation_input_tokens: Option<i64>,
+    cache_read_input_tokens: Option<i64>,
+) -> Value {
+    let mut usage = Map::new();
+    usage.insert("input_tokens".to_string(), Value::from(input_tokens));
+    usage.insert("output_tokens".to_string(), Value::from(output_tokens));
+    if let Some(value) = cache_creation_input_tokens {
+        usage.insert(
+            "cache_creation_input_tokens".to_string(),
+            Value::from(value),
+        );
+    }
+    if let Some(value) = cache_read_input_tokens {
+        usage.insert("cache_read_input_tokens".to_string(), Value::from(value));
+    }
+    Value::Object(usage)
 }
 
 pub(super) fn append_sse_event(buffer: &mut String, event_name: &str, payload: &Value) {

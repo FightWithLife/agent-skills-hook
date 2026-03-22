@@ -241,6 +241,32 @@ fn inspect_sse_frame_recognizes_done_marker() {
 }
 
 #[test]
+fn anthropic_sse_reader_final_usage_contains_input_cache_and_output_tokens() {
+    let (response, server) = open_streaming_mock_http_response(
+        "text/event-stream",
+        &[(
+            "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_usage_1\",\"model\":\"gpt-5.3-codex\",\"usage\":{\"input_tokens\":31,\"input_tokens_details\":{\"cached_tokens\":7},\"output_tokens\":9,\"total_tokens\":40,\"output_tokens_details\":{\"reasoning_tokens\":2}},\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]}]}}\n\n\
+             data: [DONE]\n\n",
+            0,
+        )],
+    );
+    let usage_collector = Arc::new(Mutex::new(super::UpstreamResponseUsage::default()));
+    let mut reader = super::AnthropicSseReader::new(response, usage_collector);
+    let mut out = String::new();
+    reader
+        .read_to_string(&mut out)
+        .expect("read anthropic sse reader");
+    server.join().expect("join streaming mock upstream");
+
+    assert!(out.contains("\"type\":\"message_delta\""));
+    assert!(out.contains("\"input_tokens\":31"));
+    assert!(out.contains("\"cache_read_input_tokens\":7"));
+    assert!(out.contains("\"output_tokens\":9"));
+    assert!(out.contains("\"total_tokens\":40"));
+    assert!(out.contains("\"reasoning_output_tokens\":2"));
+}
+
+#[test]
 fn inspect_sse_frame_recognizes_response_failed_as_terminal_error() {
     let frame_lines = vec![
         "event: response.failed\n".to_string(),

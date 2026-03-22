@@ -8,7 +8,7 @@ use super::super::json_conversion::{
 };
 use super::super::tool_mapping::{is_openai_chat_tool_item_type, restore_openai_tool_name};
 use super::super::ToolNameRestoreMap;
-use super::anthropic_sse_writer::convert_anthropic_json_to_sse;
+use super::anthropic_sse_writer::{build_final_usage, convert_anthropic_json_to_sse};
 
 pub(super) fn convert_openai_sse_to_anthropic(
     body: &[u8],
@@ -498,9 +498,12 @@ pub(super) fn convert_openai_sse_to_anthropic(
                 "stop_reason": mapped_stop_reason,
                 "stop_sequence": Value::Null,
             },
-            "usage": {
-                "output_tokens": output_tokens,
-            }
+            "usage": build_final_usage(
+                input_tokens,
+                output_tokens,
+                cache_creation_input_tokens,
+                cache_read_input_tokens,
+            )
         }),
     );
     append_sse_event(&mut out, "message_stop", &json!({ "type": "message_stop" }));
