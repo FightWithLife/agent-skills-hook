@@ -1,6 +1,6 @@
 use super::route_quality::route_health_score;
-use codexmanager_core::storage::{Account, Token};
-use std::collections::HashMap;
+use codexmanager_core::storage::{Account, Token, UsageSnapshotRecord};
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
@@ -56,6 +56,13 @@ struct RouteRoundRobinState {
     maintenance_tick: u64,
 }
 
+/**
+ * @brief 应用路由策略（ordered/balanced）到候选账号列表
+ * @param candidates 候选账号与 token 列表
+ * @param key_id 平台密钥 ID
+ * @param model 请求模型
+ * @return 无
+ */
 pub(crate) fn apply_route_strategy(
     candidates: &mut [(Account, Token)],
     key_id: &str,
@@ -71,14 +78,156 @@ pub(crate) fn apply_route_strategy(
     }
 
     let mode = route_mode();
-    if mode == ROUTE_MODE_BALANCED_ROUND_ROBIN {
+    let mut balanced_applied = false;
+    if mode == ROUTE_MODE_BALANCED_ROUND_ROBIN
+        && crate::usage_refresh::exclude_low_quota_from_balanced_routing()
+    {
+        balanced_applied = apply_balanced_low_quota_fallback(candidates, key_id, model, None);
+    }
+
+    if mode == ROUTE_MODE_BALANCED_ROUND_ROBIN && !balanced_applied {
         let start = next_start_index(key_id, model, candidates.len());
         if start > 0 {
             candidates.rotate_left(start);
         }
+        apply_health_p2c(candidates, key_id, model, mode);
+        return;
     }
 
-    apply_health_p2c(candidates, key_id, model, mode);
+    if !balanced_applied {
+        apply_health_p2c(candidates, key_id, model, mode);
+    }
+}
+
+/**
+ * @brief 供单测直接注入低配额账号集合，验证 balanced 软排除逻辑。
+ * @param candidates 候选账号与 token 列表
+ * @param key_id 平台密钥 ID
+ * @param model 请求模型
+ * @param low_quota_ids 低配额账号 ID 集合
+ * @return 无
+ */
+pub(in crate::gateway) fn apply_route_strategy_with_low_quota_fallback(
+    candidates: &mut [(Account, Token)],
+    key_id: &str,
+    model: Option<&str>,
+    low_quota_ids: &HashSet<String>,
+) {
+    ensure_route_config_loaded();
+    if candidates.len() <= 1 {
+        return;
+    }
+
+    if rotate_to_manual_preferred_account(candidates) {
+        return;
+    }
+
+    let mode = route_mode();
+    if mode != ROUTE_MODE_BALANCED_ROUND_ROBIN {
+        apply_health_p2c(candidates, key_id, model, mode);
+        return;
+    }
+    if !apply_balanced_low_quota_fallback(candidates, key_id, model, Some(low_quota_ids)) {
+        let start = next_start_index(key_id, model, candidates.len());
+        if start > 0 {
+            candidates.rotate_left(start);
+        }
+        apply_health_p2c(candidates, key_id, model, mode);
+    }
+}
+
+/**
+ * @brief balanced 模式下对低配额账号做软排除，并保持兜底候选
+ * @param candidates 候选账号与 token 列表
+ * @param key_id 平台密钥 ID
+ * @param model 请求模型
+ * @return 是否已应用低配额软排除逻辑
+ */
+fn apply_balanced_low_quota_fallback(
+    candidates: &mut [(Account, Token)],
+    key_id: &str,
+    model: Option<&str>,
+    low_quota_ids_override: Option<&HashSet<String>>,
+) -> bool {
+    let low_quota_ids = if let Some(override_ids) = low_quota_ids_override {
+        override_ids.clone()
+    } else if let Some(loaded_ids) = load_low_quota_account_ids(candidates) {
+        loaded_ids
+    } else {
+        return false;
+    };
+    if low_quota_ids.is_empty() {
+        return false;
+    }
+
+    let mut normal = Vec::with_capacity(candidates.len());
+    let mut low_quota = Vec::new();
+    for candidate in candidates.iter() {
+        if low_quota_ids.contains(&candidate.0.id) {
+            low_quota.push(candidate.clone());
+        } else {
+            normal.push(candidate.clone());
+        }
+    }
+    if normal.is_empty() {
+        return false;
+    }
+
+    let start = next_start_index(key_id, model, normal.len());
+    if start > 0 {
+        normal.rotate_left(start);
+    }
+    apply_health_p2c(
+        normal.as_mut_slice(),
+        key_id,
+        model,
+        ROUTE_MODE_BALANCED_ROUND_ROBIN,
+    );
+    normal.extend(low_quota);
+    for (dest, src) in candidates.iter_mut().zip(normal.iter()) {
+        *dest = src.clone();
+    }
+    true
+}
+
+/**
+ * @brief 读取候选账号的低配额集合
+ * @param candidates 候选账号与 token 列表
+ * @return 低配额账号 ID 集合（读取失败时返回 None）
+ */
+fn load_low_quota_account_ids(
+    candidates: &[(Account, Token)],
+) -> Option<HashSet<String>> {
+    let storage = crate::storage_helpers::open_storage()?;
+    let snapshots = storage.latest_usage_snapshots_by_account().ok()?;
+    let candidate_ids = candidates
+        .iter()
+        .map(|(account, _)| account.id.as_str())
+        .collect::<HashSet<_>>();
+    let mut out = HashSet::new();
+    for snapshot in snapshots {
+        if !candidate_ids.contains(snapshot.account_id.as_str()) {
+            continue;
+        }
+        if is_low_quota_snapshot(&snapshot) {
+            out.insert(snapshot.account_id);
+        }
+    }
+    Some(out)
+}
+
+/**
+ * @brief 判定用量快照是否属于低配额
+ * @param snapshot 用量快照
+ * @return true 表示低配额
+ */
+fn is_low_quota_snapshot(snapshot: &UsageSnapshotRecord) -> bool {
+    snapshot
+        .used_percent
+        .is_some_and(|value| value >= 80.0)
+        || snapshot
+            .secondary_used_percent
+            .is_some_and(|value| value >= 80.0)
 }
 
 fn rotate_to_manual_preferred_account(candidates: &mut [(Account, Token)]) -> bool {

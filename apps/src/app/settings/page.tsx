@@ -128,6 +128,28 @@ const SETTINGS_TABS = ["general", "appearance", "gateway", "tasks", "env"] as co
 type SettingsTab = (typeof SETTINGS_TABS)[number];
 const SETTINGS_ACTIVE_TAB_KEY = "codexmanager.settings.active-tab";
 
+/** @brief 后台任务配置项及其前端最小间隔，需与后端约束保持一致以避免保存后跳值 */
+const BACKGROUND_TASK_ITEMS = [
+  {
+    label: "用量轮询线程",
+    enabledKey: "usagePollingEnabled",
+    intervalKey: "usagePollIntervalSecs",
+    minimum: 30,
+  },
+  {
+    label: "网关保活线程",
+    enabledKey: "gatewayKeepaliveEnabled",
+    intervalKey: "gatewayKeepaliveIntervalSecs",
+    minimum: 30,
+  },
+  {
+    label: "令牌刷新轮询",
+    enabledKey: "tokenRefreshPollingEnabled",
+    intervalKey: "tokenRefreshPollIntervalSecs",
+    minimum: 10,
+  },
+] as const;
+
 function readInitialSettingsTab(): SettingsTab {
   if (typeof window === "undefined") return "general";
   const savedTab = window.sessionStorage.getItem(SETTINGS_ACTIVE_TAB_KEY);
@@ -1345,23 +1367,7 @@ export default function SettingsPage() {
               <CardDescription>管理自动轮询和保活任务；用量轮询会跳过手动禁用账号</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {[
-                {
-                  label: "用量轮询线程",
-                  enabledKey: "usagePollingEnabled",
-                  intervalKey: "usagePollIntervalSecs",
-                },
-                {
-                  label: "网关保活线程",
-                  enabledKey: "gatewayKeepaliveEnabled",
-                  intervalKey: "gatewayKeepaliveIntervalSecs",
-                },
-                {
-                  label: "令牌刷新轮询",
-                  enabledKey: "tokenRefreshPollingEnabled",
-                  intervalKey: "tokenRefreshPollIntervalSecs",
-                },
-              ].map((task) => (
+              {BACKGROUND_TASK_ITEMS.map((task) => (
                 <div
                   key={task.enabledKey}
                   className="flex items-center justify-between gap-4 rounded-lg bg-accent/20 p-3"
@@ -1381,6 +1387,7 @@ export default function SettingsPage() {
                     <span className="text-xs text-muted-foreground">间隔(秒)</span>
                     <Input
                       className="h-8 w-20"
+                      min={task.minimum}
                       type="number"
                       value={
                         backgroundTaskDraft[task.intervalKey] ||
@@ -1399,13 +1406,33 @@ export default function SettingsPage() {
                       onBlur={() =>
                         saveBackgroundTaskField(
                           task.intervalKey as keyof BackgroundTaskSettings,
-                          1
+                          task.minimum
                         )
                       }
                     />
                   </div>
                 </div>
               ))}
+              <div className="flex items-center justify-between gap-4 rounded-lg bg-accent/20 p-3">
+                <div className="flex items-center gap-3">
+                  <Switch
+                    checked={
+                      snapshot.backgroundTasks.excludeLowQuotaFromBalancedRouting
+                    }
+                    onCheckedChange={(value) =>
+                      updateBackgroundTasks({
+                        excludeLowQuotaFromBalancedRouting: value,
+                      } as Partial<BackgroundTaskSettings>)
+                    }
+                  />
+                  <div className="space-y-0.5">
+                    <Label>低配额账号退出均衡轮询</Label>
+                    <p className="text-xs text-muted-foreground">
+                      低配额账号不参与均衡轮询，但仍可作为兜底账号
+                    </p>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
 

@@ -24,6 +24,40 @@ fn any_process_env_has_value(names: &[&str]) -> bool {
     names.iter().any(|name| process_env_has_value(name))
 }
 
+/**
+ * @brief 判断后台任务配置是否被进程环境变量显式覆盖
+ * @return true 表示至少存在一个后台任务环境变量覆盖
+ */
+fn background_tasks_env_overrides_present() -> bool {
+    any_process_env_has_value(&[
+        "CODEXMANAGER_USAGE_POLLING_ENABLED",
+        "CODEXMANAGER_USAGE_POLL_INTERVAL_SECS",
+        "CODEXMANAGER_GATEWAY_KEEPALIVE_ENABLED",
+        "CODEXMANAGER_GATEWAY_KEEPALIVE_INTERVAL_SECS",
+        "CODEXMANAGER_TOKEN_REFRESH_POLLING_ENABLED",
+        "CODEXMANAGER_TOKEN_REFRESH_POLL_INTERVAL_SECS",
+        "CODEXMANAGER_HTTP_WORKER_FACTOR",
+        "CODEXMANAGER_HTTP_WORKER_MIN",
+        "CODEXMANAGER_HTTP_STREAM_WORKER_FACTOR",
+        "CODEXMANAGER_HTTP_STREAM_WORKER_MIN",
+    ])
+}
+
+/**
+ * @brief 在存在后台任务环境变量覆盖时同步仅由存储管理的低配额均衡轮询开关
+ * @param input 持久化的后台任务配置
+ * @return 无
+ */
+fn sync_storage_only_background_task_settings(input: &BackgroundTasksInput) {
+    if input.exclude_low_quota_from_balanced_routing.is_none() {
+        return;
+    }
+    usage_refresh::set_background_tasks_settings(usage_refresh::BackgroundTasksSettingsPatch {
+        exclude_low_quota_from_balanced_routing: input.exclude_low_quota_from_balanced_routing,
+        ..Default::default()
+    });
+}
+
 pub fn sync_runtime_settings_from_storage() {
     let settings = list_app_settings_map();
     let env_overrides = persisted_env_overrides_missing_process_env();
@@ -114,26 +148,17 @@ pub fn sync_runtime_settings_from_storage() {
             }
         }
     }
-    if !any_process_env_has_value(&[
-        "CODEXMANAGER_USAGE_POLLING_ENABLED",
-        "CODEXMANAGER_USAGE_POLL_INTERVAL_SECS",
-        "CODEXMANAGER_GATEWAY_KEEPALIVE_ENABLED",
-        "CODEXMANAGER_GATEWAY_KEEPALIVE_INTERVAL_SECS",
-        "CODEXMANAGER_TOKEN_REFRESH_POLLING_ENABLED",
-        "CODEXMANAGER_TOKEN_REFRESH_POLL_INTERVAL_SECS",
-        "CODEXMANAGER_HTTP_WORKER_FACTOR",
-        "CODEXMANAGER_HTTP_WORKER_MIN",
-        "CODEXMANAGER_HTTP_STREAM_WORKER_FACTOR",
-        "CODEXMANAGER_HTTP_STREAM_WORKER_MIN",
-    ]) {
-        if let Some(raw) = settings.get(APP_SETTING_GATEWAY_BACKGROUND_TASKS_KEY) {
-            match serde_json::from_str::<BackgroundTasksInput>(raw) {
-                Ok(input) => {
+    if let Some(raw) = settings.get(APP_SETTING_GATEWAY_BACKGROUND_TASKS_KEY) {
+        match serde_json::from_str::<BackgroundTasksInput>(raw) {
+            Ok(input) => {
+                if background_tasks_env_overrides_present() {
+                    sync_storage_only_background_task_settings(&input);
+                } else {
                     usage_refresh::set_background_tasks_settings(input.into_patch());
                 }
-                Err(err) => {
-                    log::warn!("parse persisted background tasks failed: {err}");
-                }
+            }
+            Err(err) => {
+                log::warn!("parse persisted background tasks failed: {err}");
             }
         }
     }

@@ -25,9 +25,15 @@ pub struct BackgroundTasksInput {
     pub http_worker_min: Option<usize>,
     pub http_stream_worker_factor: Option<usize>,
     pub http_stream_worker_min: Option<usize>,
+    /// @brief balanced 轮询时是否排除低配额账号参与正常轮转
+    pub exclude_low_quota_from_balanced_routing: Option<bool>,
 }
 
 impl BackgroundTasksInput {
+    /**
+     * @brief 将前端输入转换为后台任务配置补丁
+     * @return 后台任务配置补丁
+     */
     pub(crate) fn into_patch(self) -> usage_refresh::BackgroundTasksSettingsPatch {
         usage_refresh::BackgroundTasksSettingsPatch {
             usage_polling_enabled: self.usage_polling_enabled,
@@ -41,6 +47,7 @@ impl BackgroundTasksInput {
             http_worker_min: self.http_worker_min,
             http_stream_worker_factor: self.http_stream_worker_factor,
             http_stream_worker_min: self.http_stream_worker_min,
+            exclude_low_quota_from_balanced_routing: self.exclude_low_quota_from_balanced_routing,
         }
     }
 }

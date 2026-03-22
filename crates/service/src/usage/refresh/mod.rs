@@ -49,6 +49,8 @@ static HTTP_WORKER_FACTOR: AtomicUsize = AtomicUsize::new(DEFAULT_HTTP_WORKER_FA
 static HTTP_WORKER_MIN: AtomicUsize = AtomicUsize::new(DEFAULT_HTTP_WORKER_MIN);
 static HTTP_STREAM_WORKER_FACTOR: AtomicUsize = AtomicUsize::new(DEFAULT_HTTP_STREAM_WORKER_FACTOR);
 static HTTP_STREAM_WORKER_MIN: AtomicUsize = AtomicUsize::new(DEFAULT_HTTP_STREAM_WORKER_MIN);
+/// @brief balanced 轮询时是否排除低配额账号参与正常轮转
+static EXCLUDE_LOW_QUOTA_FROM_BALANCED_ROUTING: AtomicBool = AtomicBool::new(true);
 
 const ENV_DISABLE_POLLING: &str = "CODEXMANAGER_DISABLE_POLLING";
 const ENV_USAGE_POLLING_ENABLED: &str = "CODEXMANAGER_USAGE_POLLING_ENABLED";
@@ -132,6 +134,7 @@ pub(crate) use self::settings::{
     background_tasks_settings, reload_background_tasks_runtime_from_env,
     set_background_tasks_settings, BackgroundTasksSettingsPatch,
 };
+pub(crate) use self::settings::exclude_low_quota_from_balanced_routing;
 
 pub(crate) fn ensure_usage_polling() {
     ensure_background_tasks_config_loaded();

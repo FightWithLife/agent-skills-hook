@@ -34,6 +34,8 @@ const DEFAULT_BACKGROUND_TASKS: BackgroundTaskSettings = {
   gatewayKeepaliveIntervalSecs: 180,
   tokenRefreshPollingEnabled: true,
   tokenRefreshPollIntervalSecs: 60,
+  /** @brief 低配额账号不参与均衡轮询，但仍保留兜底 */
+  excludeLowQuotaFromBalancedRouting: true,
   usageRefreshWorkers: 4,
   httpWorkerFactor: 4,
   httpWorkerMin: 8,
@@ -447,6 +449,11 @@ export function normalizeBackgroundTasks(payload: unknown): BackgroundTaskSettin
       source.tokenRefreshPollIntervalSecs,
       DEFAULT_BACKGROUND_TASKS.tokenRefreshPollIntervalSecs,
       1
+    ),
+    /** @brief 低配额账号不参与均衡轮询的开关 */
+    excludeLowQuotaFromBalancedRouting: asBoolean(
+      source.excludeLowQuotaFromBalancedRouting,
+      DEFAULT_BACKGROUND_TASKS.excludeLowQuotaFromBalancedRouting
     ),
     usageRefreshWorkers: asInteger(
       source.usageRefreshWorkers,

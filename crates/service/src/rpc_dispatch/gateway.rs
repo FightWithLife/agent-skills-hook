@@ -1,6 +1,11 @@
 use codexmanager_core::rpc::types::{JsonRpcRequest, JsonRpcResponse};
 use serde_json::Value;
 
+/**
+ * @brief 处理网关相关 RPC 请求并返回响应
+ * @param req JSON-RPC 请求体
+ * @return 处理后的响应（不支持的请求返回 None）
+ */
 pub(super) fn try_handle(req: &JsonRpcRequest) -> Option<JsonRpcResponse> {
     let result = match req.method.as_str() {
         "gateway/routeStrategy/get" => {
@@ -108,6 +113,10 @@ pub(super) fn try_handle(req: &JsonRpcRequest) -> Option<JsonRpcResponse> {
                 http_worker_min: usize_param(req, "httpWorkerMin"),
                 http_stream_worker_factor: usize_param(req, "httpStreamWorkerFactor"),
                 http_stream_worker_min: usize_param(req, "httpStreamWorkerMin"),
+                exclude_low_quota_from_balanced_routing: super::bool_param(
+                    req,
+                    "excludeLowQuotaFromBalancedRouting",
+                ),
             };
             let input = crate::BackgroundTasksInput {
                 usage_polling_enabled: patch.usage_polling_enabled,
@@ -121,6 +130,7 @@ pub(super) fn try_handle(req: &JsonRpcRequest) -> Option<JsonRpcResponse> {
                 http_worker_min: patch.http_worker_min,
                 http_stream_worker_factor: patch.http_stream_worker_factor,
                 http_stream_worker_min: patch.http_stream_worker_min,
+                exclude_low_quota_from_balanced_routing: patch.exclude_low_quota_from_balanced_routing,
             };
             super::value_or_error(crate::set_gateway_background_tasks(input))
         }

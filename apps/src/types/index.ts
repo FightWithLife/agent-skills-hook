@@ -223,6 +223,8 @@ export interface BackgroundTaskSettings {
   gatewayKeepaliveIntervalSecs: number;
   tokenRefreshPollingEnabled: boolean;
   tokenRefreshPollIntervalSecs: number;
+  /** @brief 低配额账号不参与均衡轮询，但仍可作为兜底账号 */
+  excludeLowQuotaFromBalancedRouting: boolean;
   usageRefreshWorkers: number;
   httpWorkerFactor: number;
   httpWorkerMin: number;

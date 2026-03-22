@@ -1,4 +1,9 @@
 use super::*;
+use std::collections::HashSet;
+use codexmanager_core::storage::{now_ts, Storage, UsageSnapshotRecord};
+use std::ffi::OsString;
+use std::path::PathBuf;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn candidate_list() -> Vec<(Account, Token)> {
     vec![
@@ -76,6 +81,129 @@ fn account_ids(candidates: &[(Account, Token)]) -> Vec<String> {
         .iter()
         .map(|(account, _)| account.id.clone())
         .collect()
+}
+
+/// @brief 构造路由测试用的低配额账号集合。
+fn low_quota_ids(ids: &[&str]) -> HashSet<String> {
+    ids.iter().map(|id| (*id).to_string()).collect()
+}
+
+/**
+ * @brief 生成测试用临时数据库路径
+ * @return 临时数据库路径
+ */
+fn unique_temp_db_path() -> PathBuf {
+    let unique = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("clock")
+        .as_nanos();
+    std::env::temp_dir().join(format!("codexmanager-route-hint-test-{unique}.db"))
+}
+
+/**
+ * @brief 环境变量恢复器，离开作用域后自动还原
+ * @return 无
+ */
+struct EnvRestore(Vec<(String, Option<OsString>)>);
+
+impl Drop for EnvRestore {
+    fn drop(&mut self) {
+        for (key, value) in self.0.drain(..) {
+            if let Some(value) = value {
+                std::env::set_var(&key, value);
+            } else {
+                std::env::remove_var(&key);
+            }
+        }
+    }
+}
+
+/**
+ * @brief 临时覆盖低配额账号退出均衡轮询开关，并在离开作用域后恢复
+ * @return 无
+ */
+struct LowQuotaBalancedRoutingRestore {
+    previous: bool,
+}
+
+impl LowQuotaBalancedRoutingRestore {
+    /**
+     * @brief 创建低配额均衡轮询开关恢复器
+     * @param enabled 测试期间要设置的开关状态
+     * @return 开关恢复器
+     */
+    fn new(enabled: bool) -> Self {
+        let previous = crate::usage_refresh::exclude_low_quota_from_balanced_routing();
+        let _ = crate::usage_refresh::set_background_tasks_settings(
+            crate::usage_refresh::BackgroundTasksSettingsPatch {
+                exclude_low_quota_from_balanced_routing: Some(enabled),
+                ..Default::default()
+            },
+        );
+        Self { previous }
+    }
+}
+
+impl Drop for LowQuotaBalancedRoutingRestore {
+    fn drop(&mut self) {
+        let _ = crate::usage_refresh::set_background_tasks_settings(
+            crate::usage_refresh::BackgroundTasksSettingsPatch {
+                exclude_low_quota_from_balanced_routing: Some(self.previous),
+                ..Default::default()
+            },
+        );
+    }
+}
+
+/**
+ * @brief 在临时数据库中执行测试逻辑
+ * @param test 测试回调，传入已初始化的 Storage 与 db 路径
+ * @return 无
+ */
+fn with_temp_db(test: impl FnOnce(&Storage, &PathBuf)) {
+    let db_path = unique_temp_db_path();
+    let previous_db_path = std::env::var_os("CODEXMANAGER_DB_PATH");
+    std::env::set_var("CODEXMANAGER_DB_PATH", &db_path);
+    let _env = EnvRestore(vec![(
+        "CODEXMANAGER_DB_PATH".to_string(),
+        previous_db_path,
+    )]);
+    let storage = Storage::open(&db_path).expect("open storage");
+    storage.init().expect("init storage");
+    test(&storage, &db_path);
+    drop(storage);
+    let _ = std::fs::remove_file(&db_path);
+}
+
+/**
+ * @brief 写入用量快照，用于构造低配额账号
+ * @param storage 数据库存储
+ * @param account_id 账号 ID
+ * @param used_percent 主窗口用量百分比
+ * @param secondary_used_percent 次窗口用量百分比
+ * @return 无
+ */
+fn insert_usage_snapshot(
+    storage: &Storage,
+    account_id: &str,
+    used_percent: f64,
+    secondary_used_percent: Option<f64>,
+) {
+    let now = now_ts();
+    let snapshot = UsageSnapshotRecord {
+        account_id: account_id.to_string(),
+        used_percent: Some(used_percent),
+        window_minutes: Some(300),
+        resets_at: None,
+        secondary_used_percent,
+        secondary_window_minutes: secondary_used_percent.map(|_| 10_080),
+        secondary_resets_at: None,
+        credits_json: None,
+        captured_at: now,
+    };
+    storage
+        .insert_usage_snapshot(&snapshot)
+        .expect("insert usage snapshot");
 }
 
 #[test]
@@ -165,6 +293,107 @@ fn balanced_round_robin_rotates_start_by_key_and_model() {
     reload_from_env();
 }
 
+/**
+ * @brief balanced 模式下排除低配额账号参与正常轮转
+ * @return 无
+ */
+#[test]
+fn balanced_round_robin_skips_low_quota_when_enabled() {
+    let _guard = route_strategy_test_guard();
+    let previous = std::env::var(ROUTE_STRATEGY_ENV).ok();
+    std::env::set_var(ROUTE_STRATEGY_ENV, "balanced");
+    reload_from_env();
+    clear_route_state_for_tests();
+    let _low_quota_setting = LowQuotaBalancedRoutingRestore::new(true);
+
+    with_temp_db(|storage, _| {
+        insert_usage_snapshot(storage, "acc-b", 85.0, None);
+
+        let mut first = candidate_list();
+        apply_route_strategy(&mut first, "gk_1", Some("gpt-5.3-codex"));
+        assert_eq!(account_ids(&first), vec!["acc-a", "acc-c", "acc-b"]);
+
+        let mut second = candidate_list();
+        apply_route_strategy(&mut second, "gk_1", Some("gpt-5.3-codex"));
+        assert_eq!(account_ids(&second), vec!["acc-c", "acc-a", "acc-b"]);
+    });
+
+    if let Some(value) = previous {
+        std::env::set_var(ROUTE_STRATEGY_ENV, value);
+    } else {
+        std::env::remove_var(ROUTE_STRATEGY_ENV);
+    }
+    reload_from_env();
+}
+
+/**
+ * @brief 全部候选为低配额时保持 balanced 轮转
+ * @return 无
+ */
+#[test]
+fn balanced_round_robin_falls_back_when_all_low_quota() {
+    let _guard = route_strategy_test_guard();
+    let previous = std::env::var(ROUTE_STRATEGY_ENV).ok();
+    std::env::set_var(ROUTE_STRATEGY_ENV, "balanced");
+    reload_from_env();
+    clear_route_state_for_tests();
+    let _low_quota_setting = LowQuotaBalancedRoutingRestore::new(true);
+
+    with_temp_db(|storage, _| {
+        insert_usage_snapshot(storage, "acc-a", 90.0, None);
+        insert_usage_snapshot(storage, "acc-b", 92.0, None);
+        insert_usage_snapshot(storage, "acc-c", 95.0, None);
+
+        let mut first = candidate_list();
+        apply_route_strategy(&mut first, "gk_1", Some("gpt-5.3-codex"));
+        assert_eq!(account_ids(&first), vec!["acc-a", "acc-b", "acc-c"]);
+
+        let mut second = candidate_list();
+        apply_route_strategy(&mut second, "gk_1", Some("gpt-5.3-codex"));
+        assert_eq!(account_ids(&second), vec!["acc-b", "acc-c", "acc-a"]);
+    });
+
+    if let Some(value) = previous {
+        std::env::set_var(ROUTE_STRATEGY_ENV, value);
+    } else {
+        std::env::remove_var(ROUTE_STRATEGY_ENV);
+    }
+    reload_from_env();
+}
+
+/**
+ * @brief 关闭开关时仍按原 balanced 轮转
+ * @return 无
+ */
+#[test]
+fn balanced_round_robin_respects_disable_low_quota_setting() {
+    let _guard = route_strategy_test_guard();
+    let previous = std::env::var(ROUTE_STRATEGY_ENV).ok();
+    std::env::set_var(ROUTE_STRATEGY_ENV, "balanced");
+    reload_from_env();
+    clear_route_state_for_tests();
+    let _low_quota_setting = LowQuotaBalancedRoutingRestore::new(false);
+
+    with_temp_db(|storage, _| {
+        insert_usage_snapshot(storage, "acc-b", 85.0, None);
+
+        let mut first = candidate_list();
+        apply_route_strategy(&mut first, "gk_1", Some("gpt-5.3-codex"));
+        assert_eq!(account_ids(&first), vec!["acc-a", "acc-b", "acc-c"]);
+
+        let mut second = candidate_list();
+        apply_route_strategy(&mut second, "gk_1", Some("gpt-5.3-codex"));
+        assert_eq!(account_ids(&second), vec!["acc-b", "acc-c", "acc-a"]);
+    });
+
+    if let Some(value) = previous {
+        std::env::set_var(ROUTE_STRATEGY_ENV, value);
+    } else {
+        std::env::remove_var(ROUTE_STRATEGY_ENV);
+    }
+    reload_from_env();
+}
+
 #[test]
 fn balanced_round_robin_isolated_by_key_and_model() {
     let _guard = route_strategy_test_guard();
@@ -188,6 +417,120 @@ fn balanced_round_robin_isolated_by_key_and_model() {
     let mut other_key_first = candidate_list();
     apply_route_strategy(&mut other_key_first, "gk_2", Some("gpt-5.3-codex"));
     assert_eq!(account_ids(&other_key_first)[0], "acc-a");
+
+    if let Some(value) = previous {
+        std::env::set_var(ROUTE_STRATEGY_ENV, value);
+    } else {
+        std::env::remove_var(ROUTE_STRATEGY_ENV);
+    }
+    reload_from_env();
+}
+
+#[test]
+fn balanced_round_robin_keeps_low_quota_candidates_as_tail_fallback() {
+    let _guard = route_strategy_test_guard();
+    let previous = std::env::var(ROUTE_STRATEGY_ENV).ok();
+    std::env::set_var(ROUTE_STRATEGY_ENV, "balanced");
+    reload_from_env();
+    clear_route_state_for_tests();
+
+    let low_quota = low_quota_ids(&["acc-b"]);
+
+    let mut first = candidate_list();
+    apply_route_strategy_with_low_quota_fallback(
+        &mut first,
+        "gk_1",
+        Some("gpt-5.3-codex"),
+        &low_quota,
+    );
+    assert_eq!(
+        account_ids(&first),
+        vec![
+            "acc-a".to_string(),
+            "acc-c".to_string(),
+            "acc-b".to_string()
+        ]
+    );
+
+    let mut second = candidate_list();
+    apply_route_strategy_with_low_quota_fallback(
+        &mut second,
+        "gk_1",
+        Some("gpt-5.3-codex"),
+        &low_quota,
+    );
+    assert_eq!(
+        account_ids(&second),
+        vec![
+            "acc-c".to_string(),
+            "acc-a".to_string(),
+            "acc-b".to_string()
+        ]
+    );
+
+    if let Some(value) = previous {
+        std::env::set_var(ROUTE_STRATEGY_ENV, value);
+    } else {
+        std::env::remove_var(ROUTE_STRATEGY_ENV);
+    }
+    reload_from_env();
+}
+
+#[test]
+fn balanced_round_robin_all_low_quota_candidates_still_rotate() {
+    let _guard = route_strategy_test_guard();
+    let previous = std::env::var(ROUTE_STRATEGY_ENV).ok();
+    std::env::set_var(ROUTE_STRATEGY_ENV, "balanced");
+    reload_from_env();
+    clear_route_state_for_tests();
+
+    let low_quota = low_quota_ids(&["acc-a", "acc-b", "acc-c"]);
+
+    let mut first = candidate_list();
+    apply_route_strategy_with_low_quota_fallback(
+        &mut first,
+        "gk-low-all",
+        Some("gpt-5.3-codex"),
+        &low_quota,
+    );
+    assert_eq!(account_ids(&first)[0], "acc-a");
+
+    let mut second = candidate_list();
+    apply_route_strategy_with_low_quota_fallback(
+        &mut second,
+        "gk-low-all",
+        Some("gpt-5.3-codex"),
+        &low_quota,
+    );
+    assert_eq!(account_ids(&second)[0], "acc-b");
+
+    if let Some(value) = previous {
+        std::env::set_var(ROUTE_STRATEGY_ENV, value);
+    } else {
+        std::env::remove_var(ROUTE_STRATEGY_ENV);
+    }
+    reload_from_env();
+}
+
+#[test]
+fn balanced_round_robin_preserves_manual_preferred_low_quota_candidate() {
+    let _guard = route_strategy_test_guard();
+    let previous = std::env::var(ROUTE_STRATEGY_ENV).ok();
+    std::env::set_var(ROUTE_STRATEGY_ENV, "balanced");
+    reload_from_env();
+    clear_route_state_for_tests();
+    set_manual_preferred_account("acc-b").expect("set manual preferred");
+
+    let low_quota = low_quota_ids(&["acc-b"]);
+    let mut candidates = candidate_list();
+    apply_route_strategy_with_low_quota_fallback(
+        &mut candidates,
+        "gk-manual-low",
+        Some("gpt-5.3-codex"),
+        &low_quota,
+    );
+
+    assert_eq!(account_ids(&candidates)[0], "acc-b");
 
     if let Some(value) = previous {
         std::env::set_var(ROUTE_STRATEGY_ENV, value);

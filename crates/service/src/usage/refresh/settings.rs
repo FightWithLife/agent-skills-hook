@@ -10,7 +10,8 @@ use super::{
     ENV_GATEWAY_KEEPALIVE_INTERVAL_SECS, ENV_HTTP_STREAM_WORKER_FACTOR, ENV_HTTP_STREAM_WORKER_MIN,
     ENV_HTTP_WORKER_FACTOR, ENV_HTTP_WORKER_MIN, ENV_TOKEN_REFRESH_POLLING_ENABLED,
     ENV_TOKEN_REFRESH_POLL_INTERVAL_SECS, ENV_USAGE_POLLING_ENABLED, ENV_USAGE_POLL_INTERVAL_SECS,
-    GATEWAY_KEEPALIVE_ENABLED, GATEWAY_KEEPALIVE_INTERVAL_SECS, HTTP_STREAM_WORKER_FACTOR,
+    EXCLUDE_LOW_QUOTA_FROM_BALANCED_ROUTING, GATEWAY_KEEPALIVE_ENABLED,
+    GATEWAY_KEEPALIVE_INTERVAL_SECS, HTTP_STREAM_WORKER_FACTOR,
     HTTP_STREAM_WORKER_MIN, HTTP_WORKER_FACTOR, HTTP_WORKER_MIN,
     MIN_GATEWAY_KEEPALIVE_INTERVAL_SECS, MIN_TOKEN_REFRESH_POLL_INTERVAL_SECS,
     MIN_USAGE_POLL_INTERVAL_SECS, TOKEN_REFRESH_POLLING_ENABLED,
@@ -32,6 +33,8 @@ pub(crate) struct BackgroundTasksSettings {
     http_worker_min: usize,
     http_stream_worker_factor: usize,
     http_stream_worker_min: usize,
+    /// @brief balanced 轮询时是否排除低配额账号参与正常轮转
+    exclude_low_quota_from_balanced_routing: bool,
     requires_restart_keys: Vec<&'static str>,
 }
 
@@ -48,8 +51,23 @@ pub(crate) struct BackgroundTasksSettingsPatch {
     pub http_worker_min: Option<usize>,
     pub http_stream_worker_factor: Option<usize>,
     pub http_stream_worker_min: Option<usize>,
+    /// @brief balanced 轮询时是否排除低配额账号参与正常轮转
+    pub exclude_low_quota_from_balanced_routing: Option<bool>,
 }
 
+/**
+ * @brief 获取当前是否排除低配额账号参与 balanced 轮转
+ * @return true 表示排除，false 表示参与
+ */
+pub(crate) fn exclude_low_quota_from_balanced_routing() -> bool {
+    ensure_background_tasks_config_loaded();
+    EXCLUDE_LOW_QUOTA_FROM_BALANCED_ROUTING.load(Ordering::Relaxed)
+}
+
+/**
+ * @brief 获取当前后台任务配置快照
+ * @return 后台任务配置
+ */
 pub(crate) fn background_tasks_settings() -> BackgroundTasksSettings {
     ensure_background_tasks_config_loaded();
     BackgroundTasksSettings {
@@ -65,10 +83,17 @@ pub(crate) fn background_tasks_settings() -> BackgroundTasksSettings {
         http_worker_min: HTTP_WORKER_MIN.load(Ordering::Relaxed),
         http_stream_worker_factor: HTTP_STREAM_WORKER_FACTOR.load(Ordering::Relaxed),
         http_stream_worker_min: HTTP_STREAM_WORKER_MIN.load(Ordering::Relaxed),
+        exclude_low_quota_from_balanced_routing: EXCLUDE_LOW_QUOTA_FROM_BALANCED_ROUTING
+            .load(Ordering::Relaxed),
         requires_restart_keys: BACKGROUND_TASK_RESTART_REQUIRED_KEYS.to_vec(),
     }
 }
 
+/**
+ * @brief 应用后台任务配置变更并返回最新配置
+ * @param patch 需要更新的配置片段
+ * @return 更新后的后台任务配置
+ */
 pub(crate) fn set_background_tasks_settings(
     patch: BackgroundTasksSettingsPatch,
 ) -> BackgroundTasksSettings {
@@ -136,6 +161,9 @@ pub(crate) fn set_background_tasks_settings(
         let normalized = value.max(1);
         HTTP_STREAM_WORKER_MIN.store(normalized, Ordering::Relaxed);
         std::env::set_var(ENV_HTTP_STREAM_WORKER_MIN, normalized.to_string());
+    }
+    if let Some(enabled) = patch.exclude_low_quota_from_balanced_routing {
+        EXCLUDE_LOW_QUOTA_FROM_BALANCED_ROUTING.store(enabled, Ordering::Relaxed);
     }
 
     background_tasks_settings()

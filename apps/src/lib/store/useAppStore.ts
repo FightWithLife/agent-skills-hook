@@ -65,6 +65,8 @@ export const useAppStore = create<AppState>((set) => ({
       gatewayKeepaliveIntervalSecs: 180,
       tokenRefreshPollingEnabled: true,
       tokenRefreshPollIntervalSecs: 60,
+      /** @brief 低配额账号不参与均衡轮询，但仍可作为兜底账号 */
+      excludeLowQuotaFromBalancedRouting: true,
       usageRefreshWorkers: 4,
       httpWorkerFactor: 4,
       httpWorkerMin: 8,

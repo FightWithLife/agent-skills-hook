@@ -71,7 +71,8 @@ fn reset_runtime_defaults() {
             "httpWorkerFactor": 4,
             "httpWorkerMin": 8,
             "httpStreamWorkerFactor": 1,
-            "httpStreamWorkerMin": 2
+            "httpStreamWorkerMin": 2,
+            "excludeLowQuotaFromBalancedRouting": true
         }
     })));
 }
@@ -228,7 +229,8 @@ fn app_settings_set_persists_snapshot_and_password_hash() {
                 "httpWorkerFactor": 5,
                 "httpWorkerMin": 9,
                 "httpStreamWorkerFactor": 2,
-                "httpStreamWorkerMin": 3
+                "httpStreamWorkerMin": 3,
+                "excludeLowQuotaFromBalancedRouting": false
             },
             "webAccessPassword": "secret-pass"
         })))
@@ -511,7 +513,8 @@ fn sync_runtime_settings_from_storage_applies_saved_runtime_values() {
                     "httpWorkerFactor": 4,
                     "httpWorkerMin": 8,
                     "httpStreamWorkerFactor": 1,
-                    "httpStreamWorkerMin": 2
+                    "httpStreamWorkerMin": 2,
+                    "excludeLowQuotaFromBalancedRouting": true
                 }))
                 .expect("serialize background tasks"),
                 now_ts(),
@@ -587,6 +590,13 @@ fn sync_runtime_settings_from_storage_applies_saved_runtime_values() {
                 .get("sseKeepaliveIntervalMs")
                 .and_then(|value| value.as_u64()),
             Some(19000)
+        );
+        assert_eq!(
+            snapshot
+                .get("backgroundTasks")
+                .and_then(|value| value.get("excludeLowQuotaFromBalancedRouting"))
+                .and_then(|value| value.as_bool()),
+            Some(true)
         );
         assert_eq!(
             snapshot
@@ -735,6 +745,13 @@ fn app_settings_get_loads_env_backed_dedicated_settings_when_storage_missing() {
         assert_eq!(
             snapshot
                 .get("backgroundTasks")
+                .and_then(|value| value.get("excludeLowQuotaFromBalancedRouting"))
+                .and_then(|value| value.as_bool()),
+            Some(true)
+        );
+        assert_eq!(
+            snapshot
+                .get("backgroundTasks")
                 .and_then(|value| value.get("usagePollingEnabled"))
                 .and_then(|value| value.as_bool()),
             Some(false)
@@ -831,6 +848,48 @@ fn app_settings_get_loads_env_backed_dedicated_settings_when_storage_missing() {
                 )
                 .expect("read sse keepalive interval"),
             Some("14000".to_string())
+        );
+    });
+}
+
+/**
+ * @brief 存在其他后台任务环境变量覆盖时仍应从存储恢复低配额均衡轮询开关
+ * @return 无
+ */
+#[test]
+fn sync_runtime_settings_from_storage_restores_low_quota_balanced_switch_when_background_task_env_present(
+) {
+    with_temp_db(|db_path| {
+        let _ = codexmanager_service::app_settings_set(Some(&json!({
+            "backgroundTasks": {
+                "excludeLowQuotaFromBalancedRouting": true
+            }
+        })))
+        .expect("seed runtime background tasks");
+
+        let storage = Storage::open(db_path).expect("open storage");
+        storage
+            .set_app_setting(
+                codexmanager_service::APP_SETTING_GATEWAY_BACKGROUND_TASKS_KEY,
+                &serde_json::to_string(&json!({
+                    "excludeLowQuotaFromBalancedRouting": false
+                }))
+                .expect("serialize background tasks"),
+                now_ts(),
+            )
+            .expect("save persisted background tasks");
+        drop(storage);
+
+        let _env = override_env_vars(&[("CODEXMANAGER_USAGE_POLLING_ENABLED", Some("1"))]);
+        codexmanager_service::sync_runtime_settings_from_storage();
+
+        let snapshot = codexmanager_service::app_settings_get().expect("get app settings");
+        assert_eq!(
+            snapshot
+                .get("backgroundTasks")
+                .and_then(|value| value.get("excludeLowQuotaFromBalancedRouting"))
+                .and_then(|value| value.as_bool()),
+            Some(false)
         );
     });
 }
@@ -1002,6 +1061,54 @@ fn app_settings_set_persists_env_overrides_and_exposes_catalog() {
         );
         assert!(!stored.contains_key("CODEXMANAGER_UPSTREAM_STREAM_TIMEOUT_MS"));
         assert!(!stored.contains_key("CODEXMANAGER_SSE_KEEPALIVE_INTERVAL_MS"));
+    });
+}
+
+/**
+ * @brief 保存环境变量覆盖时不应重置低配额均衡轮询开关
+ * @return 无
+ */
+#[test]
+fn app_settings_set_env_overrides_keeps_low_quota_balanced_switch() {
+    with_temp_db(|_| {
+        let first = codexmanager_service::app_settings_set(Some(&json!({
+            "backgroundTasks": {
+                "excludeLowQuotaFromBalancedRouting": false
+            }
+        })))
+        .expect("save low quota balanced switch");
+
+        assert_eq!(
+            first
+                .get("backgroundTasks")
+                .and_then(|value| value.get("excludeLowQuotaFromBalancedRouting"))
+                .and_then(|value| value.as_bool()),
+            Some(false)
+        );
+
+        let second = codexmanager_service::app_settings_set(Some(&json!({
+            "envOverrides": {
+                "CODEXMANAGER_UPSTREAM_TOTAL_TIMEOUT_MS": "321000"
+            }
+        })))
+        .expect("save env overrides");
+
+        assert_eq!(
+            second
+                .get("backgroundTasks")
+                .and_then(|value| value.get("excludeLowQuotaFromBalancedRouting"))
+                .and_then(|value| value.as_bool()),
+            Some(false)
+        );
+
+        let current = codexmanager_service::app_settings_get().expect("get app settings");
+        assert_eq!(
+            current
+                .get("backgroundTasks")
+                .and_then(|value| value.get("excludeLowQuotaFromBalancedRouting"))
+                .and_then(|value| value.as_bool()),
+            Some(false)
+        );
     });
 }
 
