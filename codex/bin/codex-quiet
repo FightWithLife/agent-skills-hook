@@ -2,9 +2,12 @@
 set -euo pipefail
 
 ## @brief 为 Claude Code 提供静默调用 Codex 的包装脚本。
-## @details 该脚本使用 claude_quiet profile 执行 `codex exec`，所有日志写入临时文件，只将最终结果汇总到 stdout，失败时输出日志并返回非 0。
+## @details 该脚本使用 claude_quiet profile 执行 `codex exec`，所有日志写入临时文件。
+## 只将最终结果输出到 stdout，失败时输出日志并返回非 0。
 tmp_out=$(mktemp)
 tmp_log=$(mktemp)
+max_output_chars="${CODEX_QUIET_MAX_OUTPUT_CHARS:-24000}"
+workdir="${CODEX_QUIET_WORKDIR:-}"
 
 ## @brief 清理本次调用生成的临时文件。
 cleanup() {
@@ -12,9 +15,49 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if ! codex -p claude_quiet exec -o "$tmp_out" "$@" >"$tmp_log" 2>&1; then
+## @brief 校验并规范化输出长度上限，避免大结果撑爆上游上下文。
+normalize_max_output_chars() {
+  if ! [[ "$max_output_chars" =~ ^[0-9]+$ ]]; then
+    max_output_chars=24000
+  fi
+  if [ "$max_output_chars" -lt 2000 ]; then
+    max_output_chars=2000
+  fi
+}
+
+## @brief 按上限输出最终结果，超限时截断并附加说明。
+print_bounded_output() {
+  local output_chars
+  output_chars=$(wc -c <"$tmp_out")
+
+  if [ "$output_chars" -le "$max_output_chars" ]; then
+    cat "$tmp_out"
+    return
+  fi
+
+  head -c "$max_output_chars" "$tmp_out"
+  printf '\n\n[truncated by codex-quiet: %s/%s chars]\n' "$max_output_chars" "$output_chars"
+}
+
+## @brief 解析可选工作目录参数，确保 Codex 在明确目录执行。
+build_workdir_args() {
+  if [ -z "$workdir" ]; then
+    return
+  fi
+  if [ ! -d "$workdir" ]; then
+    echo "codex-quiet: CODEX_QUIET_WORKDIR does not exist: $workdir" >&2
+    exit 2
+  fi
+  workdir_args=(-C "$workdir")
+}
+
+normalize_max_output_chars
+workdir_args=()
+build_workdir_args
+
+if ! codex -p claude_quiet exec --skip-git-repo-check "${workdir_args[@]}" -o "$tmp_out" "$@" >"$tmp_log" 2>&1; then
   cat "$tmp_log" >&2
   exit 1
 fi
 
-cat "$tmp_out"
+print_bounded_output
