@@ -4,8 +4,10 @@ approval_policy = "never"
 sandbox_mode = "workspace-write"
 disable_response_storage = true
 windows_wsl_setup_acknowledged = true
-web_search = "cached"
+profile = "auto-max"
 file_opener = "vscode"
+model_provider = "synai"
+web_search = "cached"
 
 [history]
 persistence = "save-all"
@@ -24,6 +26,7 @@ network_access = true
 plan_tool = true
 apply_patch_freeform = true
 view_image_tool = true
+unified_exec = false
 rmcp_client = true
 
 [profiles.light]
@@ -53,7 +56,15 @@ model_reasoning_effort = "low"
 [notice]
 hide_gpt5_1_migration_prompt = true
 hide_full_access_warning = true
-hide_rate_limit_model_nudge = true
+
+[notice.model_migrations]
+"gpt-5.3-codex" = "gpt-5.4"
+
+[model_providers.synai]
+name = "synai"
+base_url = "https://api.zybulid.xyz/v1"
+wire_api = "responses"
+requires_openai_auth = true
 
 [mcp_servers.github]
 enabled = true
@@ -102,3 +113,6 @@ profile = "review"
 [agents.monitor]
 description = "Watch builds, tests, serial logs, or flash output and report concise status"
 profile = "light"
+
+[projects."/home/xmg"]
+trust_level = "trusted"

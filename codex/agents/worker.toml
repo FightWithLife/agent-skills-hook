@@ -1,3 +1,5 @@
+name = "worker"
+description = "Implementation worker for bounded code changes with a clear file or module ownership boundary."
 model = "gpt-5.4"
 model_reasoning_effort = "medium"
 sandbox_mode = "workspace-write"

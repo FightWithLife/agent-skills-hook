@@ -1,3 +1,5 @@
+name = "monitor"
+description = "Background watcher for long-running commands, polling, or wait-heavy tasks that should not block the main agent."
 model = "gpt-5.4"
 model_reasoning_effort = "low"
 sandbox_mode = "read-only"
