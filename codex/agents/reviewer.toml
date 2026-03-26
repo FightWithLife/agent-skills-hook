@@ -1,3 +1,5 @@
+name = "reviewer"
+description = "Review-focused agent for correctness, test risk, maintainability, and scoped code-quality feedback."
 model = "gpt-5.4"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
