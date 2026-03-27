@@ -1,6 +1,6 @@
 name = "explorer"
 description = "Read-only investigation for codebase questions, root-cause analysis, and locating relevant files or symbols."
-model = "gpt-5.4"
+model = "gpt-5.4-mini"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 
