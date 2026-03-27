@@ -92,7 +92,8 @@ These instructions are loaded globally by Codex CLI.
 - If a subagent errors, is abandoned, or is being replaced, explicitly close it before spawning a replacement.
 - If concurrent subagent slots are full or nearly full, do not spawn blindly; reclaim capacity through reuse or close-out first.
 - After subagents finish, integrate results, close them according to the lifecycle rule, resolve conflicts, and verify before answering.
-- 只要仍有活跃子代理在处理同一任务，主代理就不得自行补充调查并提前给出结论，也不得因为”自己已经看懂了”就提前关闭该子代理。
+- `wait_agent` 只负责等待子代理结果；如果返回超时、空状态，或尚未收到 `completed`，主代理只能继续等待或报告”仍在等待”，不得自行补齐调查、代替子代理下结论，或把未完成状态当成完成。
+- 只要仍有活跃子代理在处理同一任务，主代理就不得自行补充调查、不得读取同一作用域的新材料，也不得提前给出结论；必要时只能等待或切到不重叠的其他任务。
 - 如需核验结论，优先派发独立 `reviewer` 子代理，而不是由主代理代替复核后直接收尾。
 
 ## Multi-Agent Enforcement (Strong-by-Default)
