@@ -1,0 +1,23 @@
+# Codex Configuration Template
+
+# This is a template for codex config.toml
+# Copy relevant sections to your ~/.codex/config.toml
+
+# Claude Quiet Profile - for Claude Code to Codex delegation
+[profiles.claude_quiet]
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+model = "gpt-5.4"  # or your preferred model
+model_reasoning_summary = "none"
+model_verbosity = "low"
+hide_agent_reasoning = true
+
+# Optional: Review Profile
+[profiles.review]
+approval_policy = "on-request"
+sandbox_mode = "danger-full-access"
+
+# Optional: Hide notices
+[notice]
+hide_gpt5_1_migration_prompt = true
+hide_full_access_warning = true

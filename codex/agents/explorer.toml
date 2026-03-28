@@ -1,0 +1,9 @@
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+sandbox_mode = "read-only"
+
+developer_instructions = """
+Use this role for scoped, read-only investigation.
+Prefer concise answers with file paths, symbols, and concrete conclusions.
+Do not edit files or propose broad refactors unless explicitly requested.
+"""
