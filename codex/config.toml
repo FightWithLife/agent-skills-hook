@@ -1,0 +1,71 @@
+model = "gpt-5.4"
+model_reasoning_effort = "xhigh"
+disable_response_storage = true
+sandbox_mode = "danger-full-access"
+windows_wsl_setup_acknowledged = true
+approval_policy = "never"
+profile = "auto-max"
+file_opener = "vscode"
+model_provider = "Americ"
+web_search = "cached"
+suppress_unstable_features_warning = true
+
+[history]
+persistence = "save-all"
+
+[tui]
+notifications = true
+
+[shell_environment_policy]
+inherit = "all"
+ignore_default_excludes = false
+
+[sandbox_workspace_write]
+network_access = true
+
+[features]
+plan_tool = true
+apply_patch_freeform = true
+view_image_tool = true
+unified_exec = false
+streamable_shell = false
+rmcp_client = true
+elevated_windows_sandbox = true
+
+[profiles.auto-max]
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+model = "gpt-5.3-codex"
+model_reasoning_effort = "low"
+approvals_reviewer = "user"
+
+[profiles.auto-max.features]
+js_repl = false
+apps = false
+guardian_approval = false
+prevent_idle_sleep = false
+
+[profiles.review]
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[notice]
+hide_gpt5_1_migration_prompt = true
+hide_full_access_warning = true
+hide_rate_limit_model_nudge = true
+
+[notice.model_migrations]
+"gpt-5.3-codex" = "gpt-5.4"
+"gpt-5.2-codex" = "gpt-5.4"
+
+[model_providers.Americ]
+name = "Americ"
+base_url = "http://104.236.212.158:48760/v1"
+wire_api = "responses"
+requires_openai_auth = true
+
+[projects."/home/xmg/code/PCL"]
+trust_level = "trusted"
+
+[projects."/home/xmg/code/codex_auto_register"]
+trust_level = "trusted"
