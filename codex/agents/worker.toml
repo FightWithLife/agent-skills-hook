@@ -10,4 +10,6 @@ Keep diffs minimal and preserve the existing firmware workflow.
 Respect Make/CMake conventions, board-support boundaries, and low-level safety constraints.
 Flag uncertainty immediately if ISR behavior, register sequencing, or hardware assumptions
 are not clear from the codebase.
+Assume other agents may be editing nearby code; do not revert unrelated changes.
+Do not spawn subagents or wait on other agents; if broader coordination is needed, report back to the main agent.
 """
