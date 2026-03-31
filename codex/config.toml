@@ -1,14 +1,11 @@
 model = "gpt-5.4"
-model_reasoning_effort = "xhigh"
-disable_response_storage = true
-sandbox_mode = "danger-full-access"
-windows_wsl_setup_acknowledged = true
+model_reasoning_effort = "medium"
 approval_policy = "never"
-profile = "auto-max"
-file_opener = "vscode"
-model_provider = "Americ"
+sandbox_mode = "workspace-write"
+disable_response_storage = true
+windows_wsl_setup_acknowledged = true
 web_search = "cached"
-suppress_unstable_features_warning = true
+file_opener = "vscode"
 
 [history]
 persistence = "save-all"
@@ -27,45 +24,81 @@ network_access = true
 plan_tool = true
 apply_patch_freeform = true
 view_image_tool = true
-unified_exec = false
-streamable_shell = false
 rmcp_client = true
-elevated_windows_sandbox = true
 
-[profiles.auto-max]
+[profiles.light]
 approval_policy = "never"
 sandbox_mode = "workspace-write"
-model = "gpt-5.3-codex"
+model = "gpt-5.4"
 model_reasoning_effort = "low"
-approvals_reviewer = "user"
-
-[profiles.auto-max.features]
-js_repl = false
-apps = false
-guardian_approval = false
-prevent_idle_sleep = false
 
 [profiles.review]
-approval_policy = "on-request"
+approval_policy = "never"
+sandbox_mode = "read-only"
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+
+[profiles.orchestrated]
+approval_policy = "never"
 sandbox_mode = "workspace-write"
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+
+[profiles.claude_quiet]
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+model = "gpt-5.4"
+model_reasoning_effort = "low"
 
 [notice]
 hide_gpt5_1_migration_prompt = true
 hide_full_access_warning = true
 hide_rate_limit_model_nudge = true
 
-[notice.model_migrations]
-"gpt-5.3-codex" = "gpt-5.4"
-"gpt-5.2-codex" = "gpt-5.4"
+[mcp_servers.github]
+enabled = true
 
-[model_providers.Americ]
-name = "Americ"
-base_url = "http://104.236.212.158:48760/v1"
-wire_api = "responses"
-requires_openai_auth = true
+[mcp_servers.context7]
+enabled = true
 
-[projects."/home/xmg/code/PCL"]
-trust_level = "trusted"
+[mcp_servers.memory]
+enabled = true
 
-[projects."/home/xmg/code/codex_auto_register"]
-trust_level = "trusted"
+[mcp_servers.sequential-thinking]
+enabled = true
+
+[agents.explorer]
+description = "Read-only embedded C investigation, call-path tracing, and build context lookup"
+profile = "review"
+
+[agents.architect]
+description = "Design or review embedded firmware architecture, boundaries, and evolution paths"
+profile = "review"
+
+[agents.planner]
+description = "Plan multi-file firmware changes, init sequencing, and risk-controlled implementation"
+profile = "orchestrated"
+
+[agents.worker]
+description = "Implement isolated embedded C or build-system changes with minimal diffs"
+profile = "light"
+
+[agents.build-resolver]
+description = "Repair Make/CMake, toolchain, compile, link, include, and macro failures"
+profile = "orchestrated"
+
+[agents.firmware-reviewer]
+description = "Review ISR, volatile, register, DMA, timeout, and memory-safety risks"
+profile = "review"
+
+[agents.hardware-impact]
+description = "Assess peripheral, board-support, bus, pinmux, and clocking impact"
+profile = "review"
+
+[agents.reviewer]
+description = "Final regression and maintainability review after changes land"
+profile = "review"
+
+[agents.monitor]
+description = "Watch builds, tests, serial logs, or flash output and report concise status"
+profile = "light"

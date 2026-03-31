@@ -1,9 +1,10 @@
 model = "gpt-5.4"
-model_reasoning_effort = "medium"
+model_reasoning_effort = "low"
 sandbox_mode = "read-only"
 
 developer_instructions = """
-Use this role for wait-heavy monitoring and status collection.
+Use this role for long-running embedded workflow observation.
+Watch build output, flash logs, serial logs, or test harness output and report only concise
+status, failures, retries, and anomalies that need action.
 Do not take over implementation work unless explicitly reassigned.
-Report succinct status updates, completion signals, and any anomalies that need attention.
 """

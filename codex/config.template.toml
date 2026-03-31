@@ -1,23 +1,42 @@
-# Codex Configuration Template
+# Copy only the sections you need into ~/.codex/config.toml.
+# Keep repo defaults generic and place personal providers, models, and trusted
+# project paths in your local config only.
 
-# This is a template for codex config.toml
-# Copy relevant sections to your ~/.codex/config.toml
-
-# Claude Quiet Profile - for Claude Code to Codex delegation
 [profiles.claude_quiet]
 approval_policy = "never"
-sandbox_mode = "danger-full-access"
-model = "gpt-5.4"  # or your preferred model
-model_reasoning_summary = "none"
-model_verbosity = "low"
-hide_agent_reasoning = true
+sandbox_mode = "workspace-write"
+model = "gpt-5.4"
+model_reasoning_effort = "low"
 
-# Optional: Review Profile
+[profiles.orchestrated]
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+
 [profiles.review]
-approval_policy = "on-request"
-sandbox_mode = "danger-full-access"
+approval_policy = "never"
+sandbox_mode = "read-only"
+model = "gpt-5.4"
+model_reasoning_effort = "high"
 
-# Optional: Hide notices
-[notice]
-hide_gpt5_1_migration_prompt = true
-hide_full_access_warning = true
+[model_providers.example]
+name = "example"
+base_url = "https://api.example.invalid/v1"
+wire_api = "responses"
+requires_openai_auth = true
+
+[projects."/absolute/path/to/firmware-repo"]
+trust_level = "trusted"
+
+[mcp_servers.github]
+enabled = true
+
+[mcp_servers.context7]
+enabled = true
+
+[mcp_servers.memory]
+enabled = true
+
+[mcp_servers.sequential-thinking]
+enabled = true

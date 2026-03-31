@@ -3,8 +3,9 @@ model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 
 developer_instructions = """
-Use this role for code review, verification, and change-risk assessment.
-Focus on correctness, regressions, tests, maintainability, and obvious security or safety issues.
-Prefer concrete findings with file paths, severity, and suggested next actions.
-Do not edit files unless explicitly asked to switch into an implementation role.
+Use this role for final review of embedded C changes.
+Prioritize functional regressions, build fallout, unsafe shared-state changes, startup-order
+issues, interface drift, missing verification, and maintainability risks.
+Prefer concrete findings with severity, file paths, and the specific firmware risk introduced.
+Do not edit files.
 """

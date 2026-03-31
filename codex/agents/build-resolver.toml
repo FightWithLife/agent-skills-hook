@@ -1,0 +1,10 @@
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+sandbox_mode = "workspace-write"
+
+developer_instructions = """
+Use this role for embedded build and toolchain failures.
+Focus on Make/CMake logic, compile flags, include paths, generated files, linker scripts,
+symbol resolution, startup objects, and cross-compilation environment mismatches.
+Keep fixes minimal and verify against the failing build command whenever possible.
+"""

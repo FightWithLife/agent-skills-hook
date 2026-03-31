@@ -1,298 +1,74 @@
-# Codex Integration for Claude Code
+# Codex Integration for Embedded C Workflows
 
-为 Claude Code 提供 Codex CLI 静默调用包装器，优化 Claude-to-Codex 协作工作流。
+This directory turns Codex into a focused execution layer for embedded firmware work instead of a heavy always-on orchestrator.
 
-## 功能特性
+## Design Goals
 
-- **静默执行**：压制 Codex 的冗长思考输出，只返回最终结果
-- **专用 Profile**：使用 `claude_quiet` profile 优化 Claude 调用体验
-- **错误处理**：失败时输出完整日志，便于调试
-- **一键部署**：自动化安装脚本，快速配置
+- Keep the default path simple for one-file or low-risk changes.
+- Escalate to Codex when build failures, multi-file firmware work, or hardware risk justify it.
+- Reuse the stronger orchestration ideas from `everything-claude-code` without copying personal config or a heavy MCP footprint into the repo.
+- Give Codex explicit architecture capability so it can reason about system structure before planning and implementation.
 
-## 目录结构
+## Recommended Flow
 
-```
-codex/
-├── bin/
-│   └── codex-quiet          # 静默包装器脚本
-├── config.template.toml     # Codex 配置模板
-├── setup.sh                 # 一键部署脚本
-└── README.md                # 本文件
-```
+1. Use Claude or Codex directly for small, local edits.
+2. Route structural work through `architect` before implementation:
+   - `architect`: module boundaries, BSP or HAL layering, startup sequencing, portability, and evolution paths
+   - `planner`: executable implementation phases after the architecture direction is chosen
+   - `worker`: minimal implementation in assigned scope
+   - `build-resolver`: `Make` or `CMake`, compile, link, include, or toolchain failures
+   - `firmware-reviewer`: ISR, `volatile`, register, DMA, timeout, or buffer risk review
+   - `hardware-impact`: peripheral, clock, board-support, and bus impact review
+   - `reviewer`: final regression pass
+   - `explorer`: read-only tracing and codebase lookup
+   - `monitor`: long-running build or serial-log observation
+3. Keep default verification grounded in the repo's normal firmware commands, usually `make`, `cmake --build`, unit tests, and any board-level smoke checks you already use.
 
-## 快速开始
+## Repo Files
 
-### 方式 1：一键部署（推荐）
+- `AGENTS.md`: routing and escalation rules for embedded C work
+- `config.toml`: shared, de-personalized repo config
+- `config.template.toml`: local overlay template for providers, models, and trusted repos
+- `agents/*.toml`: agent-specific prompt specializations
+- `setup.sh`: minimal local install helper
+
+## What Changed Relative to the Older Layout
+
+- The shared config no longer contains personal provider endpoints or personal trusted project paths.
+- Default profiles are split into `light`, `review`, `orchestrated`, and `claude_quiet`.
+- The agent set is expanded from generic `explorer/worker/reviewer/monitor` to include embedded-C-specific architecture, planning, build repair, and risk review roles.
+- MCP defaults stay light: `github`, `context7`, `memory`, and `sequential-thinking`.
+
+## Local Setup
+
+Run from the `codex/` directory:
 
 ```bash
-cd ~/code/agent-skills-hook/codex
 ./setup.sh
 ```
 
-脚本会自动：
-1. 检查 Codex CLI 是否安装
-2. 安装 codex-quiet 到 `~/.local/bin/`
-3. 配置 `claude_quiet` profile 到 `~/.codex/config.toml`
-4. 更新 Claude 全局配置（如果存在）
-
-### 方式 2：手动安装
-
-#### 1. 安装包装器
-
-```bash
-cp bin/codex-quiet ~/.local/bin/
-chmod +x ~/.local/bin/codex-quiet
-```
-
-#### 2. 配置 Codex Profile
-
-在 `~/.codex/config.toml` 中添加：
-
-```toml
-[profiles.claude_quiet]
-approval_policy = "never"
-sandbox_mode = "danger-full-access"
-model = "gpt-5.4"  # 或你的首选模型
-model_reasoning_summary = "none"
-model_verbosity = "low"
-hide_agent_reasoning = true
-```
-
-#### 3. 更新 Claude 全局配置
-
-在 `~/.claude/CLAUDE.md` 中添加：
-
-```markdown
-## Codex Integration
-- When delegating tasks to Codex CLI, ALWAYS use the quiet wrapper:
-  ```bash
-  ~/.local/bin/codex-quiet "<task description>"
-  ```
-- This wrapper suppresses verbose thinking output and returns only final results
-- Do NOT use `codex` or `codex exec` directly unless explicitly requested by user
-```
-
-## 使用方式
-
-### 基本用法
-
-```bash
-~/.local/bin/codex-quiet "实现一个函数计算斐波那契数列"
-```
-
-### 在 Claude Code 中使用
-
-当你在 Claude Code 中说：
-
-```
-使用 codex 实现一个排序算法
-```
-
-Claude 会自动调用 `codex-quiet` 执行任务。
-
-### 详细任务描述
-
-```bash
-~/.local/bin/codex-quiet "
-实现需求：实现快速排序算法
-
-工作目录：/path/to/project
-
-要修改的文件：
-- src/sort.js
-
-功能需求：
-1. 实现 quickSort(arr) 函数
-2. 支持升序和降序排序
-3. 处理边界情况（空数组、单元素）
-
-代码规范：
-- 使用 ES6+ 语法
-- 添加 JSDoc 注释
-- 遵循项目代码风格
-
-验收标准：
-- 通过 tests/sort.test.js 测试
-- 时间复杂度 O(n log n)
-"
-```
-
-## 工作原理
-
-### codex-quiet 脚本
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-# 创建临时文件存储输出和日志
-tmp_out=$(mktemp)
-tmp_log=$(mktemp)
-
-# 清理函数
-cleanup() {
-  rm -f "$tmp_out" "$tmp_log"
-}
-trap cleanup EXIT
-
-# 使用 claude_quiet profile 执行 codex
-if ! codex -p claude_quiet exec -o "$tmp_out" "$@" >"$tmp_log" 2>&1; then
-  # 失败时输出日志
-  cat "$tmp_log" >&2
-  exit 1
-fi
-
-# 成功时只输出最终结果
-cat "$tmp_out"
-```
-
-### claude_quiet Profile
-
-```toml
-[profiles.claude_quiet]
-approval_policy = "never"           # 不询问用户批准
-sandbox_mode = "danger-full-access" # 完全访问权限
-model = "gpt-5.4"                   # 使用最新模型
-model_reasoning_summary = "none"    # 不显示推理摘要
-model_verbosity = "low"             # 低冗余度
-hide_agent_reasoning = true         # 隐藏代理推理过程
-```
-
-## 配置选项
-
-### 修改模型
-
-编辑 `~/.codex/config.toml`：
-
-```toml
-[profiles.claude_quiet]
-model = "gpt-4"  # 改为其他模型
-```
-
-### 调整沙箱权限
-
-```toml
-[profiles.claude_quiet]
-sandbox_mode = "workspace-write"  # 更安全的选项
-```
-
-⚠️ 注意：`danger-full-access` 提供完全访问权限，适合可信环境。
-
-### 启用推理输出（调试用）
-
-```toml
-[profiles.claude_quiet]
-model_reasoning_summary = "brief"  # 显示简要推理
-hide_agent_reasoning = false       # 显示代理推理
-```
-
-## 验证安装
-
-运行验证命令：
-
-```bash
-# 检查 codex-quiet 是否安装
-which codex-quiet
-# 应该输出: /home/<user>/.local/bin/codex-quiet
-
-# 检查 codex 是否安装
-which codex
-codex --version
-
-# 测试 codex-quiet
-~/.local/bin/codex-quiet "echo 'Hello from Codex'"
-```
-
-## 故障排查
-
-### 问题 1：codex-quiet 未找到
-
-```bash
-# 检查是否在 PATH 中
-echo $PATH | grep -o "$HOME/.local/bin"
-
-# 如果没有，添加到 ~/.bashrc 或 ~/.zshrc
-export PATH="$HOME/.local/bin:$PATH"
-```
-
-### 问题 2：Codex CLI 未安装
-
-```bash
-# 安装 Codex CLI
-# 访问: https://codex.anthropic.com
-```
-
-### 问题 3：Profile 未生效
-
-```bash
-# 检查配置文件
-cat ~/.codex/config.toml | grep -A 5 "claude_quiet"
-
-# 测试 profile
-codex -p claude_quiet exec "echo test"
-```
-
-### 问题 4：权限错误
-
-```bash
-# 确保脚本可执行
-chmod +x ~/.local/bin/codex-quiet
-
-# 检查权限
-ls -l ~/.local/bin/codex-quiet
-```
-
-## 与 Codex Orchestrator 配合
-
-`codex-quiet` 是 `codex-orchestrator` skill 的核心组件：
-
-1. **规划阶段**：Claude 分析需求，制定技术方案
-2. **执行阶段**：Claude 调用 `codex-quiet` 执行实现
-3. **验收阶段**：Claude 进行代码审查、测试、性能检查
-4. **迭代阶段**：验收失败时，Claude 询问用户并重新调用 `codex-quiet`
-5. **完成阶段**：验收通过后，Claude 提交代码
-
-详见：`~/.claude/skills/codex-orchestrator/README.md`
-
-## 高级用法
-
-### 自定义工作目录
-
-Codex 会自动识别任务描述中的工作目录：
-
-```bash
-~/.local/bin/codex-quiet "
-工作目录：/path/to/project
-实现功能 X
-"
-```
-
-### 指定输出文件
-
-```bash
-# codex-quiet 不支持 -o 参数，因为它已经内部使用
-# 如果需要保存输出，使用重定向
-~/.local/bin/codex-quiet "任务描述" > output.txt
-```
-
-### 调试模式
-
-如果需要查看完整的 Codex 输出（包括推理过程），直接使用 `codex`：
-
-```bash
-codex -p claude_quiet exec "任务描述"
-```
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request！
-
-## 许可证
-
-MIT License
-
-## 相关链接
-
-- [Codex CLI 官方文档](https://codex.anthropic.com)
-- [Claude Code 文档](https://claude.ai/code)
-- [agent-skills-hook 仓库](https://github.com/yourusername/agent-skills-hook)
+The helper:
+
+- installs or refreshes `~/.local/bin/codex-quiet` if present in `codex/bin/`
+- ensures `~/.codex/config.toml` exists
+- appends the shared profile names if they are missing
+- avoids writing personal provider config into the repo copy
+
+## Local Overlay Guidance
+
+Put these in your local `~/.codex/config.toml`, not in the repo:
+
+- custom provider endpoints
+- API auth preferences
+- model overrides for your machine or budget
+- trusted project paths for your private firmware repos
+- heavier MCP servers you do not want as repo defaults
+
+## Suggested Embedded C Delegation Rules
+
+- Single file, no build fallout, low hardware risk: stay local.
+- Architecture or module-boundary uncertainty: use `architect` first.
+- Build break, linker failure, generated-file mismatch: use `build-resolver`.
+- ISR or shared-state edits: require `firmware-reviewer`.
+- Peripheral or board-init edits: require `hardware-impact`.
+- Larger features or refactors: `architect` when structure is in play, then `planner`, then `worker`, then `reviewer`.
