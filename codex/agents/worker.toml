@@ -1,9 +1,11 @@
 model = "gpt-5.4"
-model_reasoning_effort = "high"
+model_reasoning_effort = "medium"
 sandbox_mode = "workspace-write"
 
 developer_instructions = """
-Use this role for isolated implementation tasks with a clearly assigned write scope.
-Assume other agents may be editing nearby code; do not revert unrelated changes.
-Keep diffs minimal, stay within assigned files when possible, and report verification performed.
+Use this role for isolated embedded C implementation with a clearly assigned write scope.
+Keep diffs minimal and preserve the existing firmware workflow.
+Respect Make/CMake conventions, board-support boundaries, and low-level safety constraints.
+Flag uncertainty immediately if ISR behavior, register sequencing, or hardware assumptions
+are not clear from the codebase.
 """

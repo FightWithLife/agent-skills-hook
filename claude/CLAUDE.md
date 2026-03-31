@@ -23,155 +23,186 @@ These instructions are loaded globally by Claude Code.
   ```bash
   ~/.local/bin/codex-quiet "<task description>"
   ```
-- This wrapper suppresses verbose thinking output and returns only final results
-- Do NOT use `codex` or `codex exec` directly unless explicitly requested by user
-- The quiet wrapper is optimized for Claude-to-Codex delegation workflow
+- This wrapper suppresses verbose thinking output and returns only final results.
+- Do NOT use `codex` or `codex exec` directly unless explicitly requested by user.
+- Use Codex as an escalation path for embedded development, not as the default executor for every medium task.
 
-## Codex Collaboration Mode (默认自动路由)
+## Codex Collaboration Mode (embedded C, light first)
 
-When handling development requests, Claude acts as orchestrator by default:
-- Claude decomposes tasks, writes implementation plan, and defines acceptance criteria.
-- Medium/complex implementation is delegated to Codex for execution.
-- Claude performs validation, regression checks, and iteration control.
+When handling development requests, Claude is the front controller:
+- Claude should solve small, low-risk tasks directly.
+- Claude should escalate to Codex when the task crosses architecture, build, hardware, concurrency, or multi-file risk boundaries.
+- Claude remains responsible for routing, acceptance criteria, validation, and final user-facing summary.
+
+### Default Routing
+
+- **Claude direct**:
+  - single-file edits
+  - comment or naming cleanup
+  - low-risk logic tweaks
+  - configuration text updates
+  - changes that do not alter build graph, startup order, interrupt behavior, architecture boundaries, or hardware interaction
+
+- **Codex `architect`**:
+  - module-boundary redesign
+  - BSP, HAL, driver, protocol, service, or application-layer restructuring
+  - startup or bring-up architecture changes
+  - portability or multi-board evolution planning
+  - tasks where the main question is how the system should be shaped before coding
+
+- **Codex `planner` then `worker`**:
+  - multi-file features with stable architecture
+  - refactors that alter interfaces but do not require a fresh architectural decision
+  - new driver flows, state-machine work, or startup/recovery sequencing after the structure is chosen
+
+- **Codex `build_resolver`**:
+  - `Make` or `CMake` failures
+  - cross-compilation issues
+  - linker errors
+  - include path, macro, startup object, linker script, or symbol resolution problems
+
+- **Codex `worker` + `firmware_reviewer`**:
+  - ISR or interrupt-context changes
+  - `volatile` correctness concerns
+  - shared-state, race, timeout, buffer, or memory-safety risk
+  - direct register access or init-sequence changes that can create firmware regressions
+
+- **Codex `worker` + `hardware_impact`**:
+  - GPIO, clock tree, pinmux, UART, SPI, I2C, CAN, DMA, timer, watchdog, board-support, or transport-layer changes
+  - modifications that can affect electrical behavior, timing, peripheral coupling, or bring-up assumptions
+
+- **Codex `reviewer`**:
+  - final regression-focused review before declaring non-trivial work complete
 
 ### Division of Responsibilities
 
-- **Claude's Role**:
-  - Requirements analysis and technical planning
-  - Architecture design and solution review
-  - Code validation (code review, testing, performance, architecture compliance)
-  - Iteration guidance and problem diagnosis
+- **Claude's role**:
+  - clarify requirement and working scope
+  - decide whether the task stays local or escalates
+  - decide whether architecture must be settled before planning or coding
+  - define acceptance criteria in embedded terms
+  - validate build, test, and regression evidence after Codex work
+  - keep the workflow lightweight unless escalation is justified
 
-- **Codex's Role**:
-  - Concrete code implementation
-  - Execute development tasks according to Claude's plan
+- **Codex's role**:
+  - design or review system structure when architecture is in scope
+  - implement scoped code changes
+  - trace build failures and repair them
+  - review firmware safety and hardware impact when requested
 
-### Execution Mode Selection
+### Escalation Triggers
 
-Route by complexity (without requiring explicit "use codex" keywords):
+Escalate to Codex when one or more of these are present:
+- more than one source/header/build file likely changes
+- build/test/debug loop is expected
+- `Make`/`CMake` or linker behavior is part of the task
+- interrupt, shared-state, or `volatile` semantics are involved
+- register-level or peripheral-facing code is touched
+- startup order, board init, or transport timing may change
+- module boundaries or layering need to be redesigned
+- portability, board-family reuse, or long-term structure is part of the task
+- the task benefits from an architect or planner before implementation
 
-- **Simple changes** (<50 lines, single file, no build/test chain): Claude executes directly.
-- **Medium features** (50-200 lines, multi-step or multi-file): Auto-use `codex-orchestrator`.
-- **Complex refactoring** (>200 lines, architecture impact, migration): Plan first, then auto-use `codex-orchestrator`.
-- **User override**: if user explicitly requests "Claude direct" or "Codex direct", respect it.
+Do not escalate solely because a task "looks medium." Preserve the simple path when risk and scope are small.
 
 ### Codex Invocation Specification
 
 When calling Codex, you MUST:
-- **Use quiet wrapper**: `~/.local/bin/codex-quiet "<task description>"`
-- **Do NOT use**: `codex` or `codex exec` commands (unless user explicitly requests)
-- Set workdir explicitly when needed: `CODEX_QUIET_WORKDIR=/abs/path ~/.local/bin/codex-quiet "..."`
-- The quiet wrapper suppresses verbose output, bounds final output size, and returns only final results
-- Provide detailed implementation instructions including:
-  - Working directory
-  - Specific files to modify/create
-  - Architecture constraints (refer to project architecture docs if available)
-  - Code standards (comments, style, documentation format)
-  - Acceptance criteria (testable, verifiable)
-  - **Output contract**: no full-file dumps, no full logs, concise summary only
+- use the quiet wrapper: `~/.local/bin/codex-quiet "<task description>"`
+- set workdir explicitly when needed: `CODEX_QUIET_WORKDIR=/abs/path ~/.local/bin/codex-quiet "..."`
+- name the intended agent in the task description when routing matters
+- provide task constraints that reflect embedded C expectations
+
+Minimum Codex task contract:
+- working directory
+- target files or module scope
+- build system (`make`, `cmake`, toolchain wrapper, or board-specific command)
+- hardware or concurrency risks to preserve
+- architecture constraints when relevant
+- acceptance criteria with concrete verification commands
+- output contract: concise summary, no full-file dumps, no long logs
 
 Example:
 ```bash
-CODEX_QUIET_WORKDIR=/abs/project/root ~/.local/bin/codex-quiet "
-Implementation requirement: [specific description]
+CODEX_QUIET_WORKDIR=/abs/project ~/.local/bin/codex-quiet "
+Agent: architect
 
-Working directory: [project root path]
+Task:
+Propose a safer module boundary between BSP, UART driver, and protocol parsing before implementation.
 
-Files to create/modify:
-- src/xxx.js
-- include/xxx.h
+Working directory:
+/abs/project
 
-Functional requirements:
-1. ...
-2. ...
+Scope:
+- bsp/
+- drivers/uart/
+- protocol/
 
-Architecture constraints:
-- Follow project architecture guidelines
-- Reuse existing module boundaries
-- Do not create parallel implementations
-
-Code standards:
-- Follow project code style
-- Add necessary comments/documentation
-- Keep code concise and maintainable
+Constraints:
+- Preserve current interrupt model
+- Keep Make build layout stable
+- Minimize board-specific leakage into protocol code
 
 Acceptance criteria:
-- Build passes without warnings
-- Tests pass
-- No performance degradation
+- Return recommended layering and interface ownership
+- Identify follow-up implementation phases
+- Call out firmware and hardware risks that must be reviewed later
 
-Output constraints:
-- Return concise markdown only
-- Keep result under 200 lines
-- If tests fail, include only key failing snippets
+Output:
+- concise markdown summary only
+- no full-file dumps
 "
 ```
 
 ### Delegation Safety Checks
 
 Before the first Codex delegation in a task:
-
-1. Confirm `~/.local/bin/codex-quiet` exists and is executable.
-2. Confirm `claude_quiet` profile exists in `~/.codex/config.toml`.
-3. Ensure workspace is writable by Codex (use `CODEX_QUIET_WORKDIR` for target repo).
-4. If delegation output is large, keep only concise summary in chat context.
+1. confirm `~/.local/bin/codex-quiet` exists and is executable
+2. confirm `claude_quiet` profile exists in `~/.codex/config.toml`
+3. ensure the target workspace is writable by Codex
+4. ensure the task description includes the real embedded build/test command rather than a generic placeholder
+5. if architecture is in scope, decide whether `architect` should run before `planner` or `worker`
 
 ### Validation Standards
 
-After Codex completes implementation, Claude MUST perform comprehensive validation:
+After Codex completes implementation, Claude MUST validate with current evidence:
 
-1. **Code Review**:
-   - Code quality, security, style consistency
-   - Comment/documentation completeness
-   - Use `requesting-code-review` skill or manual review
+1. **Architecture validation**
+   - if `architect` was used, verify the implementation still follows the chosen boundaries and responsibilities
+   - check that no parallel implementation or cross-layer leakage was introduced
 
-2. **Build Test**:
-   ```bash
-   # Adjust based on project build system
-   make clean && make -j$(nproc)
-   # or npm run build
-   # or cargo build
-   ```
-   - Must compile/build successfully without errors
-   - Check for new warnings
+2. **Build validation**
+   - run the real project build command
+   - prefer `make`, `cmake --build`, or the project's cross-toolchain invocation
+   - confirm whether warnings changed, not just whether exit code is zero
 
-3. **Functional Test**:
-   - Run relevant test cases
-   - Verify output correctness
-   - Check for regressions
+3. **Functional or smoke validation**
+   - run the closest available unit test, integration test, simulator test, or scripted smoke command
+   - if no automated test exists, state that explicitly and rely on build plus focused review
 
-4. **Performance Check**:
-   - Compare before/after performance (if relevant)
-   - Check memory usage
-   - Verify no obvious performance degradation
+4. **Firmware risk validation**
+   - check ISR/shared-state/register/init-sequence assumptions for tasks that touched them
+   - ensure required `firmware_reviewer` or `hardware_impact` passes were actually requested when warranted
 
-5. **Architecture Compliance**:
-   - Verify adherence to project architecture guidelines
-   - Check module boundaries are respected
-   - Ensure no parallel implementations created
-   - Validate against project change guidelines (if available)
+5. **Final review**
+   - use `reviewer` for non-trivial work before claiming completion
 
 ### Iteration Handling
 
 When validation fails:
-1. Claude summarizes specific validation failures
-2. Use `AskUserQuestion` to ask user how to proceed:
-   - Option a: Let Codex automatically fix the issues
-   - Option b: User provides specific fix guidance
-   - Option c: Claude fixes issues directly
-   - Option d: Abort and review manually
-3. Execute corresponding action based on user choice
-4. Maximum 3 iterations before escalating to user
+1. summarize the concrete failure
+2. decide whether it is best fixed by Claude directly or by another Codex pass
+3. if the failure reflects structure rather than implementation detail, route back through `architect` or `planner` instead of only patching code
+4. keep follow-up delegation narrow and evidence-based
+5. stop after repeated unsuccessful loops and surface the blocker clearly
 
 ### Completion Flow
 
-After all validations pass:
-1. Use `git-master` skill to commit code
-2. Provide completion summary:
-   - What was implemented
-   - Validation results (all passed)
-   - Files changed
-   - Suggested next steps
+After validations finish:
+1. report what changed
+2. report exact verification status
+3. call out any residual embedded-system risk that still needs on-target validation
+4. if architecture changed, summarize the chosen boundaries or trade-offs in plain language
 
 ## Stop (when task is complete)
 - End with a short "Stop" block:

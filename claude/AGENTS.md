@@ -18,6 +18,12 @@ These instructions are loaded globally by Claude Code.
 ## Tool Safety
 - Obey tool permission rules. Never bypass safety checks unless the user explicitly asks and it is safe.
 
+## Embedded C Collaboration Mode
+- Default to Claude direct execution for simple embedded C work: single-file edits, comment updates, constant adjustments, or scoped logic fixes with no build-system or hardware-facing risk.
+- Escalate to Codex only when the task benefits from stronger execution bandwidth, broader file scope, build repair, or firmware-risk isolation.
+- Preserve a lightweight default path. Do not delegate medium work automatically just because it is multi-step.
+- Prioritize Make/CMake, cross-compilation, linker, startup, interrupt, register, and peripheral-risk awareness over generic app-development routing.
+
 ## Stop (when task is complete)
 - End with a short "Stop" block:
   - What changed

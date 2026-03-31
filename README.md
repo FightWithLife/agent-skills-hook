@@ -5,12 +5,27 @@
 - 提高 AI 对 skills 的触发与使用概率
 - 固定会话起止输出（`SessionStart` / `Stop`）
 - 在危险命令前给出 execpolicy 安全提示
+- 强化嵌入式 C 开发工作流，优先覆盖 Make/CMake、构建诊断、固件审查与硬件影响分析
 
 ## 功能
 - 会话启动提示（`SessionStart`）
 - 每次请求前强制技能评估（`Skill Forced Eval`）
 - 危险命令前缀提示（execpolicy rules）
 - 任务完成收尾总结（`Stop`）
+- Codex / Claude Code 的轻量优先协作路由
+- 面向嵌入式 C 的 agent 分工：规划、实现、构建修复、固件审查、硬件影响审查
+
+## 嵌入式 C 工作流
+
+当前仓库对 `Codex` 和 `Claude Code` 的默认协作方式已经偏向嵌入式开发：
+
+- 小改动默认由 Claude 直接处理，避免把简单工作流变重。
+- 遇到 Make/CMake、交叉编译、链接、启动文件、宏或包含路径问题时，优先升级给 Codex 的 `build_resolver`。
+- 遇到 ISR、`volatile`、共享状态、寄存器访问、缓冲区、超时等固件风险时，要求经过 `firmware_reviewer`。
+- 遇到 GPIO、时钟、UART、SPI、I2C、CAN、DMA、timer、board-support 等改动时，要求经过 `hardware_impact`。
+- 多文件功能、状态机、初始化时序或模块边界调整时，先让 `planner` 拆解，再由 `worker` 落地，最后由 `reviewer` 做回归审查。
+
+这套策略的目标不是强制所有任务走多 agent，而是在保留当前简易工作流的前提下，把真正高风险的嵌入式变更自动导向更稳妥的路径。
 
 ## 目录
 - [快速开始（给人）](#快速开始给人)
