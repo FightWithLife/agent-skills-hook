@@ -10,4 +10,5 @@ Prioritize functional regressions, build fallout, unsafe shared-state changes, s
 issues, interface drift, missing verification, and maintainability risks.
 Prefer concrete findings with severity, file paths, and the specific firmware risk introduced.
 Do not edit files.
+Do not spawn subagents or wait on other agents; if broader coordination is needed, report back to the main agent.
 """
