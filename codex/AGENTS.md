@@ -1,137 +1,137 @@
-# Global Codex Instructions (agent-skills-hook)
+# Codex 全局指令（agent-skills-hook）
 
-These instructions are loaded globally by Codex CLI.
+这些说明会被 Codex CLI 全局加载。
 
-## SessionStart (once per session)
-- On the first response of each new session, print a short block:
-  - "SessionStart" header
-  - Active instruction layers (global `~/.codex/AGENTS.md`, repo `AGENTS.md` if present)
-  - Skill sources (`~/.agents/skills`, `./.agents/skills`)
-  - Execpolicy rules path (`~/.codex/rules/*.rules`)
+## SessionStart（每个会话一次）
+- 在每个新会话的首条回复中输出一个简短区块：
+  - `SessionStart` 标题
+  - 当前生效的指令层（全局 `~/.codex/AGENTS.md`，以及仓库内的 `AGENTS.md`，如果存在）
+  - 技能来源（`~/.agents/skills`、`./.agents/skills`）
+  - Execpolicy 规则路径（`~/.codex/rules/*.rules`）
 
-## Skills (every user request)
-- Before any substantial work, evaluate whether any available skill matches the request using Codex's native skill mechanism.
-- Use Codex-native skill semantics:
-  - explicit invocation uses `$skill-name`;
-  - implicit invocation is allowed when the request clearly matches a skill `description`;
-  - load full `SKILL.md` content only for the skills that are actually selected.
-- Do not require or simulate non-native function-style calls such as `Skill(...)` or `skills(...)`.
-- Prefer repository and user skill metadata first; only read the selected skill's files when needed.
-- If the current runtime does not expose native skill selection UI or native skill mentions, manually read only the matched `SKILL.md` files with normal file/shell tools and follow them quietly.
-- Do not emit boilerplate fallback text, fake tool calls, or no-op commands just to satisfy the skill workflow.
+## 技能（每次用户请求）
+- 在任何实质性工作开始前，先用 Codex 原生技能机制判断是否有可匹配的技能。
+- 使用 Codex 原生技能语义：
+  - 显式调用使用 `$skill-name`；
+  - 当请求明显匹配某个技能的 `description` 时，可以隐式调用；
+  - 只有在真正选中的技能上才加载完整的 `SKILL.md` 内容。
+- 不要要求或模拟 `Skill(...)`、`skills(...)` 这类非原生函数式调用。
+- 优先读取仓库和用户层面的技能元数据；仅在需要时再读取所选技能的文件。
+- 如果当前运行时没有原生技能选择界面或原生技能提及能力，就用普通文件/命令工具手动读取匹配的 `SKILL.md`，并安静执行。
+- 不要为了凑技能流程而输出套话、伪造工具调用或执行空操作命令。
 
-## Review Output Language
-- When the user asks for a "review", write the final response in Chinese while keeping the required review structure and formatting rules intact.
+## 复核输出语言
+- 当用户要求 `review` 时，最终回复使用中文，同时保持规定的 review 结构和格式规则不变。
 
-## Tool Safety
-- Obey execpolicy rules. Never bypass safety checks unless the user explicitly asks and it is safe.
+## 工具安全
+- 遵守 execpolicy 规则。除非用户明确要求且这样做是安全的，否则不要绕过安全检查。
 
-## Embedded C Collaboration Mode
-- Optimize for embedded firmware work that is mostly C with `Make` or `CMake`.
-- Stay lightweight by default. Do not escalate to extra agents when a direct answer or one-file fix is enough.
-- Treat Codex as a full workflow layer for architecture, planning, execution, build repair, and focused risk review.
-- Keep default recommendations compatible with low-friction workflows: local edit, local build, then focused review.
+## 嵌入式 C 协作模式
+- 面向以 C 为主、使用 `Make` 或 `CMake` 的嵌入式固件工作进行优化。
+- 默认保持轻量。如果直接回答或单文件修复就够了，就不要升级到额外子代理。
+- 将 Codex 视为覆盖架构、规划、执行、构建修复和定向风险复核的完整工作流层。
+- 默认建议要兼容低摩擦工作流：本地修改、本地构建、再做聚焦复核。
 
-## Agent Routing
-- Use `explorer` for read-only codebase understanding, build graph tracing, macro/config lookup, and locating init or call paths.
-- Use `architect` before structural changes: module boundaries, BSP or HAL layering, startup sequencing, interface ownership, portability strategy, or long-term extensibility decisions.
-- Use `planner` after architecture is clear to turn the chosen direction into low-risk implementation phases and concrete acceptance checks.
-- Use `worker` for isolated implementation once the target files and acceptance criteria are clear.
-- Use `build-resolver` when the issue is in `Make` or `CMake`, toolchain setup, compile flags, include paths, linker scripts, map files, unresolved symbols, or generated-code steps.
-- Use `firmware-reviewer` when changes touch ISR context, `volatile`, register access, shared state, memory-mapped IO, DMA buffers, timeouts, or buffer ownership.
-- Use `hardware-impact` when changes affect clocks, GPIO, UART, SPI, I2C, CAN, timers, DMA channels, board-support packages, or peripheral muxing.
-- Use `reviewer` as the final general regression pass after implementation and focused risk review are done.
-- Use `monitor` only for long-running build, flash, log-tail, or hardware-test observation.
+## 代理路由
+- `explorer` 用于只读理解代码库、追踪构建图、查找宏/配置，以及定位初始化或调用路径。
+- `architect` 用于结构性变更之前：模块边界、BSP 或 HAL 分层、启动顺序、接口归属、可移植性策略或长期扩展性决策。
+- `planner` 用于架构明确之后，把选定方向拆成低风险的实施阶段和明确的验收检查。
+- `worker` 用于在目标文件和验收标准都清楚后做隔离实现。
+- `build-resolver` 用于 `Make` 或 `CMake`、工具链配置、编译参数、包含路径、链接脚本、映射文件、未解析符号或生成代码步骤相关问题。
+- `firmware-reviewer` 用于涉及 ISR 上下文、`volatile`、寄存器访问、共享状态、内存映射 IO、DMA 缓冲区、超时或缓冲区归属的改动。
+- `hardware-impact` 用于影响时钟、GPIO、UART、SPI、I2C、CAN、定时器、DMA 通道、板级支持包或外设复用的改动。
+- `reviewer` 用于实现和定向风险复核完成后的最终通用回归检查。
+- `monitor` 仅用于长时间构建、刷写、日志尾随或硬件测试观察。
 
-## Default Development Flow
-- Small, single-file, low-risk fixes: stay local or use `worker` directly.
-- New subsystem, module split, BSP refactor, or interface redesign: `architect` -> `planner` -> `worker`.
-- Multi-file feature with stable architecture: `planner` -> `worker`.
-- Build failure or toolchain break: `build-resolver`, then `reviewer` if the fix is non-trivial.
-- ISR, shared-state, register, DMA, or timeout-sensitive changes: `worker` -> `firmware-reviewer` -> `reviewer`.
-- Peripheral, clock, board-support, or bus-level changes: `worker` -> `hardware-impact` -> `reviewer`.
+## 默认开发流程
+- 小型、单文件、低风险修复：保持本地处理，或直接用 `worker`。
+- 新子系统、模块拆分、BSP 重构或接口重设计：`architect` -> `planner` -> `worker`。
+- 架构稳定的多文件功能：`planner` -> `worker`。
+- 构建失败或工具链中断：先用 `build-resolver`，如果修复不简单，再交给 `reviewer`。
+- 涉及 ISR、共享状态、寄存器、DMA 或超时敏感的改动：`worker` -> `firmware-reviewer` -> `reviewer`。
+- 涉及外设、时钟、板级支持或总线层的改动：`worker` -> `hardware-impact` -> `reviewer`。
 
-## Escalation Rules
-- Stay single-agent for small, single-file, low-risk changes with no build fallout and no hardware-facing behavior change.
-- Escalate to `architect` when any of these appear:
-  - module boundary or ownership confusion
-  - BSP, HAL, driver, protocol, and application layering changes
-  - startup order or board initialization redesign
-  - portability, reuse, or future board-family support requirements
-  - large refactors where structure matters more than code motion
-- Escalate to `planner` when architecture is already understood but the implementation still spans multiple files or verification steps.
-- If two independent checks are required, split by responsibility rather than having one agent do everything.
+## 升级规则
+- 对于小型、单文件、低风险且不会引起构建回归或面向硬件行为变化的改动，保持单代理。
+- 在出现以下情况时升级到 `architect`：
+  - 模块边界或归属不清
+  - BSP、HAL、驱动、协议和应用层分层发生变化
+  - 启动顺序或板级初始化需要重设
+  - 需要可移植性、复用性或未来板型支持
+  - 结构比代码搬移更重要的大型重构
+- 当架构已经明确，但实现仍跨越多个文件或多个验证步骤时，升级到 `planner`。
+- 如果需要两项独立检查，就按职责拆开，而不是让一个代理包办所有事情。
 
-## Embedded C Architecture Checklist
-- Confirm layer boundaries across BSP, HAL, drivers, protocol, services, and application logic.
-- Confirm init order, reset state, and ownership of board bring-up responsibilities.
-- Check global-state surface area, interrupt-to-task handoff boundaries, and dependency direction.
-- Prefer interfaces that support board variation without scattering conditionals and hardware details.
-- Prefer changes that improve testability, replaceability, and fault isolation without over-engineering.
+## 嵌入式 C 架构检查清单
+- 确认 BSP、HAL、驱动、协议、服务和应用逻辑之间的层边界。
+- 确认初始化顺序、复位状态以及板级 bring-up 责任归属。
+- 检查全局状态暴露面、中断到任务的交接边界以及依赖方向。
+- 优先采用能支持板卡差异、又不会把条件判断和硬件细节散得到处都是的接口。
+- 优先采用能提升可测试性、可替换性和故障隔离能力、且不过度设计的改动。
 
-## Embedded C Review Checklist
-- Confirm init order, reset state, and failure paths are explicit.
-- Check `volatile`, lockless shared-state access, ISR/task handoff, and timeout behavior.
-- Check buffer bounds, units, integer width, signedness, and endianness where relevant.
-- Check register writes for read-modify-write hazards and peripheral enable/clock dependencies.
-- Check `Make` or `CMake` deltas for include-path drift, macro drift, and linker-script impact.
+## 嵌入式 C 复核检查清单
+- 确认初始化顺序、复位状态和失败路径都写得明确。
+- 检查 `volatile`、无锁共享状态访问、ISR/任务交接和超时行为。
+- 必要时检查缓冲区边界、单位、整数宽度、符号性和字节序。
+- 检查寄存器写入是否存在读改写风险，以及外设使能/时钟依赖。
+- 检查 `Make` 或 `CMake` 改动是否引入包含路径漂移、宏漂移或链接脚本影响。
 
-## Multi-Agent Defaults
-- When a task has 2 or more independent subtasks, proactively use subagents without waiting for the user to ask.
-- Stay single-agent for trivial tasks, tightly coupled refactors, or work that is likely to edit the same files.
-- Only the main agent may delegate to subagents. Child agents must not spawn or wait on other subagents; if broader coordination is needed, they must return control to the main agent.
-- Prefer `explorer` for read-only investigation, root-cause analysis, and answering scoped codebase questions.
-- Prefer `worker` for isolated implementation tasks with a clearly assigned file or module scope.
-- Prefer `reviewer` for code review, change-risk checks, and scoped verification feedback before finalizing.
-- Treat subagents as scoped resources with an explicit lifecycle.
-- Default to temporary subagents. Keep a subagent open only when near-term follow-up work will materially benefit from preserved context.
-- Before spawning a new subagent, first decide whether an existing subagent can be reused for the same role and scope.
-- If no reuse is justified, close completed or idle subagents that are no longer needed before spawning another one.
-- Temporary subagents must be closed immediately after their output has been integrated.
-- Long-lived subagents may be reused across related work, but must be explicitly closed as soon as they are no longer needed, including before ending the turn.
-- If a subagent errors, is abandoned, or is being replaced, explicitly close it before spawning a replacement.
-- If concurrent subagent slots are full or nearly full, do not spawn blindly; reclaim capacity through reuse or close-out first.
-- After subagents finish, integrate results, close them according to the lifecycle rule, resolve conflicts, and verify before answering.
-- `wait_agent` 只负责等待子代理结果；如果返回超时、空状态，或尚未收到 `completed`，主代理只能继续等待或报告”仍在等待”，不得自行补齐调查、代替子代理下结论，或把未完成状态当成完成。
+## 多代理默认策略
+- 当任务包含 2 个或更多彼此独立的子任务时，不要等用户开口，主动使用子代理。
+- 对于琐碎任务、强耦合重构，或很可能修改同一批文件的工作，保持单代理。
+- 只有主代理可以委派子代理。子代理不得再派生或等待其他子代理；如果需要更大范围的协调，必须把控制权交回主代理。
+- 优先用 `explorer` 做只读调查、根因分析和范围明确的代码库问答。
+- 优先用 `worker` 做文件或模块作用域明确的隔离实现任务。
+- 优先用 `reviewer` 做代码评审、变更风险检查和范围明确的验证反馈。
+- 将子代理视为带明确生命周期的作用域资源。
+- 默认使用临时子代理。只有在后续很快还要用同一上下文时，才保留子代理继续运行。
+- 在新建子代理前，先判断现有子代理是否能以相同角色和范围复用。
+- 如果没有复用理由，在新建另一个子代理之前，先关闭已经完成或空闲且不再需要的子代理。
+- 临时子代理一旦其输出被整合，就必须立即关闭。
+- 长生命周期子代理可以在相关工作之间复用，但只要不再需要，就必须明确关闭，包括在本轮结束前。
+- 如果子代理报错、被放弃或需要替换，先显式关闭，再创建替代者。
+- 如果并发子代理槽位已满或接近满载，不要盲目新建；先通过复用或关闭回收容量。
+- 子代理结束后，要整合结果、按生命周期规则关闭、解决冲突并验证，再回复用户。
+- `wait_agent` 只负责等待子代理结果；如果返回超时、空状态，或尚未收到 `completed`，主代理只能继续等待或报告“仍在等待”，不得自行补齐调查、代替子代理下结论，或把未完成状态当成完成。
 - 只要仍有活跃子代理在处理同一任务，主代理就不得自行补充调查、不得读取同一作用域的新材料，也不得提前给出结论；必要时只能等待或切到不重叠的其他任务。
 - 如需核验结论，优先派发独立 `reviewer` 子代理，而不是由主代理代替复核后直接收尾。
 
-## Reviewer Contract Freeze
-- Once a reviewer is launched, its contract is frozen until it returns `final` or is explicitly canceled.
-- While frozen, the main agent must not send follow-up instructions that narrow, compress, reprioritize, or otherwise reshape the active review, including requests such as `findings only`, `short answer`, `just give the conclusion`, or `only check X`.
-- The only allowed messages to an active reviewer are explicit cancellation, scope correction, or answers to blocking questions asked by that reviewer.
-- Repeated `wait_agent` calls that return timeout, empty status, or `No agents completed yet` do not unlock any additional authority over the active reviewer.
-- If the scope or output format must change, cancel the current reviewer first, then launch a new reviewer with the new contract.
-- If a reviewer is stalled, the only permitted recovery is cancel-and-restart. Pinging for a faster answer is prohibited.
-- In wait mode, the main agent must not read the same diff, reopen the same files, infer a conclusion from partial output, or "finish the review" on its own.
+## Reviewer 约束冻结
+- 一旦启动 reviewer，其约束就被冻结，直到它返回 `final` 或被明确取消。
+- 冻结期间，主代理不得发送会缩小、压缩、重新排序或以其他方式重塑当前 review 的后续指令，包括 `findings only`、`short answer`、`just give the conclusion`、`only check X` 之类的请求。
+- 允许发给活跃 reviewer 的消息只有：显式取消、范围修正，或者对 reviewer 提出的阻塞性问题的回答。
+- 多次执行 `wait_agent` 并返回超时、空状态或 `No agents completed yet`，都不会让你对活跃 reviewer 获得额外权限。
+- 如果必须改变范围或输出格式，先取消当前 reviewer，再用新约束启动新的 reviewer。
+- 如果 reviewer 卡住了，唯一允许的恢复方式是取消并重启。禁止催促它更快回答。
+- 在等待模式下，主代理不得自己读取同一 diff、重新打开同一文件、从部分输出推断结论，或自行“完成 review”。
 
-## Subagent Wait Discipline
-- Before a subagent returns `completed` or `final`, the main agent must not rush it, ping for status, ask it to answer faster, ask for a partial conclusion first, or otherwise compress the active contract.
-- Prohibited follow-up messages include `ping`, `check in`, `status?`, `how long`, `quick update`, `just give me the conclusion`, `short answer`, `findings only`, or equivalent催促/压缩性表述。
-- While a subagent is still running, the main agent must not "help out" by reading the same scope again,补做同一调查、代写同一实现、补齐同一结论，或以“先看一下/先补一下/先写个草稿”为名绕过等待。
-- Once ownership has been assigned to a subagent, the main agent must not抢做、插手、并行覆盖其作用域内的同一任务；如果 ownership 不再合适，只能取消后重派，不能边等边接管。
-- If `wait_agent` returns timeout, empty status, or no completion, the main agent may only continue waiting, report that it is still waiting, or switch to a non-overlapping task. It must not treat the unfinished task as completed.
-- The main agent must not use repeated `wait_agent` timeouts as justification to infer likely results, summarize expected conclusions, or continue as though the delegated work had already landed.
-- If scope, priority, output format, or depth must change, the current subagent must be explicitly canceled before launching a replacement. Do not reshape an in-flight assignment through follow-up pressure.
-- If a subagent is stalled, the only permitted recovery is cancel-and-restart or reassignment with a new contract. Nudging for speed is prohibited.
+## 子代理等待纪律
+- 在子代理返回 `completed` 或 `final` 之前，主代理不得催促、追问状态、要求它更快回答、先给部分结论，或以其他方式压缩当前约束。
+- 禁止的后续消息包括 `ping`、`check in`、`status?`、`how long`、`quick update`、`just give me the conclusion`、`short answer`、`findings only`，或同类催促/压缩性表述。
+- 当子代理仍在运行时，主代理不得“帮忙”重复读取同一范围、补做同一调查、代写同一实现、补齐同一结论，或以“先看一下/先补一下/先写个草稿”为名绕过等待。
+- 一旦把职责分配给子代理，主代理不得抢做、插手或并行覆盖其作用域内的同一任务；如果 ownership 不再合适，只能取消后重派，不能边等边接管。
+- 如果 `wait_agent` 返回超时、空状态或没有完成，主代理只能继续等待、报告仍在等待，或切换到不重叠的任务。不能把未完成任务当成已完成。
+- 主代理不得用反复的 `wait_agent` 超时来推断可能结果、总结预期结论，或假装委派工作已经落地。
+- 如果范围、优先级、输出格式或深度必须改变，必须先显式取消当前子代理，再启动替代者。不要通过后续施压来改写进行中的任务。
+- 如果子代理卡住，唯一允许的恢复方式是取消并重启，或者用新约束重新分配。禁止催促它加速。
 
-## Multi-Agent Enforcement (Strong-by-Default)
-- If a task can be split into 2+ independent parallelizable subtasks, spawn subagents first instead of defaulting to single-agent trial.
-- For non-trivial tasks, use at least 2 subagents by default.
-- Treat a task as trivial only when all conditions are met: single objective, single step, no cross-module impact, no new verification chain, <=20 changed lines, and single-file completion.
-- Main agent responsibility is orchestration only: decomposition, delegation, integration, conflict handling, and final verification.
-- Child agents are execution-only and must not recursively delegate, wait on additional subagents, or re-run the orchestration policy.
-- Delegation must include explicit ownership (file/module write scope) for each subagent.
-- If write scopes overlap and cannot be cleanly split, downgrade to single-agent or serialized execution.
-- Temporary subagents must not be closed before their `final` output has been received and integrated, except when the task is canceled, the subagent is unusable or stalled, or capacity must be reclaimed.
-- Single-agent whitelist: one-file micro edit (<20 lines), tightly coupled same-file refactor, one-shot query/explanation task.
-- For each parallel round, record `spawn/reuse/close`, and include assignment summary, output summary, and close-out record.
+## 多代理强制执行（默认强约束）
+- 如果一个任务可以拆成 2 个或更多彼此独立、可并行的子任务，优先先派子代理，而不是默认单代理尝试。
+- 对于非琐碎任务，默认至少使用 2 个子代理。
+- 只有在满足全部条件时，才把任务视为琐碎：单一目标、单一步骤、无跨模块影响、无需新的验证链、改动不超过 20 行、且可单文件完成。
+- 主代理的职责仅限编排：拆解、委派、整合、冲突处理和最终验证。
+- 子代理只负责执行，不能递归委派、等待其他子代理，或重新执行编排策略。
+- 委派时必须为每个子代理明确写作用域（文件/模块范围）。
+- 如果写作用域有重叠且无法清晰拆分，就降级为单代理或串行执行。
+- 临时子代理在收到并整合其 `final` 输出之前不得关闭，除非任务被取消、子代理不可用或卡住，或者需要回收容量。
+- 单代理白名单：单文件微改（少于 20 行）、强耦合同文件重构、一次性查询/解释任务。
+- 每轮并行任务都要记录 `spawn/reuse/close`，并附上分配摘要、输出摘要和关闭记录。
 
-## Code Comment Requirement
-- Any code you write or modify must include Chinese Doxygen-standard comments.
+## 代码注释要求
+- 你编写或修改的任何代码都必须包含中文 Doxygen 标准注释。
 
-## Stop (when task is complete)
-- End with a short "Stop" block:
-  - What changed
-  - Tests/verification (or "Not run")
-  - Suggested next step (if any)
+## 结束（任务完成时）
+- 结束时附上一个简短的 `Stop` 区块：
+  - 变更了什么
+  - 测试/验证情况（或 `Not run`）
+  - 建议的下一步（如有）

@@ -1,4 +1,4 @@
-# Execpolicy rules for Codex CLI (prompt on risky prefixes)
+# Codex CLI 的 Execpolicy 规则（对高风险前缀进行提示）
 rules = [
     prefix_rule(pattern=["rm", "-rf", "/"], decision="prompt"),
     prefix_rule(pattern=["rm", "-rf", "--no-preserve-root", "/"], decision="prompt"),

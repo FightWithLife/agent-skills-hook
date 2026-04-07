@@ -1,80 +1,80 @@
-# Global Claude Instructions (agent-skills-hook)
+# Claude 全局指令（agent-skills-hook）
 
-These instructions are loaded globally by Claude Code.
+这些说明会被 Claude Code 全局加载。
 
-## SessionStart (once per session)
-- On the first response of each new session, print a short block:
-  - "SessionStart" header
-  - Active instruction layers (global `~/.claude/CLAUDE.md`, repo `CLAUDE.md` if present; include `AGENTS.md` only if used in current workspace)
-  - Skill sources (`~/.claude/skills`, `./.claude/skills`, `~/.agents/skills`, `./.agents/skills`)
-  - Optional instruction files (`~/.claude/settings.json`, `./.claude/settings.json`) if present
+## SessionStart（每个会话一次）
+- 在每个新会话的首条回复中输出一个简短区块：
+  - `SessionStart` 标题
+  - 当前生效的指令层（全局 `~/.claude/CLAUDE.md`、仓库内 `CLAUDE.md`，如果存在；只有在当前工作区实际使用了 `AGENTS.md` 时才包含它）
+  - 技能来源（`~/.claude/skills`、`./.claude/skills`、`~/.agents/skills`、`./.agents/skills`）
+  - 可选指令文件（`~/.claude/settings.json`、`./.claude/settings.json`），如果存在
 
-## Skill Forced Eval (every user request)
-- Before any work, always run `Skill(skill-forced-eval)` and follow its steps.
+## 强制技能评估（每次用户请求）
+- 在开始任何工作前，都要先运行 `Skill(skill-forced-eval)` 并遵循它的步骤。
 
-## Review Output Language
-- When the user asks for a "review", write the final response in Chinese while keeping the required review structure and formatting rules intact.
+## 复核输出语言
+- 当用户要求 `review` 时，最终回复使用中文，同时保持规定的 review 结构和格式规则不变。
 
-## Tool Safety
-- Obey tool permission rules. Never bypass safety checks unless the user explicitly asks and it is safe.
+## 工具安全
+- 遵守工具权限规则。除非用户明确要求且这样做是安全的，否则不要绕过安全检查。
 
-## Codex Integration (Plugin-Based)
+## Codex 集成（基于插件）
 
-Use the Codex plugin skills for delegation:
-- `Skill(skill: "codex:rescue")` - Delegate investigation, fix requests, or rescue work to Codex
-- The plugin handles runtime management, authentication, and result formatting automatically
-- Use Codex as an escalation path for embedded development, not as the default executor for every medium task
+使用 Codex 插件技能进行委派：
+- `Skill(skill: "codex:rescue")` - 将调查、修复请求或救援工作委派给 Codex
+- 插件会自动处理运行时管理、认证和结果格式化
+- 将 Codex 作为嵌入式开发的升级路径，而不是每个中等任务的默认执行者
 
-## Codex Collaboration Mode (embedded C, light first)
+## Codex 协作模式（嵌入式 C，轻量优先）
 
-When handling development requests, Claude is the front controller:
-- Claude should solve small, low-risk tasks directly
-- Claude should escalate to Codex when the task crosses architecture, build, hardware, concurrency, or multi-file risk boundaries
-- Claude remains responsible for routing, acceptance criteria, validation, and final user-facing summary
+处理开发请求时，Claude 是前端控制器：
+- Claude 应直接解决小型、低风险任务
+- 当任务跨越架构、构建、硬件、并发或多文件风险边界时，Claude 应升级给 Codex
+- Claude 仍然负责路由、验收标准、验证以及面向用户的最终总结
 
-### When to Escalate to Codex
+### 何时升级给 Codex
 
-Escalate using `Skill(skill: "codex:rescue")` when one or more of these are present:
-- More than one source/header/build file likely changes
-- Build/test/debug loop is expected
-- `Make`/`CMake` or linker behavior is part of the task
-- Interrupt, shared-state, or `volatile` semantics are involved
-- Register-level or peripheral-facing code is touched
-- Startup order, board init, or transport timing may change
-- Module boundaries or layering need to be redesigned
-- Portability, board-family reuse, or long-term structure is part of the task
-- Architecture, build failures, or firmware safety reviews are needed
+当出现以下一种或多种情况时，使用 `Skill(skill: "codex:rescue")` 升级：
+- 预计会改动多个源文件/头文件/构建文件
+- 预期需要构建、测试或调试循环
+- 任务包含 `Make`/`CMake` 或链接器行为
+- 涉及中断、共享状态或 `volatile` 语义
+- 会碰到寄存器级或外设侧代码
+- 可能改变启动顺序、板级初始化或传输时序
+- 需要重新设计模块边界或分层
+- 任务包含可移植性、板型复用或长期结构
+- 需要架构、构建失败或固件安全复核
 
-Do not escalate solely because a task "looks medium." Preserve the simple path when risk and scope are small.
+不要仅仅因为任务“看起来中等”就升级。只要风险和范围都很小，就保留简单路径。
 
-### Claude Direct (No Escalation)
+### Claude 直接处理（不升级）
 
-Handle these directly without Codex:
-- Single-file edits
-- Comment or naming cleanup
-- Low-risk logic tweaks
-- Configuration text updates
-- Changes that do not alter build graph, startup order, interrupt behavior, architecture boundaries, or hardware interaction
+以下情况直接处理，不需要 Codex：
+- 单文件编辑
+- 注释或命名清理
+- 低风险逻辑微调
+- 配置文本更新
+- 不会改变构建图、启动顺序、中断行为、架构边界或硬件交互的变更
 
-### Validation Standards
+### 验证标准
 
-After Codex completes work, Claude MUST validate with current evidence:
+在 Codex 完成工作后，Claude 必须用当前证据进行验证：
 
 1. **Build validation** - run the real project build command (`make`, `cmake --build`, etc.)
 2. **Functional validation** - run available unit tests, integration tests, or smoke tests
 3. **Firmware risk validation** - check ISR/shared-state/register/init-sequence assumptions for relevant tasks
 4. **Architecture validation** - verify implementation follows intended boundaries
 
-### Completion Flow
+### 完成流程
 
-After validations finish:
-1. Report what changed
-2. Report exact verification status
-3. Call out any residual embedded-system risk that still needs on-target validation
-4. If architecture changed, summarize the chosen boundaries or trade-offs
+验证完成后：
+1. 报告改了什么
+2. 报告准确的验证状态
+3. 说明仍需在目标设备上验证的残余嵌入式系统风险
+4. 如果架构发生变化，总结所选边界或权衡
 
-## Stop (when task is complete)
-- End with a short "Stop" block:
-  - What changed
-  - Tests/verification (or "Not run")
-  - Suggested next step (if any)
+## 结束（任务完成时）
+- 结束时附上一个简短的 `Stop` 区块：
+  - 变更了什么
+  - 测试/验证情况（或 `Not run`）
+  - 建议的下一步（如有）

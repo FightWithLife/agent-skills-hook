@@ -1,4 +1,4 @@
-# Codex Integration 配置总结
+# Codex 集成配置总结
 
 ## 已完成的工作
 
@@ -6,7 +6,7 @@
 
 **文件**: `/home/xmg/code/PCL/CLAUDE.md`
 
-添加了第 6 节"Codex 协作模式"，包括：
+添加了第 6 节“Codex 协作模式”，包括：
 - Claude 和 Codex 的职责分工
 - 执行模式选择（简单/中等/复杂）
 - Codex 调用规范（使用 codex-quiet）
@@ -14,17 +14,17 @@
 - 迭代处理流程
 - 完成流程
 
-**提交**: `16a17f82` - docs(PCL): 添加 Codex 协作模式配置
+**提交**：`16a17f82` - docs(PCL): 添加 Codex 协作模式配置
 
 ### 2. agent-skills-hook 仓库
 
-**新增文件**:
+**新增文件**：
 - `codex/bin/codex-quiet` - 静默包装器脚本
 - `codex/config.template.toml` - Codex 配置模板
 - `codex/setup.sh` - 一键部署脚本
 - `codex/README.md` - 完整使用文档
 
-**提交**: `4cbce65` - feat(codex): 添加 Claude-to-Codex 静默调用集成
+**提交**：`4cbce65` - feat(codex): 添加 Claude-to-Codex 静默调用集成
 
 ### 3. 全局 Claude 配置
 
@@ -60,7 +60,7 @@ chmod +x ~/.local/bin/codex-quiet
 
 # 2. 配置 Codex profile
 # 在 ~/.codex/config.toml 中添加 claude_quiet profile
-# 参考: ~/code/agent-skills-hook/codex/config.template.toml
+# 参考：~/code/agent-skills-hook/codex/config.template.toml
 
 # 3. 验证
 which codex-quiet
@@ -110,13 +110,13 @@ Claude: [自动触发 codex-orchestrator，调用 codex-quiet 执行]
 ```
 用户需求
     ↓
-Claude 分析 & 规划
+Claude 分析与规划
     ↓
 调用 codex-quiet 执行
     ↓
 Claude 全面验收
     ↓
-验收通过? ──否──→ 询问用户 ──→ 迭代修复
+验收通过？──否──→ 询问用户 ──→ 迭代修复
     ↓是
 提交代码 & 完成
 ```

@@ -79,39 +79,39 @@ enabled = true
 enabled = true
 
 [agents.explorer]
-description = "Read-only embedded C investigation, call-path tracing, and build context lookup"
+description = "只读的嵌入式 C 调查、调用路径追踪和构建上下文检索"
 profile = "review"
 
 [agents.architect]
-description = "Design or review embedded firmware architecture, boundaries, and evolution paths"
+description = "设计或复核嵌入式固件架构、边界和演进路径"
 profile = "review"
 
 [agents.planner]
-description = "Plan multi-file firmware changes, init sequencing, and risk-controlled implementation"
+description = "规划多文件固件改动、初始化顺序和受风险控制的实施"
 profile = "orchestrated"
 
 [agents.worker]
-description = "Implement isolated embedded C or build-system changes with minimal diffs"
+description = "以最小 diff 实现隔离的嵌入式 C 或构建系统改动"
 profile = "light"
 
 [agents.build-resolver]
-description = "Repair Make/CMake, toolchain, compile, link, include, and macro failures"
+description = "修复 Make/CMake、工具链、编译、链接、包含和宏失败"
 profile = "orchestrated"
 
 [agents.firmware-reviewer]
-description = "Review ISR, volatile, register, DMA, timeout, and memory-safety risks"
+description = "复核 ISR、volatile、寄存器、DMA、超时和内存安全风险"
 profile = "review"
 
 [agents.hardware-impact]
-description = "Assess peripheral, board-support, bus, pinmux, and clocking impact"
+description = "评估外设、板级支持、总线、引脚复用和时钟配置影响"
 profile = "review"
 
 [agents.reviewer]
-description = "Final regression and maintainability review after changes land"
+description = "变更落地后的最终回归与可维护性复核"
 profile = "review"
 
 [agents.monitor]
-description = "Watch builds, tests, serial logs, or flash output and report concise status"
+description = "观察构建、测试、串口日志或刷写输出并简要汇报状态"
 profile = "light"
 
 [projects."/home/xmg"]

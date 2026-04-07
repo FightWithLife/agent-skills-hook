@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-description: Decompose requests, delegate to specialists, and enforce evidence-based gates.
+description: 拆解请求、委派给专长代理，并强制执行基于证据的门禁。
 model: sonnet
 tools:
   - Read
