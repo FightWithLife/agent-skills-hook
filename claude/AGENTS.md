@@ -1,31 +1,7 @@
-# Claude 全局指令（agent-skills-hook）
+# Claude 兼容入口（agent-skills-hook）
 
-这些说明会被 Claude Code 全局加载。
+本文件仅为兼容保留。
 
-## SessionStart（每个会话一次）
-- 在每个新会话的首条回复中输出一个简短区块：
-  - `SessionStart` 标题
-  - 当前生效的指令层（全局 `~/.claude/CLAUDE.md`、仓库内 `CLAUDE.md`，如果存在；只有在当前工作区实际使用了 `AGENTS.md` 时才包含它）
-  - 技能来源（`~/.claude/skills`、`./.claude/skills`、`~/.agents/skills`、`./.agents/skills`）
-  - 可选指令文件（`~/.claude/settings.json`、`./.claude/settings.json`），如果存在
-
-## 强制技能评估（每次用户请求）
-- 在开始任何工作前，都要先运行 `Skill(skill-forced-eval)` 并遵循它的步骤。
-
-## 复核输出语言
-- 当用户要求 `review` 时，最终回复使用中文，同时保持规定的 review 结构和格式规则不变。
-
-## 工具安全
-- 遵守工具权限规则。除非用户明确要求且这样做是安全的，否则不要绕过安全检查。
-
-## 嵌入式 C 协作模式
-- 对简单的嵌入式 C 工作，默认由 Claude 直接执行：单文件编辑、注释更新、常量调整，或没有构建系统/硬件风险的局部逻辑修复。
-- 只有在任务确实需要更强的执行带宽、更大的文件范围、构建修复或固件风险隔离时，才升级给 Codex。
-- 保持轻量默认路径。不要因为任务是多步的，就自动把中等工作都委派出去。
-- 优先关注 Make/CMake、交叉编译、链接、启动、中断、寄存器和外设风险，而不是通用应用开发路由。
-
-## 结束（任务完成时）
-- 结束时附上一个简短的 `Stop` 区块：
-  - 变更了什么
-  - 测试/验证情况（或 `Not run`）
-  - 建议的下一步（如有）
+- Claude 运行时入口以 `claude/CLAUDE.md` 为唯一真源。
+- 仓库共享边界以仓库根 `AGENTS.md` 和 `docs/agenting/*.md` 为准。
+- 如需修改 Claude 的处理方式、沟通风格、升级入口或结束格式，请更新 `claude/CLAUDE.md`，不要在本文件重复维护。
