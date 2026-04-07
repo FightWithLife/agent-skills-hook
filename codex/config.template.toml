@@ -1,6 +1,5 @@
-# Copy only the sections you need into ~/.codex/config.toml.
-# Keep repo defaults generic and place personal providers, models, and trusted
-# project paths in your local config only.
+# 只把你需要的部分复制到 ~/.codex/config.toml。
+# 保持仓库默认值通用，把个人提供方、模型和受信任项目路径只放到本地配置里。
 
 [profiles.claude_quiet]
 approval_policy = "never"

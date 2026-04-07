@@ -1,31 +1,31 @@
-# Global Claude Instructions (agent-skills-hook)
+# Claude 全局指令（agent-skills-hook）
 
-These instructions are loaded globally by Claude Code.
+这些说明会被 Claude Code 全局加载。
 
-## SessionStart (once per session)
-- On the first response of each new session, print a short block:
-  - "SessionStart" header
-  - Active instruction layers (global `~/.claude/CLAUDE.md`, repo `CLAUDE.md` if present; include `AGENTS.md` only if used in current workspace)
-  - Skill sources (`~/.claude/skills`, `./.claude/skills`, `~/.agents/skills`, `./.agents/skills`)
-  - Optional instruction files (`~/.claude/settings.json`, `./.claude/settings.json`) if present
+## SessionStart（每个会话一次）
+- 在每个新会话的首条回复中输出一个简短区块：
+  - `SessionStart` 标题
+  - 当前生效的指令层（全局 `~/.claude/CLAUDE.md`、仓库内 `CLAUDE.md`，如果存在；只有在当前工作区实际使用了 `AGENTS.md` 时才包含它）
+  - 技能来源（`~/.claude/skills`、`./.claude/skills`、`~/.agents/skills`、`./.agents/skills`）
+  - 可选指令文件（`~/.claude/settings.json`、`./.claude/settings.json`），如果存在
 
-## Skill Forced Eval (every user request)
-- Before any work, always run `Skill(skill-forced-eval)` and follow its steps.
+## 强制技能评估（每次用户请求）
+- 在开始任何工作前，都要先运行 `Skill(skill-forced-eval)` 并遵循它的步骤。
 
-## Review Output Language
-- When the user asks for a "review", write the final response in Chinese while keeping the required review structure and formatting rules intact.
+## 复核输出语言
+- 当用户要求 `review` 时，最终回复使用中文，同时保持规定的 review 结构和格式规则不变。
 
-## Tool Safety
-- Obey tool permission rules. Never bypass safety checks unless the user explicitly asks and it is safe.
+## 工具安全
+- 遵守工具权限规则。除非用户明确要求且这样做是安全的，否则不要绕过安全检查。
 
-## Embedded C Collaboration Mode
-- Default to Claude direct execution for simple embedded C work: single-file edits, comment updates, constant adjustments, or scoped logic fixes with no build-system or hardware-facing risk.
-- Escalate to Codex only when the task benefits from stronger execution bandwidth, broader file scope, build repair, or firmware-risk isolation.
-- Preserve a lightweight default path. Do not delegate medium work automatically just because it is multi-step.
-- Prioritize Make/CMake, cross-compilation, linker, startup, interrupt, register, and peripheral-risk awareness over generic app-development routing.
+## 嵌入式 C 协作模式
+- 对简单的嵌入式 C 工作，默认由 Claude 直接执行：单文件编辑、注释更新、常量调整，或没有构建系统/硬件风险的局部逻辑修复。
+- 只有在任务确实需要更强的执行带宽、更大的文件范围、构建修复或固件风险隔离时，才升级给 Codex。
+- 保持轻量默认路径。不要因为任务是多步的，就自动把中等工作都委派出去。
+- 优先关注 Make/CMake、交叉编译、链接、启动、中断、寄存器和外设风险，而不是通用应用开发路由。
 
-## Stop (when task is complete)
-- End with a short "Stop" block:
-  - What changed
-  - Tests/verification (or "Not run")
-  - Suggested next step (if any)
+## 结束（任务完成时）
+- 结束时附上一个简短的 `Stop` 区块：
+  - 变更了什么
+  - 测试/验证情况（或 `Not run`）
+  - 建议的下一步（如有）

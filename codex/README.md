@@ -1,74 +1,74 @@
-# Codex Integration for Embedded C Workflows
+# 嵌入式 C 工作流的 Codex 集成
 
-This directory turns Codex into a focused execution layer for embedded firmware work instead of a heavy always-on orchestrator.
+这个目录把 Codex 变成面向嵌入式固件工作的聚焦执行层，而不是一个沉重、始终在线的编排器。
 
-## Design Goals
+## 设计目标
 
-- Keep the default path simple for one-file or low-risk changes.
-- Escalate to Codex when build failures, multi-file firmware work, or hardware risk justify it.
-- Reuse the stronger orchestration ideas from `everything-claude-code` without copying personal config or a heavy MCP footprint into the repo.
-- Give Codex explicit architecture capability so it can reason about system structure before planning and implementation.
+- 保持默认路径简单，适合单文件或低风险改动。
+- 当构建失败、多文件固件工作或硬件风险足以证明值得升级时，再升级给 Codex。
+- 复用 `everything-claude-code` 里更强的编排思路，但不要把个人配置或沉重的 MCP 依赖复制进仓库。
+- 给 Codex 明确的架构能力，让它在规划和实现之前能推理系统结构。
 
-## Recommended Flow
+## 推荐流程
 
-1. Use Claude or Codex directly for small, local edits.
-2. Route structural work through `architect` before implementation:
-   - `architect`: module boundaries, BSP or HAL layering, startup sequencing, portability, and evolution paths
-   - `planner`: executable implementation phases after the architecture direction is chosen
-   - `worker`: minimal implementation in assigned scope
-   - `build-resolver`: `Make` or `CMake`, compile, link, include, or toolchain failures
-   - `firmware-reviewer`: ISR, `volatile`, register, DMA, timeout, or buffer risk review
-   - `hardware-impact`: peripheral, clock, board-support, and bus impact review
-   - `reviewer`: final regression pass
-   - `explorer`: read-only tracing and codebase lookup
-   - `monitor`: long-running build or serial-log observation
-3. Keep default verification grounded in the repo's normal firmware commands, usually `make`, `cmake --build`, unit tests, and any board-level smoke checks you already use.
+1. 对于小型、本地改动，直接使用 Claude 或 Codex。
+2. 结构性工作在实现前先走 `architect`：
+   - `architect`：模块边界、BSP 或 HAL 分层、启动顺序、可移植性和演进路径
+   - `planner`：在架构方向选定后，把工作拆成可执行的实施阶段
+   - `worker`：在分配范围内做最小实现
+   - `build-resolver`：`Make` 或 `CMake`、编译、链接、包含路径或工具链失败
+   - `firmware-reviewer`：ISR、`volatile`、寄存器、DMA、超时或缓冲区风险复核
+   - `hardware-impact`：外设、时钟、板级支持和总线影响复核
+   - `reviewer`：最终回归检查
+   - `explorer`：只读追踪和代码库检索
+   - `monitor`：长时间构建或串口日志观察
+3. 默认验证要回到仓库里常规的固件命令，通常是 `make`、`cmake --build`、单元测试，以及你已经在用的板级冒烟检查。
 
-## Repo Files
+## 仓库文件
 
-- `AGENTS.md`: routing and escalation rules for embedded C work
-- `config.toml`: shared, de-personalized repo config
-- `config.template.toml`: local overlay template for providers, models, and trusted repos
-- `agents/*.toml`: agent-specific prompt specializations
-- `setup.sh`: minimal local install helper
+- `AGENTS.md`：嵌入式 C 工作的路由和升级规则
+- `config.toml`：共享的、去个人化的仓库配置
+- `config.template.toml`：提供方、模型和受信任仓库的本地覆盖模板
+- `agents/*.toml`：各代理的提示词专用配置
+- `setup.sh`：最小化的本地安装辅助脚本
 
-## What Changed Relative to the Older Layout
+## 相比旧布局的变化
 
-- The shared config no longer contains personal provider endpoints or personal trusted project paths.
-- Default profiles are split into `light`, `review`, `orchestrated`, and `claude_quiet`.
-- The agent set is expanded from generic `explorer/worker/reviewer/monitor` to include embedded-C-specific architecture, planning, build repair, and risk review roles.
-- MCP defaults stay light: `github`, `context7`, `memory`, and `sequential-thinking`.
+- 共享配置不再包含个人提供方端点或个人受信任项目路径。
+- 默认 profile 拆成了 `light`、`review`、`orchestrated` 和 `claude_quiet`。
+- 代理集合从通用的 `explorer/worker/reviewer/monitor` 扩展为包含嵌入式 C 专用的架构、规划、构建修复和风险复核角色。
+- MCP 默认保持轻量：`github`、`context7`、`memory` 和 `sequential-thinking`。
 
-## Local Setup
+## 本地安装
 
-Run from the `codex/` directory:
+在 `codex/` 目录下运行：
 
 ```bash
 ./setup.sh
 ```
 
-The helper:
+该辅助脚本会：
 
-- installs or refreshes `~/.local/bin/codex-quiet` if present in `codex/bin/`
-- ensures `~/.codex/config.toml` exists
-- appends the shared profile names if they are missing
-- avoids writing personal provider config into the repo copy
+- 如果 `codex/bin/` 中存在，则安装或刷新 `~/.local/bin/codex-quiet`
+- 确保 `~/.codex/config.toml` 存在
+- 如果缺少共享 profile 名称，就补进去
+- 避免把个人提供方配置写入仓库副本
 
-## Local Overlay Guidance
+## 本地覆盖说明
 
-Put these in your local `~/.codex/config.toml`, not in the repo:
+把这些放到本地 `~/.codex/config.toml` 里，不要放进仓库：
 
-- custom provider endpoints
-- API auth preferences
-- model overrides for your machine or budget
-- trusted project paths for your private firmware repos
-- heavier MCP servers you do not want as repo defaults
+- 自定义提供方端点
+- API 鉴权偏好
+- 适合你机器或预算的模型覆盖项
+- 你私有固件仓库的受信任项目路径
+- 你不想作为仓库默认值的较重 MCP 服务
 
-## Suggested Embedded C Delegation Rules
+## 建议的嵌入式 C 委派规则
 
-- Single file, no build fallout, low hardware risk: stay local.
-- Architecture or module-boundary uncertainty: use `architect` first.
-- Build break, linker failure, generated-file mismatch: use `build-resolver`.
-- ISR or shared-state edits: require `firmware-reviewer`.
-- Peripheral or board-init edits: require `hardware-impact`.
-- Larger features or refactors: `architect` when structure is in play, then `planner`, then `worker`, then `reviewer`.
+- 单文件、无构建回归、低硬件风险：留在本地处理。
+- 架构或模块边界不明确：先用 `architect`。
+- 构建断裂、链接失败、生成文件不匹配：用 `build-resolver`。
+- ISR 或共享状态改动：必须经过 `firmware-reviewer`。
+- 外设或板级初始化改动：必须经过 `hardware-impact`。
+- 较大功能或重构：结构相关时先 `architect`，再 `planner`，然后 `worker`，最后 `reviewer`。

@@ -1,6 +1,6 @@
 ---
 name: triage
-description: Manual-only deep diagnosis for hard/ambiguous problems.
+description: 仅限手动触发的疑难问题深度诊断。
 model: sonnet
 tools:
   - Read

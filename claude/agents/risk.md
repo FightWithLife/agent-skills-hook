@@ -1,6 +1,6 @@
 ---
 name: risk
-description: Assess security and impact risks, then provide actionable mitigations.
+description: 评估安全与影响风险，并提供可执行的缓解措施。
 model: sonnet
 tools:
   - Read

@@ -1,6 +1,6 @@
 ---
 name: builder
-description: Implement features/fixes with minimal diffs and verifiable evidence.
+description: 以最小 diff 实现功能或修复，并提供可验证的证据。
 model: sonnet
 tools:
   - Read

@@ -1,6 +1,6 @@
 ---
 name: validator
-description: Validate behavior and code quality with pass/fail evidence.
+description: 以 pass/fail 证据验证行为和代码质量。
 model: sonnet
 tools:
   - Read
