@@ -50,51 +50,26 @@ git submodule update --init --recursive agents/skills
 要求：先备份，再部署，再验证，最后回报变更与验证结果。
 ```
 
-## OpenCode Agents 部署（给人）
-本仓库里 OpenCode Agents 定义文件：
-- `opencode/AGENTS.md`
-- `opencode/agents/*.md`
+## OpenCode 配置说明
+本仓库提供 OpenCode 的运行时规则和配置示例：
+- `opencode/AGENTS.md` - 运行时规则
+- `opencode/opencode.json.example` - 配置示例（不含 API Key）
 
-当前 agents 清单（OpenCode）：
-- Primary：`orchestrator`、`triage`（`triage` 仅手动调用）
-- Native subagent：`explore`（由 OpenCode upstream 提供，**不要**在本地创建 `explore.md`）
-- Local subagents：`dev`、`qa`、`review`、`debug`、`scoper`、`impact`、`security`
+当前使用的代理配置：
+- **Primary（Tab 切换）**：`build`、`plan`（内置）+ `sisyphus`、`prometheus`、`atlas`、`hephaestus`
+- **Subagent（@ 调用）**：`explore`、`general`、`metis`、`momus`、`multimodal-looker`、`oracle`、`sisyphus-junior`、`summary`、`title`
 
-本次新增能力/门禁摘要：
-- 新增 `scoper/impact/security` 三个本地子代理，并纳入路由策略。
-- 新增 Gate-0（合同就绪）：进入 `dev/qa/review/debug/impact/security` 前，必须具备 `task_contract(v1)` + `gate0_evidence.scope_ready=true`。
-- Gate-0 通过后按 `task_contract.intent` 自由分流（`review-only | qa-only | debug-only | dev-feature | impact | security`）。
-- 仅 `intent=dev-feature` 强制执行 `dev -> qa -> review` 回归链条；`qa-only`/`debug-only` 不强制走完整开发链。
-- 引入 strict review gate：`code-review` 触发前必须满足 `dev.status=done` + `dev` 有命令级证据 + `qa.status=done` 且 `qa.verdict=pass`。
-- `plan-review` 改为 opt-in（默认不启用）。
-- `explore` 明确为原生子代理，不走本地伪实现。
-- `orchestrator` 新增 No Phantom Artifacts 规则：无 `dev/debug` 证据不得宣称文件已落地。
-
-OpenCode 全局读取位置：
-- `~/.config/opencode/AGENTS.md`
-- `~/.config/opencode/agents/`
-
-从仓库根目录执行（先备份再覆盖）：
-
+部署步骤：
 ```bash
-set -euo pipefail
+# 1. 复制配置示例（需替换 apiKey）
+cp ./opencode/opencode.json.example ~/.config/opencode/opencode.json
+# 编辑 ~/.config/opencode/opencode.json，替换 <YOUR_API_KEY>
 
-STAMP="$(date +%Y%m%d-%H%M%S)"
-BACKUP="$HOME/.opencode-backups/agent-skills-hook-$STAMP/opencode"
-
-mkdir -p "$BACKUP" "$HOME/.config/opencode/agents"
-
-[ -f "$HOME/.config/opencode/AGENTS.md" ] && cp -a "$HOME/.config/opencode/AGENTS.md" "$BACKUP/AGENTS.md"
-[ -d "$HOME/.config/opencode/agents" ] && cp -a "$HOME/.config/opencode/agents" "$BACKUP/"
-
-cp -a "./opencode/AGENTS.md" "$HOME/.config/opencode/AGENTS.md"
-cp -a "./opencode/agents/." "$HOME/.config/opencode/agents/"
-
-echo "OpenCode Agents 已部署。备份目录：$BACKUP"
+# 2. 复制运行时规则
+cp ./opencode/AGENTS.md ~/.config/opencode/AGENTS.md
 ```
 
-部署后请重启 OpenCode 生效。
-另外，模型 ID 建议统一使用 `openai/*`（例如 `openai/gpt-5.3-codex`）。
+部署后重启 OpenCode 生效。
 
 ## AI Deployment Spec (English, for AI)
 Use this section as the source of truth for deployment behavior.
