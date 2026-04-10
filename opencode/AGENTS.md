@@ -29,11 +29,9 @@ These instructions are loaded globally by OpenCode.
 - Make reasonable assumptions to keep moving; only stop for irreversible decisions, destructive actions, or missing contract details.
 
 ## OpenCode Teaming
-- Agent configs live in `opencode/agents/` and define the available primary agents and subagents.
-- The orchestrator owns task splitting, dependency coordination, integration, verification, and cleanup.
+- Primary agents (Tab switchable): `build`, `plan`, `sisyphus`, `prometheus`, `atlas`, `hephaestus`
+- Subagents (@ invokeable): `explore`, `general`, `metis`, `momus`, `multimodal-looker`, `oracle`, `sisyphus-junior`, `summary`, `title`
 - Use parallel dispatch only for independent work; serialize changes when tasks share files or environments.
-- Close completed or stale subagents promptly instead of keeping unused context around.
-- Detailed routing rules, gates, defaults, and task protocol live in `docs/agenting/opencode-runtime.md`, not in this entry file.
 
 ## Stop (when task is complete)
 - End with a short "Stop" block:
