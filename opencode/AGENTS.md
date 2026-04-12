@@ -1,41 +1,85 @@
-# Global OpenCode Instructions (agent-skills-hook)
+# OpenCode 全局指令 (agent-skills-hook)
 
-These instructions are loaded globally by OpenCode.
+本指令由 OpenCode 全局加载。
 
-## Scope
-- This file keeps only OpenCode runtime-specific behavior.
-- Shared repository rules live in the repo root `AGENTS.md` and `docs/agenting/*.md`.
-- Detailed team routing, gates, and task protocol should live outside this entry file.
+## 范围
+- 本文件仅保留 OpenCode 运行时特定行为。
+- 共享仓库规则位于仓库根目录 `AGENTS.md` 和 `docs/agenting/*.md`。
+- 详细的团队路由、门控和任务协议应放在本入口文件之外。
 
-## SessionStart (once per session)
-- On the first response of each new session, print a short block:
-  - "SessionStart" header
-  - Active instruction layers (global `~/.config/opencode/AGENTS.md`, repo `AGENTS.md` if present)
-  - Skill sources (`~/.config/opencode/skills`, `./.opencode/skills`, `~/.agents/skills`, `./.agents/skills`, `~/.claude/skills`, `./.claude/skills`)
-  - Optional instruction files (`~/.config/opencode/opencode.json`, `./opencode.json`) if present
+## 会话启动（每会话一次）
+- 每个新会话的首次响应时，打印一个简短块：
+  - "SessionStart" 标题
+  - 活跃指令层（全局 `~/.config/opencode/AGENTS.md`、仓库 `AGENTS.md` 若存在）
+  - 技能来源（`~/.config/opencode/skills`、`./.opencode/skills`、`~/.agents/skills`、`./.agents/skills`、`~/.claude/skills`、`./.claude/skills`）
+  - 可选指令文件（`~/.config/opencode/opencode.json`、`./opencode.json`）若存在
 
-## Skill Forced Eval (every user request)
-- Before any work, always run the `skill` tool to load `skill-forced-eval` and follow its steps.
+## 技能强制评估（每个用户请求）
+- 开始任何工作前，始终运行 `skill` 工具加载 `skill-forced-eval` 并遵循其步骤。
 
-## Review Output Language
-- When the user asks for a "review", the final response MUST be in Chinese. Keep all narrative/explanatory text in Chinese while preserving the required review structure and formatting rules.
+## 审阅输出语言
+- 当用户要求 "review" 时，最终响应必须使用中文。保持所有叙述/说明文字为中文，同时保留所需的审阅结构和格式规则。
 
-## Tool Safety
-- Obey tool permission rules. Never bypass safety checks unless the user explicitly asks and it is safe.
+## 工具安全
+- 遵守工具权限规则。除非用户明确要求且安全，否则不得绕过安全检查。
 
-## Default Execution Style
-- Default to delivery-first work: aim for a runnable, reviewable result instead of extended meta discussion.
-- Prefer the smallest verifiable loop first, then iterate.
-- Make reasonable assumptions to keep moving; only stop for irreversible decisions, destructive actions, or missing contract details.
+## 默认执行风格
+- 默认采用交付优先的工作方式：追求可运行、可复核的结果，而非冗长的元讨论。
+- 优先完成最小可验证闭环，然后迭代。
+- 做合理假设以保持推进；仅在涉及不可逆决策、破坏性操作或缺少关键约定细节时才暂停。
 
-## OpenCode Teaming
-- Primary agents (Tab switchable): `build`, `plan`, `sisyphus`, `prometheus`, `atlas`, `hephaestus`
-- Subagents (@ invokeable): `explore`, `general`, `metis`, `momus`, `multimodal-looker`, `oracle`, `sisyphus-junior`, `summary`, `title`
-- Use parallel dispatch only for independent work; serialize changes when tasks share files or environments.
+## OpenCode 团队协作
+- 主代理（Tab 切换）：`build`（全工具）、`plan`（只读，文件编辑和 bash 命令默认 ask）
+- 子代理（@ 调用）：`explore`（快速只读）、`general`（复杂搜索和多步骤任务）
+- 仅对独立工作使用并行派发；当任务共享文件或环境时，串行执行变更。
 
-## Stop (when task is complete)
-- End with a short "Stop" block:
-  - What changed
-  - Tests/verification (or "Not run")
-  - Risks/uncovered items
-  - Suggested next step (if any)
+### 标准并行开发流程
+1. **0-60秒产出子任务**：收到需求后，最多60秒内产出可分配的子任务清单
+2. **并行启动**：独立子任务通过 `@explore`（定位调研）、`@general`（实现验证）并行派发
+3. **子 Agent 开工模板**：每个派发附带明确边界、预期产出、验证入口
+4. **主控集成**：主控（build Tab）负责边界决策、冲突仲裁、最终验收和输出汇总
+5. **交付模板**：返回：一句话状态 + 改动清单 + 验证结果 + 风险标注
+
+### Agent 职责映射（ref/AGENTS.md Agent-0/1/2/3/4）
+| ref Agent | OpenCode 映射 | 调用方式 |
+|-----------|---------------|----------|
+| Agent-0（主控） | `build` Tab | 默认主控 |
+| Agent-1（定位排障） | `@explore` | @ 调用 |
+| Agent-2/3（实现） | `@general` 或主控 | @ 调用或主控直接执行 |
+| Agent-4（验证交付） | `@general` 或主控 | @ 调用或主控验收 |
+
+### 冲突控制
+- 禁止多 Agent 同时写同一文件
+- 文件锁定：主控负责分配文件边界，子 Agent 只在分配范围内操作
+- 发现冲突时：立即停止，上报主控仲裁
+
+## 确认门槛
+仅以下情况暂停确认：
+- 破坏性操作：大量删除、重置历史、不可恢复覆盖
+- 高成本操作：长时全量测试、重型构建、生产批量发布
+- 关键不可逆决策：架构方向、外部契约、数据模型不可逆变更
+除以上情况外，默认继续执行，不反复确认。
+
+## 工程质量标准
+- 改动必须可运行，禁止只给建议不落地
+- 每轮改动后做关键路径验证
+- 结果必须真实标注：成功/失败/未执行及原因
+- 明确回归风险与影响面
+
+## 文档落盘规范
+- 每次生成文档、计划、纪要、调研、报告、清单时，必须落盘到 `docs` 目录
+- 按类型创建子目录：`docs/plan`、`docs/meeting`、`docs/research`、`docs/spec`、`docs/report`、`docs/decision`、`docs/release`
+- 文件名格式：`<时间戳>_<主题>.md`，时间戳格式 `yyyyMMddHHmmssfff`
+- 若目录不存在，先自动创建再写入
+
+## 沟通风格
+- 全程中文，简洁直接
+- 少背景解释，多可执行结果
+- 不写空话，不重复需求，不灌水
+
+## 结束（任务完成时）
+- 以简短的 "Stop" 块结束：
+  - 变更内容
+  - 测试/验证（或 "未运行"）
+  - 风险/未覆盖项
+  - 建议的下一步（如有）
