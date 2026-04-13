@@ -48,19 +48,20 @@ function Safe-Copy {
 # Codex 部署
 if ($Target -eq "codex" -or $Target -eq "both" -or $Target -eq "all") {
     $BackupC = Join-Path $env:USERPROFILE ".codex-backups\agent-skills-hook-$Stamp"
-    New-Item -ItemType Directory -Path "$BackupC\codex", "$BackupC\agents", "$BackupC\repo" -Force | Out-Null
+    New-Item -ItemType Directory -Path "$BackupC\codex", "$BackupC\repo" -Force | Out-Null
     
     # 备份现有配置
     $CodexDir = Join-Path $env:USERPROFILE ".codex"
     if (Test-Path "$CodexDir\AGENTS.md") { Copy-Item "$CodexDir\AGENTS.md" "$BackupC\codex\AGENTS.md" -Force }
     if (Test-Path "$CodexDir\skills") { Copy-Item "$CodexDir\skills" "$BackupC\codex\skills" -Recurse -Force }
-    if (Test-Path "$env:USERPROFILE\.agents\skills") { Copy-Item "$env:USERPROFILE\.agents\skills" "$BackupC\agents\skills" -Recurse -Force }
     Copy-Item $RepoSkills "$BackupC\repo\skills" -Recurse -Force
     
     # 部署配置（从 config/ 复制）
     Safe-Copy "$ConfigRoot\codex\AGENTS.md" "$CodexDir\AGENTS.md"
     Safe-Copy $RepoSkills "$CodexDir\skills"
-    Safe-Copy $RepoSkills "$env:USERPROFILE\.agents\skills"
+    if (Test-Path "$env:USERPROFILE\.agents\skills") {
+        Write-Host "Legacy Codex skill root detected at $env:USERPROFILE\.agents\skills. Archive or remove it to avoid duplicate skill scanning."
+    }
     
     Write-Host "Codex deployed. Backup: $BackupC"
 }
@@ -68,13 +69,12 @@ if ($Target -eq "codex" -or $Target -eq "both" -or $Target -eq "all") {
 # OpenCode 部署
 if ($Target -eq "opencode" -or $Target -eq "both" -or $Target -eq "all") {
     $BackupO = Join-Path $env:USERPROFILE ".opencode-backups\agent-skills-hook-$Stamp"
-    New-Item -ItemType Directory -Path "$BackupO\opencode", "$BackupO\agents", "$BackupO\claude", "$BackupO\repo" -Force | Out-Null
+    New-Item -ItemType Directory -Path "$BackupO\opencode", "$BackupO\claude", "$BackupO\repo" -Force | Out-Null
     
     # 备份现有配置
     $OpenCodeDir = Join-Path $env:USERPROFILE ".config\opencode"
     if (Test-Path "$OpenCodeDir\AGENTS.md") { Copy-Item "$OpenCodeDir\AGENTS.md" "$BackupO\opencode\AGENTS.md" -Force }
     if (Test-Path "$OpenCodeDir\skills") { Copy-Item "$OpenCodeDir\skills" "$BackupO\opencode\skills" -Recurse -Force }
-    if (Test-Path "$env:USERPROFILE\.agents\skills") { Copy-Item "$env:USERPROFILE\.agents\skills" "$BackupO\agents\skills" -Recurse -Force }
     if (Test-Path "$env:USERPROFILE\.claude\skills") { Copy-Item "$env:USERPROFILE\.claude\skills" "$BackupO\claude\skills" -Recurse -Force }
     Copy-Item $RepoSkills "$BackupO\repo\skills" -Recurse -Force
     
@@ -82,8 +82,10 @@ if ($Target -eq "opencode" -or $Target -eq "both" -or $Target -eq "all") {
     New-Item -ItemType Directory -Path "$OpenCodeDir" -Force | Out-Null
     Safe-Copy "$ConfigRoot\opencode\AGENTS.md" "$OpenCodeDir\AGENTS.md"
     Safe-Copy $RepoSkills "$OpenCodeDir\skills"
-    Safe-Copy $RepoSkills "$env:USERPROFILE\.agents\skills"
     Safe-Copy $RepoSkills "$env:USERPROFILE\.claude\skills"
+    if (Test-Path "$env:USERPROFILE\.agents\skills") {
+        Write-Host "Legacy shared skill root detected at $env:USERPROFILE\.agents\skills. OpenCode now uses $OpenCodeDir\skills as the primary user skill root."
+    }
     
     Write-Host "OpenCode deployed. Backup: $BackupO"
 }

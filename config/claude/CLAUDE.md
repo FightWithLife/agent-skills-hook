@@ -6,7 +6,7 @@
 - 在每个新会话的首条回复中输出一个简短区块：
   - `SessionStart` 标题
   - 当前生效的指令层（全局 `~/.claude/CLAUDE.md`、仓库内 `CLAUDE.md`，如果存在）
-  - 技能来源（`~/.claude/skills`、`./.claude/skills`、`~/.agents/skills`、`./.agents/skills`，通过相对路径引用 `../../agents/skills`）
+  - 技能来源（`~/.claude/skills`、`./.claude/skills`）
   - 可选指令文件（`~/.claude/settings.json`、`./.claude/settings.json`），如果存在
 
 ## 强制技能评估（每次用户请求）

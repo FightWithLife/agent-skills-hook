@@ -100,6 +100,8 @@ cd windows
 
 ### 验证部署
 
+当前各运行时仅使用自己的用户级技能目录和仓库内对应目录：Codex 使用 `~/.codex/skills` 与 `./.codex/skills`，OpenCode 使用 `~/.config/opencode/skills` 与 `./.opencode/skills`，Claude Code 使用 `~/.claude/skills` 与 `./.claude/skills`。
+
 **Linux（软链接）**：
 ```bash
 ls -la ~/.codex/skills ~/.codex/AGENTS.md
@@ -145,6 +147,10 @@ Copy-Item "$env:USERPROFILE\.codex-backups\agent-skills-hook-<timestamp>\codex\*
 ## 维护说明
 
 更新配置只需修改 `config/` 目录下的文件，然后重新运行部署脚本即可。
+
+- Codex 部署仅维护 `~/.codex/skills`
+- OpenCode 部署仅维护 `~/.config/opencode/skills`
+- Claude Code 部署仅维护 `~/.claude/skills`
 
 - Linux 用户：修改后重新运行 `linux/deploy.sh`（软链接自动指向新内容）
 - Windows 用户：修改后重新运行 `windows/deploy.ps1`（复制新内容）
