@@ -1,3 +1,4 @@
 [submodule "agents/skills"]
 	path = agents/skills
 	url = git@github.com:FightWithLife/skills.git
+	branch = main
