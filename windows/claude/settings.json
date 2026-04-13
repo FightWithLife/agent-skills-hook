@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -lc '$HOME/.claude/hooks/user-prompt-skill-forced-eval.sh'",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

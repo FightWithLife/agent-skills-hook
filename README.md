@@ -1,7 +1,7 @@
 # agent-skills-hook
 
 ## 简介
-这是一个把“Hook 机制”落地到 Codex CLI / OpenCode / Claude Code 的配置仓库，目标是：
+这是一个把"Hook 机制"落地到 Codex CLI / OpenCode / Claude Code 的配置仓库，目标是：
 - 提高 AI 对 skills 的触发与使用概率
 - 固定会话起止输出（`SessionStart` / `Stop`）
 - 在危险命令前给出 execpolicy 安全提示
@@ -15,6 +15,86 @@
 - Codex / Claude Code 的轻量优先协作路由
 - 面向嵌入式 C 的 agent 分工：规划、实现、构建修复、固件审查、硬件影响审查
 
+## 目录结构
+
+```
+agent-skills-hook/
+├── linux/                    # Linux 版本（软链接部署）
+│   ├── AGENTS.md             # 共享入口
+│   ├── docs/agenting/        # 深文档分层
+│   ├── claude/               # Claude Code 配置
+│   ├── codex/                # Codex CLI 配置
+│   ├── opencode/             # OpenCode 配置
+│   └── deploy.sh             # 部署脚本（软链接方式）
+│
+├── windows/                  # Windows 版本（复制部署）
+│   ├── claude/               # Claude Code 配置（单文件自包含）
+│   ├── codex/                # Codex CLI 配置（单文件自包含）
+│   ├── opencode/             # OpenCode 配置（单文件自包含）
+│   └── deploy.ps1            # 部署脚本（复制方式）
+│
+├── agents/skills/            # 共享技能库（两个版本共用）
+│
+└── README.md
+```
+
+### 版本差异
+
+| 特性 | Linux 版本 | Windows 版本 |
+|------|-----------|-------------|
+| 配置结构 | 分层结构（AGENTS.md + docs/agenting/*.md） | 单文件自包含（所有规则合入入口文件） |
+| 部署方式 | 软链接（`ln -s`） | 复制（`Copy-Item`） |
+| Skills 引用 | 软链接到仓库根目录的 `agents/skills` | 复制副本到用户目录 |
+| 更新方式 | 修改仓库文件自动生效 | 需重新运行部署脚本 |
+
+## 快速开始
+
+### 1. 初始化 Skills Submodule
+
+```bash
+git submodule update --init --recursive agents/skills
+```
+
+### 2. 选择部署版本
+
+#### Linux 版本部署（软链接方式）
+
+```bash
+cd linux
+chmod +x deploy.sh
+
+# 部署所有运行时
+./deploy.sh TARGET=all
+
+# 或指定目标
+./deploy.sh TARGET=codex      # 仅 Codex
+./deploy.sh TARGET=opencode   # 仅 OpenCode
+./deploy.sh TARGET=claude     # 仅 Claude Code
+./deploy.sh TARGET=both       # Codex + OpenCode
+```
+
+#### Windows 版本部署（复制方式）
+
+```powershell
+cd windows
+
+# 部署所有运行时
+.\deploy.ps1 -Target "all"
+
+# 或指定目标
+.\deploy.ps1 -Target "codex"      # 仅 Codex
+.\deploy.ps1 -Target "opencode"   # 仅 OpenCode
+.\deploy.ps1 -Target "claude"     # 仅 Claude Code
+.\deploy.ps1 -Target "both"       # Codex + OpenCode
+```
+
+### 3. 重启运行时
+
+部署后重启对应运行时生效：
+- Codex CLI: 重启终端或重新运行 `codex`
+- OpenCode: 重启 OpenCode
+- Claude Code: 重启 Claude Code
+
 ## 嵌入式 C 工作流
 
 当前仓库对 `Codex` 和 `Claude Code` 的默认协作方式已经偏向嵌入式开发：
@@ -27,431 +107,86 @@
 
 这套策略的目标不是强制所有任务走多 agent，而是在保留当前简易工作流的前提下，把真正高风险的嵌入式变更自动导向更稳妥的路径。
 
-## 目录
-- [快速开始（给人）](#快速开始给人)
-- [OpenCode Agents 部署（给人）](#opencode-agents-部署给人)
-- [AI 部署规范（给 AI，English）](#ai-deployment-spec-english-for-ai)
-- [验证与回滚](#验证与回滚)
-- [AI 环境依赖清单](#ai-环境依赖清单)
-- [OpenCode 推荐配置（保持最新）](#opencode-推荐配置保持最新)
-- [当前模型映射示例](#当前模型映射示例)
+## 验证与回滚
 
-## 快速开始（给人）
-本仓库已移除一键部署脚本，改为 **AI 自部署（scriptless）**。
+### 验证部署
 
-1. 在仓库根目录初始化 submodule：
+部署后检查以下路径是否正确配置：
+
+**Linux（软链接）**：
 ```bash
-git submodule update --init --recursive agents/skills
+# Codex
+ls -la ~/.codex/skills ~/.codex/AGENTS.md ~/.agents/skills
+
+# OpenCode
+ls -la ~/.config/opencode/skills ~/.config/opencode/AGENTS.md
+
+# Claude Code
+ls -la ~/.claude/skills ~/.claude/CLAUDE.md
 ```
-2. 把下面这段话发给 AI：
+
+**Windows（复制）**：
+```powershell
+# Codex
+Test-Path "$env:USERPROFILE\.codex\AGENTS.md"
+Test-Path "$env:USERPROFILE\.codex\skills"
+
+# OpenCode
+Test-Path "$env:USERPROFILE\.config\opencode\AGENTS.md"
+
+# Claude Code
+Test-Path "$env:USERPROFILE\.claude\CLAUDE.md"
+```
+
+### 回滚
+
+备份目录位于：
+- Linux: `~/.codex-backups/`, `~/.opencode-backups/`, `~/.claude-backups/`
+- Windows: `$env:USERPROFILE\.codex-backups\`, `$env:USERPROFILE\.opencode-backups\`, `$env:USERPROFILE\.claude-backups\`
+
+恢复备份：
+```bash
+# Linux 示例
+cp -a ~/.codex-backups/agent-skills-hook-<timestamp>/codex/* ~/.codex/
+```
+
+```powershell
+# Windows 示例
+Copy-Item "$env:USERPROFILE\.codex-backups\agent-skills-hook-<timestamp>\codex\*" "$env:USERPROFILE\.codex\" -Recurse -Force
+```
+
+## AI 自部署（Scriptless）
+
+如需让 AI 自行部署，可发送以下指令：
+
 ```text
-请在仓库根目录按 README 的 “AI Deployment Spec” 执行部署。
+请在仓库根目录按 README 的部署说明执行部署。
 目标：Codex CLI / OpenCode / Claude Code 使用同一份 skills（仓库内 agents/skills）。
+版本：根据当前系统选择 linux/ 或 windows/ 目录。
 要求：先备份，再部署，再验证，最后回报变更与验证结果。
 ```
 
-## OpenCode 配置说明
-本仓库提供 OpenCode 的运行时规则和配置示例：
-- `opencode/AGENTS.md` - 运行时规则
-- `opencode/opencode.json.example` - 配置示例（不含 API Key）
-
-当前使用的代理配置：
-- **Primary（Tab 切换）**：`build`、`plan`（内置）+ `sisyphus`、`prometheus`、`atlas`、`hephaestus`
-- **Subagent（@ 调用）**：`explore`、`general`、`metis`、`momus`、`multimodal-looker`、`oracle`、`sisyphus-junior`、`summary`、`title`
-
-部署步骤：
-```bash
-# 1. 复制配置示例（需替换 apiKey）
-cp ./opencode/opencode.json.example ~/.config/opencode/opencode.json
-# 编辑 ~/.config/opencode/opencode.json，替换 <YOUR_API_KEY>
-
-# 2. 复制运行时规则
-cp ./opencode/AGENTS.md ~/.config/opencode/AGENTS.md
-```
-
-部署后重启 OpenCode 生效。
-
-## AI Deployment Spec (English, for AI)
-Use this section as the source of truth for deployment behavior.
-
-### Goals
-- Keep one single skills source: `<repo>/agents/skills`.
-- Deploy Codex/OpenCode/Claude config without repo scripts.
-- Be idempotent and rollback-friendly.
-
-### Constraints
-- Always backup before mutating user config.
-- Merge legacy skills into repo skills with `no overwrite` policy.
-- Keep plugin/tool versions unpinned (latest) unless user requests pinning.
-- Do not run destructive git commands.
-
-### One-Shot Idempotent Command Block
-Run from repo root. Optional: `TARGET=codex|opencode|claude|both|all` (default `both`, where `both` means Codex+OpenCode).
-
-```bash
-set -euo pipefail
-
-REPO_ROOT="${REPO_ROOT:-$(pwd)}"
-TARGET="${TARGET:-both}"
-STAMP="$(date +%Y%m%d-%H%M%S)"
-REPO_SKILLS="$REPO_ROOT/agents/skills"
-
-if [ ! -d "$REPO_SKILLS" ]; then
-  git -C "$REPO_ROOT" submodule update --init --recursive agents/skills
-fi
-
-if [ ! -d "$REPO_SKILLS" ]; then
-  echo "ERROR: $REPO_SKILLS missing" >&2
-  exit 1
-fi
-
-merge_missing_skills() {
-  local src="$1"
-  local real="$src"
-  [ -e "$src" ] || return 0
-  if [ -L "$src" ]; then
-    real="$(readlink -f "$src" 2>/dev/null || true)"
-  fi
-  [ -d "$real" ] || return 0
-
-  shopt -s nullglob dotglob
-  for item in "$real"/*; do
-    [ -e "$item" ] || continue
-    local name
-    name="$(basename "$item")"
-    if [ ! -e "$REPO_SKILLS/$name" ]; then
-      cp -a "$item" "$REPO_SKILLS/"
-    fi
-  done
-  shopt -u nullglob dotglob
-}
-
-safe_link() {
-  local link_path="$1"
-  local target_path="$2"
-  mkdir -p "$(dirname "$link_path")"
-
-  if [ -L "$link_path" ]; then
-    local real
-    real="$(readlink -f "$link_path" 2>/dev/null || true)"
-    if [ "$real" = "$target_path" ]; then
-      return 0
-    fi
-    rm -f "$link_path"
-  elif [ -e "$link_path" ]; then
-    rm -rf "$link_path"
-  fi
-
-  ln -s "$target_path" "$link_path"
-}
-
-if [ "$TARGET" = "codex" ] || [ "$TARGET" = "both" ] || [ "$TARGET" = "all" ]; then
-  BACKUP_C="$HOME/.codex-backups/agent-skills-hook-$STAMP"
-  mkdir -p "$BACKUP_C/codex" "$BACKUP_C/agents" "$BACKUP_C/repo"
-
-  [ -f "$HOME/.codex/AGENTS.md" ] && cp -a "$HOME/.codex/AGENTS.md" "$BACKUP_C/codex/AGENTS.md"
-  [ -f "$HOME/.codex/config.toml" ] && cp -a "$HOME/.codex/config.toml" "$BACKUP_C/codex/config.toml"
-  [ -e "$HOME/.codex/agents" ] && cp -a "$HOME/.codex/agents" "$BACKUP_C/codex/"
-  [ -d "$HOME/.codex/rules" ] && cp -a "$HOME/.codex/rules" "$BACKUP_C/codex/"
-  [ -e "$HOME/.codex/skills" ] && cp -a "$HOME/.codex/skills" "$BACKUP_C/codex/"
-  [ -e "$HOME/.agents/skills" ] && cp -a "$HOME/.agents/skills" "$BACKUP_C/agents/"
-  cp -a "$REPO_SKILLS" "$BACKUP_C/repo/"
-
-  mkdir -p "$HOME/.codex/rules" "$REPO_ROOT/codex/agents"
-  [ -f "$HOME/.codex/config.toml" ] && cp -an "$HOME/.codex/config.toml" "$REPO_ROOT/codex/config.toml"
-  cp -a "$REPO_ROOT/codex/AGENTS.md" "$HOME/.codex/AGENTS.md"
-  cp -a "$REPO_ROOT/codex/rules/." "$HOME/.codex/rules/"
-  [ -d "$HOME/.codex/agents" ] && cp -an "$HOME/.codex/agents/." "$REPO_ROOT/codex/agents/"
-
-  merge_missing_skills "$HOME/.codex/skills"
-  merge_missing_skills "$HOME/.agents/skills"
-
-  safe_link "$HOME/.codex/config.toml" "$REPO_ROOT/codex/config.toml"
-  safe_link "$HOME/.codex/agents" "$REPO_ROOT/codex/agents"
-  safe_link "$HOME/.codex/skills" "$REPO_SKILLS"
-  safe_link "$HOME/.agents/skills" "$HOME/.codex/skills"
-
-  echo "Codex deployed. Backup: $BACKUP_C"
-fi
-
-if [ "$TARGET" = "opencode" ] || [ "$TARGET" = "both" ] || [ "$TARGET" = "all" ]; then
-  BACKUP_O="$HOME/.opencode-backups/agent-skills-hook-$STAMP"
-  mkdir -p "$BACKUP_O/opencode" "$BACKUP_O/agents" "$BACKUP_O/claude" "$BACKUP_O/repo"
-
-  [ -f "$HOME/.config/opencode/AGENTS.md" ] && cp -a "$HOME/.config/opencode/AGENTS.md" "$BACKUP_O/opencode/AGENTS.md"
-  [ -d "$HOME/.config/opencode/agents" ] && cp -a "$HOME/.config/opencode/agents" "$BACKUP_O/opencode/"
-  [ -e "$HOME/.config/opencode/skills" ] && cp -a "$HOME/.config/opencode/skills" "$BACKUP_O/opencode/"
-  [ -e "$HOME/.agents/skills" ] && cp -a "$HOME/.agents/skills" "$BACKUP_O/agents/"
-  [ -e "$HOME/.claude/skills" ] && cp -a "$HOME/.claude/skills" "$BACKUP_O/claude/"
-  cp -a "$REPO_SKILLS" "$BACKUP_O/repo/"
-
-  mkdir -p "$HOME/.config/opencode" "$HOME/.config/opencode/agents"
-  cp -a "$REPO_ROOT/opencode/AGENTS.md" "$HOME/.config/opencode/AGENTS.md"
-  cp -a "$REPO_ROOT/opencode/agents/." "$HOME/.config/opencode/agents/"
-
-  merge_missing_skills "$HOME/.config/opencode/skills"
-  merge_missing_skills "$HOME/.agents/skills"
-  merge_missing_skills "$HOME/.claude/skills"
-
-  safe_link "$HOME/.config/opencode/skills" "$REPO_SKILLS"
-
-  # optional legacy links
-  safe_link "$HOME/.agents/skills" "$HOME/.config/opencode/skills"
-  safe_link "$HOME/.claude/skills" "$HOME/.config/opencode/skills"
-
-  echo "OpenCode deployed. Backup: $BACKUP_O"
-fi
-
-if [ "$TARGET" = "claude" ] || [ "$TARGET" = "all" ]; then
-  BACKUP_CL="$HOME/.claude-backups/agent-skills-hook-$STAMP"
-  mkdir -p "$BACKUP_CL/claude" "$BACKUP_CL/agents" "$BACKUP_CL/repo"
-
-  [ -f "$HOME/.claude/AGENTS.md" ] && cp -a "$HOME/.claude/AGENTS.md" "$BACKUP_CL/claude/AGENTS.md"
-  [ -f "$HOME/.claude/CLAUDE.md" ] && cp -a "$HOME/.claude/CLAUDE.md" "$BACKUP_CL/claude/CLAUDE.md"
-  [ -f "$HOME/.claude/settings.json" ] && cp -a "$HOME/.claude/settings.json" "$BACKUP_CL/claude/settings.json"
-  [ -d "$HOME/.claude/hooks" ] && cp -a "$HOME/.claude/hooks" "$BACKUP_CL/claude/"
-  [ -e "$HOME/.claude/skills" ] && cp -a "$HOME/.claude/skills" "$BACKUP_CL/claude/"
-  [ -e "$HOME/.agents/skills" ] && cp -a "$HOME/.agents/skills" "$BACKUP_CL/agents/"
-  cp -a "$REPO_SKILLS" "$BACKUP_CL/repo/"
-
-  mkdir -p "$HOME/.claude" "$HOME/.claude/hooks"
-  cp -a "$REPO_ROOT/claude/AGENTS.md" "$HOME/.claude/AGENTS.md"
-  if [ -f "$REPO_ROOT/claude/CLAUDE.md" ]; then
-    cp -a "$REPO_ROOT/claude/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
-  else
-    cp -a "$REPO_ROOT/claude/AGENTS.md" "$HOME/.claude/CLAUDE.md"
-  fi
-  if [ -f "$REPO_ROOT/claude/hooks/user-prompt-skill-forced-eval.sh" ]; then
-    cp -a "$REPO_ROOT/claude/hooks/user-prompt-skill-forced-eval.sh" "$HOME/.claude/hooks/user-prompt-skill-forced-eval.sh"
-    chmod +x "$HOME/.claude/hooks/user-prompt-skill-forced-eval.sh"
-  fi
-
-  if [ -f "$REPO_ROOT/claude/settings.json" ]; then
-    if [ -f "$HOME/.claude/settings.json" ] && command -v python3 >/dev/null 2>&1; then
-      python3 - "$REPO_ROOT" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-user_path = Path.home() / ".claude" / "settings.json"
-repo_path = Path(sys.argv[1]) / "claude" / "settings.json"
-
-try:
-    user = json.loads(user_path.read_text(encoding="utf-8"))
-except Exception:
-    user = {}
-repo = json.loads(repo_path.read_text(encoding="utf-8"))
-
-user.setdefault("hooks", {})
-for event, rules in repo.get("hooks", {}).items():
-    existing = user["hooks"].get(event, [])
-    keys = {json.dumps(r, sort_keys=True, ensure_ascii=False) for r in existing}
-    for r in rules:
-        k = json.dumps(r, sort_keys=True, ensure_ascii=False)
-        if k not in keys:
-            existing.append(r)
-            keys.add(k)
-    user["hooks"][event] = existing
-
-user_path.write_text(json.dumps(user, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-PY
-    elif [ ! -f "$HOME/.claude/settings.json" ]; then
-      cp -a "$REPO_ROOT/claude/settings.json" "$HOME/.claude/settings.json"
-    fi
-  fi
-
-  merge_missing_skills "$HOME/.claude/skills"
-  merge_missing_skills "$HOME/.agents/skills"
-
-  safe_link "$HOME/.claude/skills" "$REPO_SKILLS"
-  safe_link "$HOME/.agents/skills" "$HOME/.claude/skills"
-
-  echo "Claude deployed. Backup: $BACKUP_CL"
-fi
-```
-
-### AI Output Requirements
-After running deployment, output:
-1. Changed files/links.
-2. Backup directory paths.
-3. Verification results.
-4. Any blocked step with exact reason.
-
-### OpenCode Post-Deploy Quick Verification
-Run these checks to confirm Gate-0/intent rules are in place:
-
-```bash
-test -f ~/.config/opencode/AGENTS.md && grep -n 'Gate-0\|task_contract\|intent\|code-review' ~/.config/opencode/AGENTS.md
-```
-
-```bash
-test -f ~/.config/opencode/agents/orchestrator.md && grep -n 'No Phantom Artifacts\|Gate-0\|dev-feature' ~/.config/opencode/agents/orchestrator.md
-```
-
-```bash
-test -f ~/.config/opencode/agents/scoper.md && grep -n 'task_contract\|gate0_evidence\|preconditions' ~/.config/opencode/agents/scoper.md
-```
-
-```bash
-test ! -f ~/.config/opencode/agents/explore.md && echo 'OK: explore is native (no local explore.md)'
-```
-
-Rollback hint: restore `~/.config/opencode/AGENTS.md` and `~/.config/opencode/agents/` from latest `$BACKUP_O/opencode/`.
-
-## 验证与回滚
-### 验证
-- Codex 规则检查：
-```bash
-codex execpolicy check --pretty --rules ~/.codex/rules/default.rules -- rm -rf /
-```
-- Codex 配置检查：`readlink -f ~/.codex/config.toml` 应指向 `<repo>/codex/config.toml`。
-- Codex agents 检查：`readlink -f ~/.codex/agents` 应指向 `<repo>/codex/agents`。
-- 新会话首条回复应出现：`SessionStart` 与 `Skill Match`。
-- OpenCode 新会话首条回复应出现：`SessionStart` 与 `Skill Match`。
-- Claude Code 新会话首条回复应出现：`SessionStart` 与 `Skill Match`。
-- Claude 检查：`readlink -f ~/.claude/skills` 应指向 `<repo>/agents/skills`。
-
-```bash
-readlink -f ~/.codex/config.toml
-```
-
-```bash
-readlink -f ~/.codex/agents
-```
-
-```bash
-readlink -f ~/.claude/skills
-```
-
-```bash
-test -f ~/.claude/CLAUDE.md && grep -n 'Skill Forced Eval' ~/.claude/CLAUDE.md
-```
-
-```bash
-# 兼容保留：如果你仍在使用 AGENTS.md
-test -f ~/.claude/AGENTS.md && grep -n 'Skill Forced Eval' ~/.claude/AGENTS.md
-```
-
-```bash
-test -f ~/.claude/settings.json && python3 -m json.tool ~/.claude/settings.json >/dev/null
-```
-
-```bash
-test -f ~/.claude/skills/skill-forced-eval/SKILL.md
-```
-
-```bash
-# 可选：检查 hook 片段是否已合并
-grep -n 'UserPromptSubmit' ~/.claude/settings.json
-```
-
-```bash
-test -x ~/.claude/hooks/user-prompt-skill-forced-eval.sh
-```
-
-```bash
-# 语义验证：新开 Claude 会话，首条响应包含 SessionStart，任意请求前有 Skill Match。
-```
-
-
-
-### 回滚
-从最近备份目录手动恢复以下路径即可：
-- Codex：`~/.codex/AGENTS.md`、`~/.codex/config.toml`、`~/.codex/agents/`、`~/.codex/rules/`、`~/.codex/skills`、`~/.agents/skills`
-- OpenCode：`~/.config/opencode/AGENTS.md`、`~/.config/opencode/skills`、`~/.agents/skills`、`~/.claude/skills`
-- Claude：`~/.claude/CLAUDE.md`、`~/.claude/AGENTS.md`、`~/.claude/settings.json`、`~/.claude/hooks/`、`~/.claude/skills`、`~/.agents/skills`
-
-## AI 环境依赖清单
-以下用于帮助 AI 判断环境是否完整。
-
-### 必装基础
-- `oh-my-opencode`（内置）
-- `opencode-pty`（内置）
-- `node` + `npm`（安装插件和 npx 运行 MCP）
-
-### 推荐插件（保持最新）
-```bash
-npm install -g @nick-vi/opencode-type-inject@latest
-npm install -g opencode-supermemory@latest
-npm install -g opencode-browser@latest
-npm install -g @mohak34/opencode-notifier@latest
-npm install -g @plannotator/opencode@latest
-npm install -g @tarquinen/opencode-dcp@latest
-```
-
-可选：
-- `opencode-morph-fast-apply`（通常以 GitHub 插件方式配置）
-- `@zenobi-us/opencode-skillful`
-
-### 推荐 MCP 工具
-- `chrome-devtools`
-- `context7`
-- `fetch`
-- `memory`
-- `sequential-thinking`
-- `time`
-- 可选长期记忆：`mem0`（需额外 API key）
-
-## OpenCode 推荐配置（保持最新）
-> 这是“合并片段”，不是完整 `opencode.json`。请做字段级 merge，不要整文件覆盖。
-> 配置提示：若模型支持 variant 级别，GPT 系列 API 建议统一设置为 `xhigh`。
-
-```json
-{
-  "$schema": "https://opencode.ai/config.json",
-  "compaction": {
-    "auto": true,
-    "strategy": "summarize",
-    "threshold": 0.8,
-    "prune_tool_outputs": true
-  },
-  "cache": {
-    "provider": "auto",
-    "enabled": true
-  },
-  "plugin": [
-    "opencode-mem",
-    "opencode-dcp",
-    "opencode-browser"
-  ],
-  "mcp": {
-    "chrome-devtools": {
-      "command": ["npx", "-y", "chrome-devtools-mcp@latest"],
-      "enabled": true,
-      "type": "local"
-    },
-    "context7": {
-      "command": ["npx", "-y", "@upstash/context7-mcp"],
-      "enabled": true,
-      "type": "local"
-    },
-    "fetch": {
-      "command": ["uvx", "mcp-server-fetch"],
-      "enabled": true,
-      "type": "local"
-    },
-    "memory": {
-      "command": ["npx", "-y", "@modelcontextprotocol/server-memory"],
-      "enabled": true,
-      "type": "local"
-    },
-    "sequential-thinking": {
-      "command": ["npx", "-y", "@modelcontextprotocol/server-sequential-thinking"],
-      "enabled": true,
-      "type": "local"
-    },
-    "time": {
-      "command": ["uvx", "mcp-server-time"],
-      "enabled": true,
-      "type": "local"
-    }
-  }
-}
-```
-
-### MCP 排障经验（2026-02-26 实测）
-- `time` MCP：`@modelcontextprotocol/server-time` 当前在 npm registry 返回 `404 Not Found`，请改用 `uvx mcp-server-time`。
-- `chrome-devtools` 若报 `ENOTEMPTY ... ~/.npm/_npx/...`，可按下列步骤处理：
-1. 定位冲突目录：`ls -1 ~/.npm/_npx`
-2. 备份冲突目录：`mv ~/.npm/_npx/<hash> ~/.npm/_npx/<hash>.bak.$(date +%Y%m%d-%H%M%S)`
-3. 重新验证连接：`opencode mcp list`
+## 文件说明
+
+### Linux 版本文件
+
+| 文件 | 用途 |
+|------|------|
+| `linux/AGENTS.md` | 共享入口，定义仓库总则和共享边界 |
+| `linux/docs/agenting/architecture.md` | 架构边界和分层原则 |
+| `linux/docs/agenting/verification.md` | 验证标准和证据格式 |
+| `linux/docs/agenting/delegation.md` | 委派策略和协作规则 |
+| `linux/docs/agenting/runtime-style.md` | 默认处理方式和沟通风格 |
+| `linux/claude/CLAUDE.md` | Claude 运行时增量（引用 docs/agenting） |
+| `linux/codex/AGENTS.md` | Codex 运行时增量（引用 docs/agenting） |
+| `linux/opencode/AGENTS.md` | OpenCode 运行时增量（引用 docs/agenting） |
+
+### Windows 版本文件
+
+| 文件 | 用途 |
+|------|------|
+| `windows/claude/CLAUDE.md` | Claude 运行时配置（自包含所有规则） |
+| `windows/codex/AGENTS.md` | Codex 运行时配置（自包含所有规则） |
+| `windows/opencode/AGENTS.md` | OpenCode 运行时配置（自包含所有规则） |
+
+Windows 版本将 Linux 版本的分层内容合并到单一入口文件，便于在 Windows 环境中直接编辑和维护。
