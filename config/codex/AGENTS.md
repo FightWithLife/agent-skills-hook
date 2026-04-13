@@ -54,31 +54,23 @@
 ## Codex 内置子代理
 
 ### 核心子代理（常用）
-| 名称 | 调用方式 | 职责 | 适用场景 |
-|------|---------|------|---------|
-| `explorer` | `--agent explorer` | 只读调查，负责定位文件、配置、调用路径与上下文 | 需要快速定位、错误排查、代码理解 |
-| `worker` | `--agent worker` | 受控实现，负责小步改动、最小差异、可验证输出 | 实现功能、修复 bug、代码变更 |
-| `reviewer` | `--agent reviewer` | 最终回归评审，负责正确性、可维护性、风险与证据 | 代码审查、回归检查、质量验证 |
-| `planner` | `--agent planner` | 多步骤规划，负责拆分阶段、验收标准、风险与回滚点 | 复杂任务规划、架构设计、项目拆解 |
-| `build-resolver` | `--agent build-resolver` | 构建/工具链修复，负责编译、链接、依赖、生成步骤 | 构建失败、依赖问题、工具链修复 |
-| `architect` | `--agent architect` | 结构设计与评审，负责模块边界、职责划分、演进路径 | 架构设计、重构规划、结构评审 |
+| 名称 | 代理名 | 职责 | 适用场景 |
+|------|--------|------|---------|
+| `explorer` | `explorer` | 只读调查，负责定位文件、配置、调用路径与上下文 | 需要快速定位、错误排查、代码理解 |
+| `worker` | `worker` | 受控实现，负责小步改动、最小差异、可验证输出 | 实现功能、修复 bug、代码变更 |
+| `reviewer` | `reviewer` | 最终回归评审，负责正确性、可维护性、风险与证据 | 代码审查、回归检查、质量验证 |
+| `planner` | `planner` | 多步骤规划，负责拆分阶段、验收标准、风险与回滚点 | 复杂任务规划、架构设计、项目拆解 |
+| `build-resolver` | `build-resolver` | 构建/工具链修复，负责编译、链接、依赖、生成步骤 | 构建失败、依赖问题、工具链修复 |
+| `architect` | `architect` | 结构设计与评审，负责模块边界、职责划分、演进路径 | 架构设计、重构规划、结构评审 |
 
 ### 可选子代理（按需启用）
-| 名称 | 调用方式 | 职责 | 适用场景 |
-|------|---------|------|---------|
-| `hardware-impact` | `--agent hardware-impact` | 硬件侧影响评估与回归面梳理 | 涉及硬件、驱动、寄存器的改动 |
-| `firmware-reviewer` | `--agent firmware-reviewer` | 低层并发、内存、时序等风险审查 | 固件开发、实时性、并发控制 |
-| `monitor` | `--agent monitor` | 状态观察，负责长耗时构建、测试、日志监控与简明汇报 | 长时间任务、构建监控、日志分析 |
+| 名称 | 代理名 | 职责 | 适用场景 |
+|------|--------|------|---------|
+| `hardware-impact` | `hardware-impact` | 硬件侧影响评估与回归面梳理 | 涉及硬件、驱动、寄存器的改动 |
+| `firmware-reviewer` | `firmware-reviewer` | 低层并发、内存、时序等风险审查 | 固件开发、实时性、并发控制 |
+| `monitor` | `monitor` | 状态观察，负责长耗时构建、测试、日志监控与简明汇报 | 长时间任务、构建监控、日志分析 |
 
-### 调用示例
-
-```bash
-codex --agent explorer "定位登录失败的根本原因"
-codex --agent worker "修复用户管理模块的内存泄漏"
-codex --agent build-resolver "修复链接错误：undefined reference to 'init_config'"
-codex --agent architect "重构认证模块，支持多因子验证"
-codex --agent reviewer "审查最近的改动，检查是否引入回归"
-```
+具体子代理定义位于 `config/codex/agents/*.toml`。入口文件只描述选择原则、职责边界和协作规则，不展开命令行示例。
 
 ## 委派策略
 
