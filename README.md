@@ -104,7 +104,7 @@ cd windows
 
 **Linux（软链接）**：
 ```bash
-ls -la ~/.codex/skills ~/.codex/AGENTS.md
+ls -la ~/.codex/skills ~/.codex/agents ~/.codex/AGENTS.md
 ls -la ~/.config/opencode/skills ~/.config/opencode/AGENTS.md
 ls -la ~/.claude/skills ~/.claude/CLAUDE.md
 ```
@@ -112,6 +112,7 @@ ls -la ~/.claude/skills ~/.claude/CLAUDE.md
 **Windows（复制）**：
 ```powershell
 Test-Path "$env:USERPROFILE\.codex\AGENTS.md"
+Test-Path "$env:USERPROFILE\.codex\agents"
 Test-Path "$env:USERPROFILE\.config\opencode\AGENTS.md"
 Test-Path "$env:USERPROFILE\.claude\CLAUDE.md"
 ```
@@ -149,6 +150,7 @@ Copy-Item "$env:USERPROFILE\.codex-backups\agent-skills-hook-<timestamp>\codex\*
 更新配置只需修改 `config/` 目录下的文件，然后重新运行部署脚本即可。
 
 - Codex 部署仅维护 `~/.codex/skills`
+- Codex 代理定义从 `config/codex/agents` 部署到 `~/.codex/agents`
 - OpenCode 部署仅维护 `~/.config/opencode/skills`
 - Claude Code 部署仅维护 `~/.claude/skills`
 

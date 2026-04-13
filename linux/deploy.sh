@@ -14,9 +14,15 @@ REPO_SKILLS="$REPO_ROOT/agents/skills"
 
 # 配置源位于 config/ 目录（自包含）
 CONFIG_ROOT="$REPO_ROOT/config"
+CODEX_AGENTS="$CONFIG_ROOT/codex/agents"
 
 if [ ! -d "$REPO_SKILLS" ]; then
   echo "ERROR: $REPO_SKILLS missing. Run 'git submodule update --init --recursive agents/skills' first." >&2
+  exit 1
+fi
+
+if [ ! -d "$CODEX_AGENTS" ]; then
+  echo "ERROR: $CODEX_AGENTS missing." >&2
   exit 1
 fi
 
@@ -67,12 +73,14 @@ if [ "$TARGET" = "codex" ] || [ "$TARGET" = "both" ] || [ "$TARGET" = "all" ]; t
 
   # 备份现有配置
   [ -f "$HOME/.codex/AGENTS.md" ] && cp -a "$HOME/.codex/AGENTS.md" "$BACKUP_C/codex/AGENTS.md"
+  [ -e "$HOME/.codex/agents" ] && cp -a "$HOME/.codex/agents" "$BACKUP_C/codex/"
   [ -e "$HOME/.codex/skills" ] && cp -a "$HOME/.codex/skills" "$BACKUP_C/codex/"
   cp -a "$REPO_SKILLS" "$BACKUP_C/repo/"
 
   # 部署配置（从 config/ 复制）
   mkdir -p "$HOME/.codex"
   cp -a "$CONFIG_ROOT/codex/AGENTS.md" "$HOME/.codex/AGENTS.md"
+  safe_link "$HOME/.codex/agents" "$CODEX_AGENTS"
 
   # 合并 skills
   merge_missing_skills "$HOME/.codex/skills"

@@ -15,10 +15,16 @@ $ErrorActionPreference = "Stop"
 $Stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $RepoSkills = Join-Path $RepoRoot "agents\skills"
 $ConfigRoot = Join-Path $RepoRoot "config"
+$CodexAgents = Join-Path $ConfigRoot "codex\agents"
 
 # 验证 skills 目录存在
 if (-not (Test-Path $RepoSkills)) {
     Write-Error "ERROR: $RepoSkills missing. Run 'git submodule update --init --recursive agents/skills' first."
+    exit 1
+}
+
+if (-not (Test-Path $CodexAgents)) {
+    Write-Error "ERROR: $CodexAgents missing."
     exit 1
 }
 
@@ -53,11 +59,13 @@ if ($Target -eq "codex" -or $Target -eq "both" -or $Target -eq "all") {
     # 备份现有配置
     $CodexDir = Join-Path $env:USERPROFILE ".codex"
     if (Test-Path "$CodexDir\AGENTS.md") { Copy-Item "$CodexDir\AGENTS.md" "$BackupC\codex\AGENTS.md" -Force }
+    if (Test-Path "$CodexDir\agents") { Copy-Item "$CodexDir\agents" "$BackupC\codex\agents" -Recurse -Force }
     if (Test-Path "$CodexDir\skills") { Copy-Item "$CodexDir\skills" "$BackupC\codex\skills" -Recurse -Force }
     Copy-Item $RepoSkills "$BackupC\repo\skills" -Recurse -Force
     
     # 部署配置（从 config/ 复制）
     Safe-Copy "$ConfigRoot\codex\AGENTS.md" "$CodexDir\AGENTS.md"
+    Safe-Copy $CodexAgents "$CodexDir\agents"
     Safe-Copy $RepoSkills "$CodexDir\skills"
     if (Test-Path "$env:USERPROFILE\.agents\skills") {
         Write-Host "Legacy Codex skill root detected at $env:USERPROFILE\.agents\skills. Archive or remove it to avoid duplicate skill scanning."
