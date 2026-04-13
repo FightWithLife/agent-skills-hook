@@ -19,33 +19,24 @@
 
 ```
 agent-skills-hook/
-├── linux/                    # Linux 版本（软链接部署）
-│   ├── AGENTS.md             # 共享入口
-│   ├── docs/agenting/        # 深文档分层
-│   ├── claude/               # Claude Code 配置
-│   ├── codex/                # Codex CLI 配置
-│   ├── opencode/             # OpenCode 配置
-│   └── deploy.sh             # 部署脚本（软链接方式）
+├── config/                   # 单一配置源（自包含）
+│   ├── AGENTS.md            # 共享入口
+│   ├── claude/CLAUDE.md     # Claude Code 配置
+│   ├── codex/AGENTS.md      # Codex CLI 配置
+│   ├── opencode/AGENTS.md   # OpenCode 配置
 │
-├── windows/                  # Windows 版本（复制部署）
-│   ├── claude/               # Claude Code 配置（单文件自包含）
-│   ├── codex/                # Codex CLI 配置（单文件自包含）
-│   ├── opencode/             # OpenCode 配置（单文件自包含）
-│   └── deploy.ps1            # 部署脚本（复制方式）
+├── linux/deploy.sh          # Linux 部署脚本（软链接）
+├── windows/deploy.ps1       # Windows 部署脚本（复制）
 │
-├── agents/skills/            # 共享技能库（两个版本共用）
+├── agents/skills/           # 共享技能库
 │
 └── README.md
 ```
 
-### 版本差异
-
-| 特性 | Linux 版本 | Windows 版本 |
-|------|-----------|-------------|
-| 配置结构 | 分层结构（AGENTS.md + docs/agenting/*.md） | 单文件自包含（所有规则合入入口文件） |
-| 部署方式 | 软链接（`ln -s`） | 复制（`Copy-Item`） |
-| Skills 引用 | 软链接到仓库根目录的 `agents/skills` | 复制副本到用户目录 |
-| 更新方式 | 修改仓库文件自动生效 | 需重新运行部署脚本 |
+### 设计原则
+- **单一配置源**：所有运行时配置位于 `config/`，避免双线维护
+- **自包含文件**：每个入口文件包含完整规则，不依赖外部引用
+- **平台差异仅在部署**：Linux 用软链接，Windows 用复制，配置内容完全相同
 
 ## 快速开始
 
@@ -55,9 +46,9 @@ agent-skills-hook/
 git submodule update --init --recursive agents/skills
 ```
 
-### 2. 选择部署版本
+### 2. 部署配置
 
-#### Linux 版本部署（软链接方式）
+#### Linux
 
 ```bash
 cd linux
@@ -73,7 +64,7 @@ chmod +x deploy.sh
 ./deploy.sh TARGET=both       # Codex + OpenCode
 ```
 
-#### Windows 版本部署（复制方式）
+#### Windows
 
 ```powershell
 cd windows
@@ -82,10 +73,10 @@ cd windows
 .\deploy.ps1 -Target "all"
 
 # 或指定目标
-.\deploy.ps1 -Target "codex"      # 仅 Codex
-.\deploy.ps1 -Target "opencode"   # 仅 OpenCode
-.\deploy.ps1 -Target "claude"     # 仅 Claude Code
-.\deploy.ps1 -Target "both"       # Codex + OpenCode
+.\deploy.ps1 -Target "codex"
+.\deploy.ps1 -Target "opencode"
+.\deploy.ps1 -Target "claude"
+.\deploy.ps1 -Target "both"
 ```
 
 ### 3. 重启运行时
@@ -97,44 +88,29 @@ cd windows
 
 ## 嵌入式 C 工作流
 
-当前仓库对 `Codex` 和 `Claude Code` 的默认协作方式已经偏向嵌入式开发：
+当前仓库的默认协作方式偏向嵌入式开发：
 
-- 小改动默认由 Claude 直接处理，避免把简单工作流变重。
-- 遇到 Make/CMake、交叉编译、链接、启动文件、宏或包含路径问题时，优先升级给 Codex 的 `build_resolver`。
+- 小改动默认直接处理，避免把简单工作流变重。
+- 遇到 Make/CMake、交叉编译、链接、启动文件、宏或包含路径问题时，优先升级给 `build_resolver`。
 - 遇到 ISR、`volatile`、共享状态、寄存器访问、缓冲区、超时等固件风险时，要求经过 `firmware_reviewer`。
 - 遇到 GPIO、时钟、UART、SPI、I2C、CAN、DMA、timer、board-support 等改动时，要求经过 `hardware_impact`。
-- 多文件功能、状态机、初始化时序或模块边界调整时，先让 `planner` 拆解，再由 `worker` 落地，最后由 `reviewer` 做回归审查。
-
-这套策略的目标不是强制所有任务走多 agent，而是在保留当前简易工作流的前提下，把真正高风险的嵌入式变更自动导向更稳妥的路径。
+- 多文件功能、状态机、初始化时序或模块边界调整时，先拆解，再落地，最后回归审查。
 
 ## 验证与回滚
 
 ### 验证部署
 
-部署后检查以下路径是否正确配置：
-
 **Linux（软链接）**：
 ```bash
-# Codex
-ls -la ~/.codex/skills ~/.codex/AGENTS.md ~/.agents/skills
-
-# OpenCode
+ls -la ~/.codex/skills ~/.codex/AGENTS.md
 ls -la ~/.config/opencode/skills ~/.config/opencode/AGENTS.md
-
-# Claude Code
 ls -la ~/.claude/skills ~/.claude/CLAUDE.md
 ```
 
 **Windows（复制）**：
 ```powershell
-# Codex
 Test-Path "$env:USERPROFILE\.codex\AGENTS.md"
-Test-Path "$env:USERPROFILE\.codex\skills"
-
-# OpenCode
 Test-Path "$env:USERPROFILE\.config\opencode\AGENTS.md"
-
-# Claude Code
 Test-Path "$env:USERPROFILE\.claude\CLAUDE.md"
 ```
 
@@ -142,51 +118,33 @@ Test-Path "$env:USERPROFILE\.claude\CLAUDE.md"
 
 备份目录位于：
 - Linux: `~/.codex-backups/`, `~/.opencode-backups/`, `~/.claude-backups/`
-- Windows: `$env:USERPROFILE\.codex-backups\`, `$env:USERPROFILE\.opencode-backups\`, `$env:USERPROFILE\.claude-backups\`
+- Windows: `$env:USERPROFILE\.codex-backups\`, 等
 
 恢复备份：
 ```bash
-# Linux 示例
+# Linux
 cp -a ~/.codex-backups/agent-skills-hook-<timestamp>/codex/* ~/.codex/
 ```
 
 ```powershell
-# Windows 示例
+# Windows
 Copy-Item "$env:USERPROFILE\.codex-backups\agent-skills-hook-<timestamp>\codex\*" "$env:USERPROFILE\.codex\" -Recurse -Force
-```
-
-## AI 自部署（Scriptless）
-
-如需让 AI 自行部署，可发送以下指令：
-
-```text
-请在仓库根目录按 README 的部署说明执行部署。
-目标：Codex CLI / OpenCode / Claude Code 使用同一份 skills（仓库内 agents/skills）。
-版本：根据当前系统选择 linux/ 或 windows/ 目录。
-要求：先备份，再部署，再验证，最后回报变更与验证结果。
 ```
 
 ## 文件说明
 
-### Linux 版本文件
-
 | 文件 | 用途 |
 |------|------|
-| `linux/AGENTS.md` | 共享入口，定义仓库总则和共享边界 |
-| `linux/docs/agenting/architecture.md` | 架构边界和分层原则 |
-| `linux/docs/agenting/verification.md` | 验证标准和证据格式 |
-| `linux/docs/agenting/delegation.md` | 委派策略和协作规则 |
-| `linux/docs/agenting/runtime-style.md` | 默认处理方式和沟通风格 |
-| `linux/claude/CLAUDE.md` | Claude 运行时增量（引用 docs/agenting） |
-| `linux/codex/AGENTS.md` | Codex 运行时增量（引用 docs/agenting） |
-| `linux/opencode/AGENTS.md` | OpenCode 运行时增量（引用 docs/agenting） |
+| `config/AGENTS.md` | 共享入口，定义仓库总则 |
+| `config/claude/CLAUDE.md` | Claude Code 运行时配置（自包含） |
+| `config/codex/AGENTS.md` | Codex CLI 运行时配置（自包含） |
+| `config/opencode/AGENTS.md` | OpenCode 运行时配置（自包含） |
+| `linux/deploy.sh` | Linux 部署脚本（软链接方式） |
+| `windows/deploy.ps1` | Windows 部署脚本（复制方式） |
 
-### Windows 版本文件
+## 维护说明
 
-| 文件 | 用途 |
-|------|------|
-| `windows/claude/CLAUDE.md` | Claude 运行时配置（自包含所有规则） |
-| `windows/codex/AGENTS.md` | Codex 运行时配置（自包含所有规则） |
-| `windows/opencode/AGENTS.md` | OpenCode 运行时配置（自包含所有规则） |
+更新配置只需修改 `config/` 目录下的文件，然后重新运行部署脚本即可。
 
-Windows 版本将 Linux 版本的分层内容合并到单一入口文件，便于在 Windows 环境中直接编辑和维护。
+- Linux 用户：修改后重新运行 `linux/deploy.sh`（软链接自动指向新内容）
+- Windows 用户：修改后重新运行 `windows/deploy.ps1`（复制新内容）
