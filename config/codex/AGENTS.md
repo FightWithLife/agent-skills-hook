@@ -6,7 +6,7 @@
 - 在每个新会话的首条回复中输出一个简短区块：
   - `SessionStart` 标题
   - 当前生效的指令层（全局 `~/.codex/AGENTS.md`、仓库内 `AGENTS.md`，如果存在）
-  - 技能来源（`~/.agents/skills`、`./.agents/skills`，通过相对路径引用 `../../agents/skills`）
+  - 技能来源（`~/.codex/skills`、`./.codex/skills`）
   - Execpolicy 规则路径（`~/.codex/rules/*.rules`）
 
 ## 技能（每次用户请求）

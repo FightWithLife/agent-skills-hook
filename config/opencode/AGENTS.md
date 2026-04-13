@@ -6,7 +6,7 @@
 - 每个新会话的首次响应时，打印一个简短块：
   - "SessionStart" 标题
   - 活跃指令层（全局 `~/.config/opencode/AGENTS.md`、仓库 `AGENTS.md` 若存在）
-  - 技能来源（`~/.config/opencode/skills`、`./.opencode/skills`、`~/.agents/skills`、`./.agents/skills`、`~/.claude/skills`、`./.claude/skills`，通过相对路径引用 `../../agents/skills`）
+  - 技能来源（`~/.config/opencode/skills`、`./.opencode/skills`）
   - 可选指令文件（`~/.config/opencode/opencode.json`、`./opencode.json`）若存在
 
 ## 技能强制评估（每个用户请求）

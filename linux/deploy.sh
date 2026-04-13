@@ -63,12 +63,11 @@ safe_link() {
 # Codex 部署
 if [ "$TARGET" = "codex" ] || [ "$TARGET" = "both" ] || [ "$TARGET" = "all" ]; then
   BACKUP_C="$HOME/.codex-backups/agent-skills-hook-$STAMP"
-  mkdir -p "$BACKUP_C/codex" "$BACKUP_C/agents" "$BACKUP_C/repo"
+  mkdir -p "$BACKUP_C/codex" "$BACKUP_C/repo"
 
   # 备份现有配置
   [ -f "$HOME/.codex/AGENTS.md" ] && cp -a "$HOME/.codex/AGENTS.md" "$BACKUP_C/codex/AGENTS.md"
   [ -e "$HOME/.codex/skills" ] && cp -a "$HOME/.codex/skills" "$BACKUP_C/codex/"
-  [ -e "$HOME/.agents/skills" ] && cp -a "$HOME/.agents/skills" "$BACKUP_C/agents/"
   cp -a "$REPO_SKILLS" "$BACKUP_C/repo/"
 
   # 部署配置（从 config/ 复制）
@@ -77,11 +76,13 @@ if [ "$TARGET" = "codex" ] || [ "$TARGET" = "both" ] || [ "$TARGET" = "all" ]; t
 
   # 合并 skills
   merge_missing_skills "$HOME/.codex/skills"
-  merge_missing_skills "$HOME/.agents/skills"
 
   # 创建软链接
   safe_link "$HOME/.codex/skills" "$REPO_SKILLS"
-  safe_link "$HOME/.agents/skills" "$HOME/.codex/skills"
+
+  if [ -e "$HOME/.agents/skills" ]; then
+    echo "Legacy Codex skill root detected at $HOME/.agents/skills. Archive or remove it to avoid duplicate skill scanning."
+  fi
 
   echo "Codex deployed. Backup: $BACKUP_C"
 fi
@@ -89,12 +90,11 @@ fi
 # OpenCode 部署
 if [ "$TARGET" = "opencode" ] || [ "$TARGET" = "both" ] || [ "$TARGET" = "all" ]; then
   BACKUP_O="$HOME/.opencode-backups/agent-skills-hook-$STAMP"
-  mkdir -p "$BACKUP_O/opencode" "$BACKUP_O/agents" "$BACKUP_O/claude" "$BACKUP_O/repo"
+  mkdir -p "$BACKUP_O/opencode" "$BACKUP_O/claude" "$BACKUP_O/repo"
 
   # 备份现有配置
   [ -f "$HOME/.config/opencode/AGENTS.md" ] && cp -a "$HOME/.config/opencode/AGENTS.md" "$BACKUP_O/opencode/AGENTS.md"
   [ -e "$HOME/.config/opencode/skills" ] && cp -a "$HOME/.config/opencode/skills" "$BACKUP_O/opencode/"
-  [ -e "$HOME/.agents/skills" ] && cp -a "$HOME/.agents/skills" "$BACKUP_O/agents/"
   [ -e "$HOME/.claude/skills" ] && cp -a "$HOME/.claude/skills" "$BACKUP_O/claude/"
   cp -a "$REPO_SKILLS" "$BACKUP_O/repo/"
 
@@ -104,13 +104,15 @@ if [ "$TARGET" = "opencode" ] || [ "$TARGET" = "both" ] || [ "$TARGET" = "all" ]
 
   # 合并 skills
   merge_missing_skills "$HOME/.config/opencode/skills"
-  merge_missing_skills "$HOME/.agents/skills"
   merge_missing_skills "$HOME/.claude/skills"
 
   # 创建软链接
   safe_link "$HOME/.config/opencode/skills" "$REPO_SKILLS"
-  safe_link "$HOME/.agents/skills" "$HOME/.config/opencode/skills"
   safe_link "$HOME/.claude/skills" "$HOME/.config/opencode/skills"
+
+  if [ -e "$HOME/.agents/skills" ]; then
+    echo "Legacy shared skill root detected at $HOME/.agents/skills. OpenCode now uses $HOME/.config/opencode/skills as the primary user skill root."
+  fi
 
   echo "OpenCode deployed. Backup: $BACKUP_O"
 fi
