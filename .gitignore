@@ -20,3 +20,4 @@ agents/skills/mediacrawler/browser_data/
 **/*.pyo
 **/*.pyd
 .worktrees/
+.omx/
