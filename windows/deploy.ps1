@@ -2,7 +2,7 @@
 # 使用复制方式部署配置
 
 param(
-    [string]$Target = "both",
+    [string]$Target = "all",
     [string]$RepoRoot = ""
 )
 
@@ -52,7 +52,7 @@ function Safe-Copy {
 }
 
 # Codex 部署
-if ($Target -eq "codex" -or $Target -eq "both" -or $Target -eq "all") {
+if ($Target -eq "codex" -or $Target -eq "all") {
     $BackupC = Join-Path $env:USERPROFILE ".codex-backups\agent-skills-hook-$Stamp"
     New-Item -ItemType Directory -Path "$BackupC\codex", "$BackupC\repo" -Force | Out-Null
     
@@ -75,7 +75,7 @@ if ($Target -eq "codex" -or $Target -eq "both" -or $Target -eq "all") {
 }
 
 # OpenCode 部署
-if ($Target -eq "opencode" -or $Target -eq "both" -or $Target -eq "all") {
+if ($Target -eq "opencode" -or $Target -eq "all") {
     $BackupO = Join-Path $env:USERPROFILE ".opencode-backups\agent-skills-hook-$Stamp"
     New-Item -ItemType Directory -Path "$BackupO\opencode", "$BackupO\claude", "$BackupO\repo" -Force | Out-Null
     
