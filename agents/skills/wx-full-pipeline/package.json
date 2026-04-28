@@ -1,0 +1,22 @@
+{
+  "name": "wx-full-pipeline",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Automated WeChat Mini Program pipeline scripts",
+  "scripts": {
+    "wx:spec": "node scripts/spec-from-requirement.js",
+    "wx:plan": "node scripts/make-dev-plan.js",
+    "wx:preview": "node scripts/ci-preview.js",
+    "wx:e2e": "node scripts/e2e-smoke.js",
+    "wx:visual": "node scripts/visual-compare.js",
+    "wx:judge": "node scripts/generate-report.js",
+    "wx:pipeline": "node scripts/run_wx_full_pipeline.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "miniprogram-automator": "^0.12.1",
+    "miniprogram-ci": "^2.1.26",
+    "pixelmatch": "^6.0.0",
+    "pngjs": "^7.0.0"
+  }
+}

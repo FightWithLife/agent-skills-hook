@@ -1,0 +1,6 @@
+[
+  {
+    "type": "click",
+    "selector": ".primary-btn"
+  }
+]
