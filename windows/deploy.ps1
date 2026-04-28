@@ -101,14 +101,13 @@ if ($Target -eq "opencode" -or $Target -eq "both" -or $Target -eq "all") {
 # Claude Code 部署
 if ($Target -eq "claude" -or $Target -eq "all") {
     $BackupCL = Join-Path $env:USERPROFILE ".claude-backups\agent-skills-hook-$Stamp"
-    New-Item -ItemType Directory -Path "$BackupCL\claude", "$BackupCL\agents", "$BackupCL\repo" -Force | Out-Null
+    New-Item -ItemType Directory -Path "$BackupCL\claude", "$BackupCL\repo" -Force | Out-Null
     
     # 备份现有配置
     $ClaudeDir = Join-Path $env:USERPROFILE ".claude"
     if (Test-Path "$ClaudeDir\AGENTS.md") { Copy-Item "$ClaudeDir\AGENTS.md" "$BackupCL\claude\AGENTS.md" -Force }
     if (Test-Path "$ClaudeDir\CLAUDE.md") { Copy-Item "$ClaudeDir\CLAUDE.md" "$BackupCL\claude\CLAUDE.md" -Force }
     if (Test-Path "$ClaudeDir\skills") { Copy-Item "$ClaudeDir\skills" "$BackupCL\claude\skills" -Recurse -Force }
-    if (Test-Path "$env:USERPROFILE\.agents\skills") { Copy-Item "$env:USERPROFILE\.agents\skills" "$BackupCL\agents\skills" -Recurse -Force }
     Copy-Item $RepoSkills "$BackupCL\repo\skills" -Recurse -Force
     
     # 部署配置（从 config/ 复制）
@@ -116,7 +115,6 @@ if ($Target -eq "claude" -or $Target -eq "all") {
     Safe-Copy "$ConfigRoot\AGENTS.md" "$ClaudeDir\AGENTS.md"
     Safe-Copy "$ConfigRoot\claude\CLAUDE.md" "$ClaudeDir\CLAUDE.md"
     Safe-Copy $RepoSkills "$ClaudeDir\skills"
-    Safe-Copy $RepoSkills "$env:USERPROFILE\.agents\skills"
     
     Write-Host "Claude Code deployed. Backup: $BackupCL"
 }
