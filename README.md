@@ -54,14 +54,13 @@ git submodule update --init --recursive agents/skills
 cd linux
 chmod +x deploy.sh
 
-# 部署所有运行时
+# 默认部署所有运行时
 ./deploy.sh TARGET=all
 
 # 或指定目标
 ./deploy.sh TARGET=codex      # 仅 Codex
 ./deploy.sh TARGET=opencode   # 仅 OpenCode
 ./deploy.sh TARGET=claude     # 仅 Claude Code
-./deploy.sh TARGET=both       # Codex + OpenCode
 ```
 
 #### Windows
@@ -69,14 +68,13 @@ chmod +x deploy.sh
 ```powershell
 cd windows
 
-# 部署所有运行时
+# 默认部署所有运行时
 .\deploy.ps1 -Target "all"
 
 # 或指定目标
 .\deploy.ps1 -Target "codex"
 .\deploy.ps1 -Target "opencode"
 .\deploy.ps1 -Target "claude"
-.\deploy.ps1 -Target "both"
 ```
 
 ### 3. 重启运行时

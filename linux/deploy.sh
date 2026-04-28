@@ -6,7 +6,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${REPO_ROOT:-$(dirname "$SCRIPT_DIR")}"
-TARGET="${TARGET:-both}"
+TARGET="${TARGET:-all}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
 # Skills 位于仓库根目录
@@ -67,7 +67,7 @@ safe_link() {
 }
 
 # Codex 部署
-if [ "$TARGET" = "codex" ] || [ "$TARGET" = "both" ] || [ "$TARGET" = "all" ]; then
+if [ "$TARGET" = "codex" ] || [ "$TARGET" = "all" ]; then
   BACKUP_C="$HOME/.codex-backups/agent-skills-hook-$STAMP"
   mkdir -p "$BACKUP_C/codex" "$BACKUP_C/repo"
 
@@ -96,7 +96,7 @@ if [ "$TARGET" = "codex" ] || [ "$TARGET" = "both" ] || [ "$TARGET" = "all" ]; t
 fi
 
 # OpenCode 部署
-if [ "$TARGET" = "opencode" ] || [ "$TARGET" = "both" ] || [ "$TARGET" = "all" ]; then
+if [ "$TARGET" = "opencode" ] || [ "$TARGET" = "all" ]; then
   BACKUP_O="$HOME/.opencode-backups/agent-skills-hook-$STAMP"
   mkdir -p "$BACKUP_O/opencode" "$BACKUP_O/claude" "$BACKUP_O/repo"
 
