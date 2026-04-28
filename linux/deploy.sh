@@ -128,13 +128,12 @@ fi
 # Claude Code 部署
 if [ "$TARGET" = "claude" ] || [ "$TARGET" = "all" ]; then
   BACKUP_CL="$HOME/.claude-backups/agent-skills-hook-$STAMP"
-  mkdir -p "$BACKUP_CL/claude" "$BACKUP_CL/agents" "$BACKUP_CL/repo"
+  mkdir -p "$BACKUP_CL/claude" "$BACKUP_CL/repo"
 
   # 备份现有配置
   [ -f "$HOME/.claude/AGENTS.md" ] && cp -a "$HOME/.claude/AGENTS.md" "$BACKUP_CL/claude/AGENTS.md"
   [ -f "$HOME/.claude/CLAUDE.md" ] && cp -a "$HOME/.claude/CLAUDE.md" "$BACKUP_CL/claude/CLAUDE.md"
   [ -e "$HOME/.claude/skills" ] && cp -a "$HOME/.claude/skills" "$BACKUP_CL/claude/"
-  [ -e "$HOME/.agents/skills" ] && cp -a "$HOME/.agents/skills" "$BACKUP_CL/agents/"
   cp -a "$REPO_SKILLS" "$BACKUP_CL/repo/"
 
   # 部署配置（从 config/ 复制）
@@ -144,11 +143,9 @@ if [ "$TARGET" = "claude" ] || [ "$TARGET" = "all" ]; then
 
   # 合并 skills
   merge_missing_skills "$HOME/.claude/skills"
-  merge_missing_skills "$HOME/.agents/skills"
 
   # 创建软链接
   safe_link "$HOME/.claude/skills" "$REPO_SKILLS"
-  safe_link "$HOME/.agents/skills" "$HOME/.claude/skills"
 
   echo "Claude Code deployed. Backup: $BACKUP_CL"
 fi
