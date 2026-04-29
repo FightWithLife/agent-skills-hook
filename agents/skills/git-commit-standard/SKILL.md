@@ -9,7 +9,7 @@ description: Use when AGENTS.md, repository policy, or the user explicitly requi
 
 用于执行仓库约定的提交、版本、固件产物归档和 changelog/release record 同步。核心原则：**提交前先确认仓库规则，再默认检查并同步版本元数据、README/changelog、固件产物和发布记录，最后 commit**。
 
-**默认行为（重点）：每次 commit 前，只要存在代码改动，就必须默认检查并同步最新固件产物和 README/changelog 总结。** 这不是额外功能、不是可选增强、也不是需要写进 commit message 的“变更点”；它是本 skill 的默认提交卫生流程。只有仓库规则或历史证据明确证明本次没有对应固件/README/changelog 记录项时，才可跳过，并在执行记录中说明依据。
+**默认行为（重点）：每次 commit 前，只要存在代码改动，就必须默认检查并同步最新固件产物和 README/changelog 总结。** 这不是额外功能、不是可选增强、也不是需要写进 commit message 的“变更点”；它是本 skill 的默认提交卫生流程。只有仓库规则、用户明确要求或历史证据明确证明本次没有对应固件/README/changelog 记录项时，才可跳过，并在执行记录中说明依据。禁止把“未递进版本”“只是 amend”“只是 fix/中间提交”作为跳过固件或履历同步的理由。
 
 该 skill 设计为通用技能：不要写死某个仓库的版本头、固件目录、构建宏、产物命名或 README 路径；这些信息必须从当前仓库的配置、AGENTS.md、历史提交和实际文件结构中推导或维护。
 
@@ -81,13 +81,14 @@ description: Use when AGENTS.md, repository policy, or the user explicitly requi
 ## Version Bump Rules
 
 1. 先判断本次是否是一个完整可发布/可归档的功能闭环。
-2. 若不是完整闭环，不递增版本，不归档固件；可只做普通标准 commit。
+2. 若不是完整闭环，可不递增版本；但版本递进和固件产物同步是两个独立门禁。只要代码会进入固件运行镜像，仍要按仓库规则构建并更新当前版本对应的固件归档，除非用户或仓库规则明确要求跳过。
 3. 若是完整闭环：
    - 按仓库规则递增 beta/build/release 字段。
    - 通常只递增 beta/build，不随意递增主版本；除非用户或 release 规则明确要求。
    - 多个变体有不同宏/版本时，分别确认目标变体，不要只改默认分支。
 4. **默认要求：不管是否递增版本，只要本次 commit 有代码改动，就要同步检查并更新固件产物、README/changelog 总结和相关发布记录。** 这是每次标准提交的默认行为，不需要用户额外提醒；只有仓库规则或历史证据明确证明本次没有对应记录项时，才可跳过。
 5. 如果同一发布版本由多个 commit 组成，changelog/README 要汇总从上次版本记录到当前提交范围内的所有变更，而不是只写当前 commit。
+6. amend 也必须重新评估版本、固件产物、README/changelog 和提交正文一致性；amend 不降低任何 release/artifact 义务。
 
 ## Changelog / README Rules
 
@@ -108,8 +109,10 @@ description: Use when AGENTS.md, repository policy, or the user explicitly requi
 2. 汇总边界之后的所有相关 commit。
 3. 合并成发布视角的“修改原因 / 修改依据 / 修改方法 / 修改影响”或仓库既有字段。
 4. 不要把每个 commit 原文机械粘贴；要按功能归并。
-5. README 总结允许在既有模板条目下继续分点或缩进分层，只要清晰易读；不要为了省事只留一行概述。
-6. 如果本次是非递进版本但有代码改动，也要先检查 README/changelog 是否需要补记录，再判断是否能跳过；不要默认“不升版本=不用同步”。
+5. 若仓库历史或用户要求“一版本一条”，README/changelog 必须以版本为主键；同一版本内多次修正、回归、补充说明都合并到同一个版本块内，不要拆成多条相同版本记录。
+6. README/changelog 总结允许在既有模板条目下继续分点或缩进分层；当同一字段内包含多个独立事项、影响面或风险点时，使用二级分点，不要用长句和分号串联多个主题。
+7. 版本履历只写业务结果、行为变化、兼容性、风险和测试维护有意义的信息；不要写流程性负面或后续安排，例如“本次不递进版本号”“不修改版本宏”“不归档固件产物”“后续需要覆盖固件”“已按流程检查”。这些内容只能放在任务汇报或内部执行记录中。
+8. 如果本次是非递进版本但有代码改动，也要先检查 README/changelog 是否需要补记录，再判断是否能跳过；不要默认“不升版本=不用同步”。
 
 ## Firmware Artifact Rules
 
@@ -120,9 +123,9 @@ description: Use when AGENTS.md, repository policy, or the user explicitly requi
 3. 根据版本宏、构建宏和历史命名规则计算归档文件名。
 4. 将构建产物复制到对应历史目录。
 5. 若同一版本需要多个变体，逐个构建、逐个命名、逐个归档。
-6. 归档前确认不会覆盖旧产物；若目标文件已存在，必须询问用户。
+6. 归档前确认目标文件是否已存在。若目标文件是当前版本既有归档，且用户或仓库流程要求“更新当前版本产物”，可用最新构建产物覆盖并记录验证证据；若版本/变体/目标文件不明确，或覆盖跨版本、跨变体、历史冻结产物，必须先询问用户。
 7. 归档产物应进入 commit，除非仓库规则明确忽略产物。
-8. 即使本次不递增版本，只要存在代码改动，也要检查是否需要同步最新固件产物；若仓库历史和规则明确本次没有固件记录要求，才可不归档。
+8. 即使本次不递增版本，只要存在会进入固件镜像的代码或构建输入改动，默认也要构建并更新当前版本对应的固件产物。只有仓库规则、用户明确要求或历史证据明确证明本次没有固件记录要求时，才可不归档；跳过时必须说明证据。禁止用“未递进版本”“只是 amend”“只是 fix”作为跳过理由。
 
 不要假设所有仓库都把产物放在同一个目录；必须从历史文件和 git log 中确认。
 
@@ -145,8 +148,8 @@ description: Use when AGENTS.md, repository policy, or the user explicitly requi
 
 - 标题聚焦本次提交目的，不把长版本信息塞进标题，除非历史就是这样。
 - 正文必须和版本头、README/changelog、归档产物一致。
-- 如果本次 commit 只记录中间开发工作且不递增版本，正文仍要说明不递增版本的原因。
-- 不要把“已按默认流程检查/同步固件和 README/changelog”写成 commit message 的变更点或原因；commit message 只描述本次真实业务/代码/文档变更。默认流程是否执行，记录在任务汇报或内部检查中即可。
+- 正文只描述本次真实业务、代码、文档、兼容性和影响变化；不要写提交流程、是否递进版本、是否归档固件、后续应该做什么等流程话术。
+- 不要把“已按默认流程检查/同步固件和 README/changelog”写成 commit message 的变更点或原因；默认流程是否执行，记录在任务汇报或内部检查中即可。
 
 ## Operating Pattern
 
@@ -155,7 +158,7 @@ description: Use when AGENTS.md, repository policy, or the user explicitly requi
 1. 确认用户确实要求提交。
 2. 读取仓库规则：AGENTS、release 配置、历史提交、版本文件、changelog 文件、产物目录。
 3. 默认检查本次代码改动是否需要同步 README/changelog、固件产物和发布记录；这是每次 commit 的固定步骤，不要等用户额外要求。
-4. 确认本次是否触发版本递增和固件归档。
+4. 分别确认本次是否触发版本递增、README/changelog 汇总和固件归档；版本递增不是固件归档的前置条件。
 5. 若触发版本递增：
     - 更新版本源文件。
     - 构建目标变体。
@@ -164,19 +167,24 @@ description: Use when AGENTS.md, repository policy, or the user explicitly requi
     - 更新 `.agents/release-config.md` 的 release state（如果仓库采用该文件）。
 6. 若未触发版本递增但存在代码改动：
     - 仍要检查 README/changelog 和固件产物是否需要同步。
-    - 若仓库规则明确不需要记录，才可跳过。
+    - 若代码会进入固件运行镜像，默认构建并更新当前版本对应固件产物。
+    - 若仓库规则或用户明确不需要记录，才可跳过，并记录证据。
 7. 运行验证：diff check、必要的 LSP/构建/测试、产物存在性和文件名检查。
 8. 暂存源码、版本文件、changelog、归档产物、release 配置文件。
-9. 使用仓库模板创建 commit；commit message 只写实际变更，不写“执行了默认固件/README 同步检查”。
+9. 使用仓库模板创建 commit；commit message 只写实际变更，不写“执行了默认固件/README 同步检查”“不递进版本”“不归档固件”等流程话术。
 10. 提交后验证工作区状态、最新 commit message、Change-Id（若 Gerrit hook 存在）。
 
 ## Common Mistakes
 
 - 把“每个 commit”都当成“每次版本递增”。
 - 代码有改动却因为没递增版本，就漏掉固件和 README/changelog 同步检查。
+- 把“未递进版本”“只是 amend”“只是 fix/中间提交”当作跳过固件产物的理由。
 - 把固件和 README/changelog 同步检查当成“可选项”，等用户提醒才做；正确做法是每次 commit 默认执行。
 - 在 commit message 里写“按默认流程检查/同步固件和 README”，造成提交说明噪音；默认流程不要写入提交说明。
+- 在 commit message 或版本履历里写“不修改版本宏”“不归档固件产物”“后续需要更新固件”等流程说明。
 - changelog 只写当前 commit，漏掉同一版本从上次 release 后累计的多个 commit。
+- 同一个版本拆成多条 README/changelog 记录，而用户或仓库规则要求一版本一条。
+- 多个独立影响面挤在一条长句里，导致兼容性、密钥策略、payload/session 行为和诊断能力混在一起。
 - README 只写当前提交摘要，没有覆盖整个版本范围内的提交内容。
 - 只改版本头，不更新 README/changelog。
 - 只构建不归档，或归档文件名仍是临时 `out/` 名称。
@@ -192,10 +200,11 @@ description: Use when AGENTS.md, repository policy, or the user explicitly requi
 - [ ] 已确认用户要求提交。
 - [ ] 已加载并遵循本 skill。
 - [ ] 已读取仓库 release/commit 规则，而不是套用其它仓库路径。
-- [ ] 已判断本次是否递增版本；若不递增，已说明原因。
-- [ ] 若有代码改动，已检查 README/changelog 和固件产物是否需要同步；若规则允许跳过，已确认依据。
+- [ ] 已分别判断本次是否递增版本、是否更新 README/changelog、是否更新固件产物；未把“不递进版本”作为跳过依据。
+- [ ] 若有会进入固件镜像的代码/构建输入改动，已构建并更新当前版本固件产物；若跳过，已有用户/规则/历史证据。
 - [ ] 若递增版本，已更新版本源、README/changelog、固件归档产物和 release state。
-- [ ] README/changelog 汇总范围正确，覆盖同一版本内多个 commit；允许在原模板下继续分点说明。
+- [ ] README/changelog 汇总范围正确，覆盖同一版本内多个 commit；若要求一版本一条，已合并到同一版本块，并用二级分点表达独立事项。
+- [ ] README/changelog 和 commit message 未包含“不递进版本”“不修改版本宏”“不归档固件产物”“后续应该”等流程话术。
 - [ ] 固件产物文件名、目录和构建宏与历史规则一致。
 - [ ] 已运行必要验证并记录结果。
 - [ ] commit message 与版本/README/产物一致。
