@@ -18,9 +18,11 @@ git-commit-standard/
 - 时间格式固定为 `YYYY.MM.DD`
 - 修改者来源于 `git config user.name`
 - 每完成一个完整可发布闭环，按仓库规则递增 beta/build/release 字段；普通中间提交不强制递增
+- 版本递进和固件产物同步是两个独立门禁；未递进版本、只是 amend、只是 fix 都不能作为跳过固件产物的理由
 - 每次 commit 前，只要存在代码改动，就默认检查并同步最新固件产物和 README/changelog 总结；这是默认提交流程，不需要额外写进 commit message
-- README/changelog 可能需要汇总多个 commit，而不是只记录当前 commit
-- 固件产物需要按历史目录和命名规则归档；不同构建宏/变体可能对应不同目录
+- README/changelog 可能需要汇总多个 commit，而不是只记录当前 commit；若仓库要求一版本一条，同版本改动必须合并到同一版本块，并用二级分点表达独立事项
+- 版本履历和 commit message 只写业务结果、行为变化、兼容性和影响，不写“不递进版本”“不归档固件”“后续需要更新”等流程话术
+- 固件产物需要按历史目录和命名规则归档；不同构建宏/变体可能对应不同目录；当前版本既有产物可在用户或仓库流程要求下用最新构建覆盖并记录验证证据
 - 允许仓库维护 `.agents/release-config.md` 或等价文件记录版本源、构建变体、产物目录、changelog 路径和上次 release 边界
 
 ## 最小检查
