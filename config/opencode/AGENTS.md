@@ -68,7 +68,7 @@
 ## 文档落盘规范
 - 每次生成文档、计划、纪要、调研、报告、清单时，必须落盘到 `docs` 目录。
 - 按类型创建子目录：`docs/plan`、`docs/meeting`、`docs/research`、`docs/spec`、`docs/report`、`docs/decision`、`docs/release`。
-- 文件名格式：`<时间戳>_<主题>.md`，时间戳格式 `yyyyMMddHHmmssfff`。
+- 文件名格式：`<时间戳>_<主题>.md`，时间戳格式 `YY-MM-DD`。
 - 若目录不存在，先自动创建再写入。
 
 ## 沟通风格
