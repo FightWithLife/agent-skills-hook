@@ -199,19 +199,18 @@ The code-reviewer agent checks:
 
 **With Team:**
 ```
-/team "review recent auth changes and report findings"
+review recent auth changes and report findings
 ```
-Includes coordinated review execution across specialized agents.
 
-**With Ralph:**
+**With executing-plans or subagent-driven-development:**
 ```
-/ralph code-review then fix all issues
+code-review then fix all issues
 ```
 Review code, get feedback, fix until approved.
 
 **With Ultrawork:**
 ```
-/ultrawork review all files in src/
+review all files in src/
 ```
 Parallel code review across multiple files.
 

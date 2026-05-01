@@ -123,7 +123,7 @@ You MUST complete each phase before proceeding to the next.
 
    Use this gate when the issue is reproducible but you still cannot pinpoint exact `file:line` and function after steps 1-5.
 
-   - For native C/C++ regressions that need localization, use `superpowers:debug-locate-assistant` (merged workflow: Route A logs or Route B GDB).
+   - For native C/C++ regressions that need localization, use `debug-locate-assistant` (merged workflow: Route A logs or Route B GDB).
    - This remains Phase 1 evidence-gathering. Do not jump to fixes before root cause is confirmed.
 
 ### Phase 2: Pattern Analysis
@@ -183,7 +183,7 @@ You MUST complete each phase before proceeding to the next.
    - Automated test if possible
    - One-off test script if no framework
    - MUST have before fixing
-   - Use the `superpowers:test-driven-development` skill for writing proper failing tests
+   - Use the `test-driven-development` skill for writing proper failing tests
 
 2. **Implement Single Fix**
    - Address the root cause identified
@@ -291,9 +291,9 @@ These techniques are part of systematic debugging and available in this director
 - **`condition-based-waiting.md`** - Replace arbitrary timeouts with condition polling
 
 **Related skills:**
-- **superpowers:test-driven-development** - For creating failing test case (Phase 4, Step 1)
-- **superpowers:verification-before-completion** - Verify fix worked before claiming success
-- **superpowers:debug-locate-assistant** - For regression localization in native binaries (merged Route A logs + Route B GDB) (Phase 1)
+- **test-driven-development** - For creating failing test case (Phase 4, Step 1)
+- **verification-before-completion** - Verify fix worked before claiming success
+- **debug-locate-assistant** - For regression localization in native binaries (merged Route A logs + Route B GDB) (Phase 1)
 
 ## Real-World Impact
 

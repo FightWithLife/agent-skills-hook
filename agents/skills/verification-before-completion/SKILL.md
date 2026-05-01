@@ -122,7 +122,6 @@ From 24 failure memories:
 - ANY positive statement about work state
 - Committing, PR creation, task completion
 - Moving to next task
-- Delegating to agents
 
 **Rule applies to:**
 - Exact phrases
