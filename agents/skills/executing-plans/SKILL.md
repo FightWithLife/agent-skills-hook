@@ -45,9 +45,10 @@ Based on feedback:
 ### Step 5: Complete Development
 
 After all tasks complete and verified:
-- Announce: "I'm using the finishing-a-development-branch skill to complete this work."
-- **REQUIRED SUB-SKILL:** Use superpowers:finishing-a-development-branch
-- Follow that skill to verify tests, present options, execute choice
+- Announce: "I'm using verification-before-completion to finish this work."
+- **REQUIRED SUB-SKILL:** Use `verification-before-completion`
+- If the user wants a commit or release step, use `git-master` after verification
+- Confirm verification evidence before claiming completion, then execute the chosen close-out steps
 
 ## When to Stop and Ask for Help
 
@@ -79,6 +80,7 @@ After all tasks complete and verified:
 ## Integration
 
 **Required workflow skills:**
-- **superpowers:using-git-worktrees** - REQUIRED: Set up isolated workspace before starting
-- **superpowers:writing-plans** - Creates the plan this skill executes
-- **superpowers:finishing-a-development-branch** - Complete development after all tasks
+- **using-git-worktrees** - REQUIRED: Set up isolated workspace before starting
+- **writing-plans** - Creates the plan this skill executes
+- **verification-before-completion** - Required before any completion claim
+- **git-master** - Commit/release workflow after verified completion when requested
