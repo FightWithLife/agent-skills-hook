@@ -1,15 +1,15 @@
-# Creation Log: Systematic Debugging Skill
+# 创建日志：系统化调试 skill
 
-Reference example of extracting, structuring, and bulletproofing a critical skill.
+这是一个关于提取、结构化和加固关键 skill 的参考示例。
 
-## Source Material
+## 来源材料
 
 Extracted debugging framework from `/Users/jesse/.claude/CLAUDE.md`:
 - 4-phase systematic process (Investigation → Pattern Analysis → Hypothesis → Implementation)
 - Core mandate: ALWAYS find root cause, NEVER fix symptoms
 - Rules designed to resist time pressure and rationalization
 
-## Extraction Decisions
+## 提取决策
 
 **What to include:**
 - Complete 4-phase framework with all rules
@@ -31,28 +31,28 @@ Extracted debugging framework from `/Users/jesse/.claude/CLAUDE.md`:
 5. **Phase-by-phase breakdown** - Scannable checklist format
 6. **Anti-patterns section** - What NOT to do (critical for this skill)
 
-## Bulletproofing Elements
+## 加固要素
 
 Framework designed to resist rationalization under pressure:
 
-### Language Choices
+### 语言选择
 - "ALWAYS" / "NEVER" (not "should" / "try to")
 - "even if faster" / "even if I seem in a hurry"
 - "STOP and re-analyze" (explicit pause)
 - "Don't skip past" (catches the actual behavior)
 
-### Structural Defenses
+### 结构防御
 - **Phase 1 required** - Can't skip to implementation
 - **Single hypothesis rule** - Forces thinking, prevents shotgun fixes
 - **Explicit failure mode** - "IF your first fix doesn't work" with mandatory action
 - **Anti-patterns section** - Shows exactly what shortcuts look like
 
-### Redundancy
+### 冗余设计
 - Root cause mandate in overview + when_to_use + Phase 1 + implementation rules
 - "NEVER fix symptom" appears 4 times in different contexts
 - Each phase has explicit "don't skip" guidance
 
-## Testing Approach
+## 测试方法
 
 Created 4 validation tests following skills/meta/testing-skills-with-subagents:
 
@@ -74,7 +74,7 @@ Created 4 validation tests following skills/meta/testing-skills-with-subagents:
 
 **All tests passed.** No rationalizations found.
 
-## Iterations
+## 迭代过程
 
 ### Initial Version
 - Complete 4-phase framework
@@ -86,7 +86,7 @@ Created 4 validation tests following skills/meta/testing-skills-with-subagents:
 - Note explaining TDD's "simplest code" ≠ debugging's "root cause"
 - Prevents confusion between methodologies
 
-## Final Outcome
+## 最终结果
 
 Bulletproof skill that:
 - ✅ Clearly mandates root cause investigation
@@ -97,11 +97,11 @@ Bulletproof skill that:
 - ✅ Clarifies relationship to TDD
 - ✅ Ready for use
 
-## Key Insight
+## 关键洞察
 
 **Most important bulletproofing:** Anti-patterns section showing exact shortcuts that feel justified in the moment. When Claude thinks "I'll just add this one quick fix", seeing that exact pattern listed as wrong creates cognitive friction.
 
-## Usage Example
+## 使用示例
 
 When encountering a bug:
 1. Load skill: skills/debugging/systematic-debugging

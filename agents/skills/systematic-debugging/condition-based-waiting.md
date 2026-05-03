@@ -1,10 +1,10 @@
-# Condition-Based Waiting
+# 基于条件的等待
 
-## Overview
+## 概述
 
-Flaky tests often guess at timing with arbitrary delays. This creates race conditions where tests pass on fast machines but fail under load or in CI.
+不稳定的测试常常用随意的延迟去猜测时机，这会制造竞态条件，导致测试在快机器上通过，却在高负载或 CI 中失败。
 
-**Core principle:** Wait for the actual condition you care about, not a guess about how long it takes.
+**核心原则：** 等待你真正关心的条件，而不是猜它需要多久。
 
 ## When to Use
 
@@ -33,7 +33,7 @@ digraph when_to_use {
 
 ## Core Pattern
 
-```typescript
+```text
 // ❌ BEFORE: Guessing at timing
 await new Promise(r => setTimeout(r, 50));
 const result = getResult();
@@ -58,7 +58,7 @@ expect(result).toBeDefined();
 ## Implementation
 
 Generic polling function:
-```typescript
+```text
 async function waitFor<T>(
   condition: () => T | undefined | null | false,
   description: string,
@@ -79,7 +79,7 @@ async function waitFor<T>(
 }
 ```
 
-See `condition-based-waiting-example.ts` in this directory for complete implementation with domain-specific helpers (`waitForEvent`, `waitForEventCount`, `waitForEventMatch`) from actual debugging session.
+See the complete example in this directory for domain-specific helpers (`waitForEvent`, `waitForEventCount`, `waitForEventMatch`) from the actual debugging session.
 
 ## Common Mistakes
 
@@ -94,7 +94,7 @@ See `condition-based-waiting-example.ts` in this directory for complete implemen
 
 ## When Arbitrary Timeout IS Correct
 
-```typescript
+```text
 // Tool ticks every 100ms - need 2 ticks to verify partial output
 await waitForEvent(manager, 'TOOL_STARTED'); // First: wait for condition
 await new Promise(r => setTimeout(r, 200));   // Then: wait for timed behavior

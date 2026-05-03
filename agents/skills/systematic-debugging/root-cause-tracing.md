@@ -1,10 +1,10 @@
-# Root Cause Tracing
+# 根因追踪
 
-## Overview
+## 概述
 
-Bugs often manifest deep in the call stack (git init in wrong directory, file created in wrong location, database opened with wrong path). Your instinct is to fix where the error appears, but that's treating a symptom.
+bug 往往出现在调用栈很深的位置（例如在错误目录里执行 git init、文件写错位置、数据库路径不对）。直觉上你会想修错误出现的地方，但那只是处理症状。
 
-**Core principle:** Trace backward through the call chain until you find the original trigger, then fix at the source.
+**核心原则：** 沿着调用链向后追踪，直到找到最初触发点，然后在源头修复。
 
 ## When to Use
 
@@ -38,12 +38,12 @@ Error: git init failed in /Users/jesse/project/packages/core
 
 ### 2. Find Immediate Cause
 **What code directly causes this?**
-```typescript
+```text
 await execFileAsync('git', ['init'], { cwd: projectDir });
 ```
 
 ### 3. Ask: What Called This?
-```typescript
+```text
 WorktreeManager.createSessionWorktree(projectDir, sessionId)
   → called by Session.initializeWorkspace()
   → called by Session.create()
@@ -58,7 +58,7 @@ WorktreeManager.createSessionWorktree(projectDir, sessionId)
 
 ### 5. Find Original Trigger
 **Where did empty string come from?**
-```typescript
+```text
 const context = setupCoreTest(); // Returns { tempDir: '' }
 Project.create('name', context.tempDir); // Accessed before beforeEach!
 ```
@@ -67,7 +67,7 @@ Project.create('name', context.tempDir); // Accessed before beforeEach!
 
 When you can't trace manually, add instrumentation:
 
-```typescript
+```text
 // Before the problematic operation
 async function gitInit(directory: string) {
   const stack = new Error().stack;
@@ -86,7 +86,7 @@ async function gitInit(directory: string) {
 
 **Run and capture:**
 ```bash
-npm test 2>&1 | grep 'DEBUG git init'
+ctest --test-dir build 2>&1 | grep 'DEBUG git init'
 ```
 
 **Analyze stack traces:**
@@ -101,7 +101,7 @@ If something appears during tests but you don't know which test:
 Use the bisection script `find-polluter.sh` in this directory:
 
 ```bash
-./find-polluter.sh '.git' 'src/**/*.test.ts'
+./find-polluter.sh '.git' 'tests/**/*_test.c'
 ```
 
 Runs tests one-by-one, stops at first polluter. See script for usage.

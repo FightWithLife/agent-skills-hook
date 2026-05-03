@@ -1,60 +1,80 @@
 ---
 name: writing-plans
-description: Use when you have a spec or requirements for a multi-step task, before touching code
+description: 在已有规格或多步骤任务需求、且在动代码之前使用
 ---
 
-# Writing Plans
+# 编写计划
 
-## Overview
+## 概述
 
-Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
+编写完整的实现计划时，要假设工程师对我们的代码库没有任何上下文，而且审美也不一定靠谱。把他需要知道的一切都写清楚：每个任务要改哪些文件、要看哪些代码、要检查哪些测试和文档、怎么验证。把整个计划拆成足够小的步骤。DRY、YAGNI、TDD、频繁提交。
 
-Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well.
+要假设对方是熟练开发者，但对我们的工具链和问题领域几乎一无所知，也不太擅长设计测试。
 
-**Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
+这个 skill 只消费已经确认过的架构文档和图，不负责重新决定架构。上游通常先经过 `architecture-diagram-workflow`，图形细化则交给 `diagram-workflow`。
 
-**Context:** This should be run in a dedicated worktree when isolation is needed.
+**开始时声明：** “我正在使用 writing-plans skill 来创建实现计划。”
 
-**Save plans to:** `.omx/plans/YYYY-MM-DD-<feature-name>.md`
+**上下文：** 这个 skill 应该在专门的 worktree 里运行（由上游设计流程创建）。
 
-## Bite-Sized Task Granularity
+**计划保存到：** `docs/plans/YY-MM-DD_name/exec_plans/<feature-name>.md`
+- （如果用户对计划位置有偏好，以用户偏好为准）
 
-**Each step is one action (2-5 minutes):**
-- "Write the failing test" - step
-- "Run it to make sure it fails" - step
-- "Implement the minimal code to make the test pass" - step
-- "Run the tests and make sure they pass" - step
-- "Commit" - step
+## 范围检查
 
-## Plan Document Header
+如果规格覆盖了多个彼此独立的子系统，那么在上游设计阶段就应该拆成多个子项目规格。如果没有拆，就应该建议拆成多个计划 - 每个子系统一个。每个计划都应该能独立产出可运行、可测试的软件。
 
-**Every plan MUST start with this header:**
+如果架构文档还没确认，或者图还在反复改，就先回上游把设计定住，不要在 `writing-plans` 里提前写实现细节。
+
+## 文件结构
+
+在定义任务之前，先把需要创建或修改哪些文件、每个文件负责什么理清楚。这一步会把拆分决策固定下来。
+
+- 设计边界清晰、接口明确的单元。每个文件都应该只有一个明确职责。
+- 你最擅长处理能一次放进上下文里的代码，而且文件越聚焦，修改越可靠。优先小而专注的文件，不要用一个大文件做太多事。
+- 需要一起变动的文件应该放在一起。按职责拆分，不要按技术层拆分。
+- 在已有代码库里，要遵循既有模式。如果代码库本来就有大文件，不要擅自重构；但如果你要改的文件已经臃肿了，在计划里包含拆分是合理的。
+
+这个结构会影响任务拆分。每个任务都应该产出自包含、彼此独立、合理的改动。
+
+## 小步任务粒度
+
+**每一步只做一件事（2-5 分钟）：**
+- “写失败测试” - 一步
+- “运行它，确认它失败” - 一步
+- “实现最小代码，让测试通过” - 一步
+- “运行测试，确认通过” - 一步
+- “提交” - 一步
+
+## 计划文档头部
+
+**每个计划都必须以这个头部开始：**
 
 ```markdown
-# [Feature Name] Implementation Plan
+# [功能名] 实现计划
 
-> **For Claude:** REQUIRED SUB-SKILL: Use `executing-plans` to implement this plan task-by-task.
+> **给代理型执行者：** 必需子技能：使用 `superpowers:subagent-driven-development` 按任务逐步实现这个计划。步骤使用复选框（`- [ ]`）语法跟踪。
 
-**Goal:** [One sentence describing what this builds]
+**目标：** [一句话描述这个功能做什么]
 
-**Architecture:** [2-3 sentences about approach]
+**架构：** [2-3 句说明方案]
 
-**Tech Stack:** [Key technologies/libraries]
+**技术栈：** [关键技术/库]
 
 ---
 ```
 
-## Task Structure
+## 任务结构
 
 ````markdown
-### Task N: [Component Name]
+### 任务 N： [组件名]
 
-**Files:**
-- Create: `exact/path/to/file.py`
-- Modify: `exact/path/to/existing.py:123-145`
-- Test: `tests/exact/path/to/test.py`
+**文件：**
+- 新建：`exact/path/to/file.py`
+- 修改：`exact/path/to/existing.py:123-145`
+- 测试：`tests/exact/path/to/test.py`
 
-**Step 1: Write the failing test**
+- [ ] **步骤 1：写失败测试**
 
 ```python
 def test_specific_behavior():
@@ -62,24 +82,24 @@ def test_specific_behavior():
     assert result == expected
 ```
 
-**Step 2: Run test to verify it fails**
+- [ ] **步骤 2：运行测试，确认它失败**
 
-Run: `pytest tests/path/test.py::test_name -v`
-Expected: FAIL with "function not defined"
+运行：`pytest tests/path/test.py::test_name -v`
+预期：失败，并显示 “function not defined”
 
-**Step 3: Write minimal implementation**
+- [ ] **步骤 3：写最小实现**
 
 ```python
 def function(input):
     return expected
 ```
 
-**Step 4: Run test to verify it passes**
+- [ ] **步骤 4：运行测试，确认它通过**
 
-Run: `pytest tests/path/test.py::test_name -v`
-Expected: PASS
+运行：`pytest tests/path/test.py::test_name -v`
+预期：通过
 
-**Step 5: Commit**
+- [ ] **步骤 5：提交**
 
 ```bash
 git add tests/path/test.py src/path/file.py
@@ -87,30 +107,40 @@ git commit -m "feat: add specific feature"
 ```
 ````
 
-## Remember
-- Exact file paths always
-- Complete code in plan (not "add validation")
-- Exact commands with expected output
-- Reference relevant skills with @ syntax
-- DRY, YAGNI, TDD, frequent commits
+## 不要留占位符
 
-## Execution Handoff
+每一步都必须包含工程师真正需要的内容。以下都属于**计划失败**，绝对不要写：
+- “TBD”“TODO”“后面再实现”“补充细节”
+- “添加适当的错误处理” / “添加校验” / “处理边界情况”
+- “为上面的内容写测试”（但没有实际测试代码）
+- “和任务 N 类似”（要重复代码 - 工程师可能不是按顺序读任务）
+- 只说做什么、不说明怎么做的步骤（需要代码的地方必须给代码块）
+- 引用了某个类型、函数或方法，但这些东西没有在任何任务里定义
 
-After saving the plan, offer execution choice:
+## 记住
 
-**"Plan complete and saved to `.omx/plans/<filename>.md`. Two execution options:**
+- 始终写清楚准确的文件路径
+- 每一步如果改代码，都要给出完整代码
+- 命令要精确，预期输出也要精确
+- DRY、YAGNI、TDD、频繁提交
 
-**1. Subagent-Driven (this session)** - I dispatch fresh subagent per task, review between tasks, fast iteration
+## 自检
 
-**2. Parallel Session (separate)** - Open new session with executing-plans, batch execution with checkpoints
+把完整计划写完后，要换个角度重新看一遍，对照规格检查计划。这是你自己运行的清单，不是派发给子代理的任务。
 
-**Which approach?"**
+**1. 规格覆盖：** 快速浏览规格的每个章节/要求。能不能指出一个对应的任务？把缺口列出来。
 
-**If Subagent-Driven chosen:**
-- **REQUIRED SUB-SKILL:** Use `subagent-driven-development`
-- Stay in this session
-- Fresh subagent per task + code review
+**2. 占位符扫描：** 在计划里找红旗 - 是否有上面“不要留占位符”里列出的模式？有就修掉。
 
-**If Parallel Session chosen:**
-- Guide them to open new session in worktree
-- **REQUIRED SUB-SKILL:** New session uses `executing-plans`
+**3. 类型一致性：** 后续任务里使用的类型、方法签名、属性名，是否和前面定义的一致？比如任务 3 里叫 `clearLayers()`，任务 7 里又变成 `clearFullLayers()`，这就是 bug。
+
+如果发现问题，直接在原地修掉，不用重新审一遍，改完就继续。若发现某个规格要求没有对应任务，就补上任务。
+
+## 执行交接
+
+保存计划后，直接进入 `subagent-driven-development`。
+
+**执行要求：**
+- 使用 `superpowers:subagent-driven-development`
+- 每个任务一个新子代理
+- 每个任务后做两阶段审查

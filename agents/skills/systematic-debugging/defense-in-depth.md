@@ -1,10 +1,10 @@
-# Defense-in-Depth Validation
+# 深度防御式验证
 
-## Overview
+## 概述
 
-When you fix a bug caused by invalid data, adding validation at one place feels sufficient. But that single check can be bypassed by different code paths, refactoring, or mocks.
+当你修复一个由非法数据引起的 bug 时，只在一个地方加校验看起来就够了。但这唯一的一道检查可能会被不同代码路径、重构或 mock 绕过。
 
-**Core principle:** Validate at EVERY layer data passes through. Make the bug structurally impossible.
+**核心原则：** 数据经过的每一层都要验证。让 bug 在结构上不可能发生。
 
 ## Why Multiple Layers
 
@@ -22,7 +22,7 @@ Different layers catch different cases:
 ### Layer 1: Entry Point Validation
 **Purpose:** Reject obviously invalid input at API boundary
 
-```typescript
+```text
 function createProject(name: string, workingDirectory: string) {
   if (!workingDirectory || workingDirectory.trim() === '') {
     throw new Error('workingDirectory cannot be empty');
@@ -40,7 +40,7 @@ function createProject(name: string, workingDirectory: string) {
 ### Layer 2: Business Logic Validation
 **Purpose:** Ensure data makes sense for this operation
 
-```typescript
+```text
 function initializeWorkspace(projectDir: string, sessionId: string) {
   if (!projectDir) {
     throw new Error('projectDir required for workspace initialization');
@@ -52,7 +52,7 @@ function initializeWorkspace(projectDir: string, sessionId: string) {
 ### Layer 3: Environment Guards
 **Purpose:** Prevent dangerous operations in specific contexts
 
-```typescript
+```text
 async function gitInit(directory: string) {
   // In tests, refuse git init outside temp directories
   if (process.env.NODE_ENV === 'test') {
@@ -72,7 +72,7 @@ async function gitInit(directory: string) {
 ### Layer 4: Debug Instrumentation
 **Purpose:** Capture context for forensics
 
-```typescript
+```text
 async function gitInit(directory: string) {
   const stack = new Error().stack;
   logger.debug('About to git init', {

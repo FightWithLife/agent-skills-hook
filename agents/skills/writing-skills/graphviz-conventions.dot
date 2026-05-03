@@ -27,7 +27,7 @@ digraph STYLE_GUIDE {
         // Examples of each
         "Is test passing?" [shape=diamond];
         "Write test first" [shape=box];
-        "npm test" [shape=plaintext];
+        "ctest --test-dir build" [shape=plaintext];
         "I am stuck" [shape=ellipse];
         "NEVER use git add -A" [shape=octagon, style=filled, fillcolor=red, fontcolor=white];
     }
@@ -77,7 +77,7 @@ digraph STYLE_GUIDE {
         // Commands are literal
         "grep -r 'pattern' .";
         "git status";
-        "npm run build";
+        "cmake --build build";
 
         // States describe situation
         "Test is failing";

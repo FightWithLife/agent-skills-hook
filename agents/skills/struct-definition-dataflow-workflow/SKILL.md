@@ -1,0 +1,58 @@
+---
+name: struct-definition-dataflow-workflow
+description: 用户要求在架构文档确认后继续梳理结构体、数据流和流程图时使用。
+---
+
+# 结构体与数据流工作流
+
+## 作用
+
+当架构文档已经被用户确认，接下来需要继续细拆实现内容时，就用这个 skill。
+
+它负责把架构文档进一步拆成三类产物：
+
+- 结构体清单和结构体定义文档
+- 数据流规划文档
+- 各部分详细流程图文档
+
+图怎么画、怎么命名、怎么渲染，统一遵循 [diagram-workflow](../diagram-workflow/SKILL.md)。
+
+详细拆解文档默认落到 `docs/plans/YY-MM-DD_name/detail/<topic-name>.md`，如果有图源则同时保留 `docs/plans/YY-MM-DD_name/detail/<topic-name>.puml`。
+
+默认优先处理嵌入式 C / 纯 C 场景里的结构体、缓冲区、协议帧、外设配置和数据流。
+
+## 基本流程
+
+1. 读取已确认的架构文档。
+2. 提取本次改动涉及的结构体。
+3. 区分新增、修改、复用的结构体。
+4. 为结构体分组并写定义文档。
+5. 为整体数据流写规划文档。
+6. 为关键部分写流程图文档。
+7. 如果内容过多，就继续拆文档，不要硬塞进一个文件。
+
+## 文件组织
+
+建议按职责拆成这些目录：
+
+- `references/`：规则、模板、判断标准
+- `structures/`：结构体定义文档
+- `dataflow/`：数据流规划文档
+- `flows/`：流程图文档
+
+## 结果要求
+
+- 结构体文档要能回答“干什么、谁在用、依赖什么”
+- 数据流文档要能看清入口、转换、输出和边界
+- 流程图文档要和结构体定义、数据流规划互相对得上
+
+## 完成后
+
+这一步确认完之后，再进入 `writing-plans` 把已经确认的内容拆成可执行步骤。
+
+## 参考
+
+- [结构体拆分规则](references/structure-splitting-rules.md)
+- [结构体文档模板](references/structure-document-template.md)
+- [数据流文档模板](references/dataflow-document-template.md)
+- [流程图文档模板](references/flow-document-template.md)

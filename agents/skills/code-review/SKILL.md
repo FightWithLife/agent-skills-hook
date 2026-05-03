@@ -202,7 +202,7 @@ The code-reviewer agent checks:
 review recent auth changes and report findings
 ```
 
-**With executing-plans or subagent-driven-development:**
+**With subagent-driven-development:**
 ```
 code-review then fix all issues
 ```

@@ -1,19 +1,19 @@
 ---
 name: using-git-worktrees
-description: Use when starting feature work that needs isolation from current workspace or before executing implementation plans - creates isolated git worktrees with smart directory selection and safety verification
+description: 在开始需要与当前工作区隔离的功能开发，或在执行实现计划前使用 - 会创建隔离的 git worktree，并进行目录选择与安全验证
 ---
 
-# Using Git Worktrees
+# 使用 Git Worktree
 
-## Overview
+## 概述
 
-Git worktrees create isolated workspaces sharing the same repository, allowing work on multiple branches simultaneously without switching.
+Git worktree 会创建彼此隔离、但共享同一个仓库的工作区，让你可以同时处理多个分支而无需来回切换。
 
-**Core principle:** Systematic directory selection + safety verification = reliable isolation.
+**核心原则：** 系统化的目录选择 + 安全验证 = 可靠的隔离。
 
-**Announce at start:** "I'm using the using-git-worktrees skill to set up an isolated workspace."
+**开始时声明：** “我正在使用 using-git-worktrees skill 来搭建一个隔离工作区。”
 
-## Directory Selection Process
+## 目录选择流程
 
 Follow this priority order:
 
@@ -209,11 +209,9 @@ Ready to implement auth feature
 ## Integration
 
 **Called by:**
-- **writing-plans** (Phase 4) - REQUIRED when design is approved and implementation follows
+- **设计流程** - 在设计已批准、并且要进入实现时使用
 - **subagent-driven-development** - REQUIRED before executing any tasks
-- **executing-plans** - REQUIRED before executing any tasks
 - Any skill needing isolated workspace
 
 **Pairs with:**
-- `verification-before-completion` for the final evidence check
-- `git-master` for commit/release close-out when the user wants it
+- **收尾流程** - 在工作完成后用于合并、PR、保留或丢弃

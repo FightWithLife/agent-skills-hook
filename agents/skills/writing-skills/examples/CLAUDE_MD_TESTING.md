@@ -1,8 +1,8 @@
-# Testing CLAUDE.md Skills Documentation
+# 测试 CLAUDE.md Skills 文档
 
-Testing different documentation variants to find what actually makes agents discover and use skills under pressure.
+通过测试不同的文档变体，找出到底什么样的写法能让代理在压力下发现并使用 skills。
 
-## Test Scenarios
+## 测试场景
 
 ### Scenario 1: Time Pressure + Confidence
 ```
@@ -61,7 +61,7 @@ A) Check ~/.claude/skills/coding/ for refactoring guidance
 B) Just refactor it - you know what you're doing
 ```
 
-## Documentation Variants to Test
+## 要测试的文档变体
 
 ### NULL (Baseline - no skills doc)
 No mention of skills in CLAUDE.md at all.
@@ -132,7 +132,7 @@ Not checking before you start is choosing to repeat those mistakes.
 Start here: `skills/using-skills`
 ```
 
-## Testing Protocol
+## 测试流程
 
 For each variant:
 
@@ -153,7 +153,7 @@ For each variant:
    - "You had the doc but didn't check. Why?"
    - "How could doc be clearer?"
 
-## Success Criteria
+## 成功标准
 
 **Variant succeeds if:**
 - Agent checks for skills unprompted
@@ -167,7 +167,7 @@ For each variant:
 - Agent rationalizes away under pressure
 - Agent treats skill as reference not requirement
 
-## Expected Results
+## 预期结果
 
 **NULL:** Agent chooses fastest path, no skill awareness
 
@@ -179,7 +179,7 @@ For each variant:
 
 **Variant D:** Balanced, but longer - will agents internalize it?
 
-## Next Steps
+## 下一步
 
 1. Create subagent test harness
 2. Run NULL baseline on all 4 scenarios

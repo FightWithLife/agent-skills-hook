@@ -1,12 +1,12 @@
-# Testing Anti-Patterns
+# 测试反模式
 
-**Load this reference when:** writing or changing tests, adding mocks, or tempted to add test-only methods to production code.
+**在以下情况下加载这份参考：** 编写或修改测试、添加 mock，或者想给生产代码加只给测试用的方法时。
 
-## Overview
+## 概述
 
-Tests must verify real behavior, not mock behavior. Mocks are a means to isolate, not the thing being tested.
+测试必须验证真实行为，而不是 mock 的行为。mock 只是用于隔离，而不是被测试的对象。
 
-**Core principle:** Test what the code does, not what the mocks do.
+**核心原则：** 测试代码做了什么，而不是 mock 做了什么。
 
 **Following strict TDD prevents these anti-patterns.**
 
@@ -21,7 +21,7 @@ Tests must verify real behavior, not mock behavior. Mocks are a means to isolate
 ## Anti-Pattern 1: Testing Mock Behavior
 
 **The violation:**
-```typescript
+```text
 // ❌ BAD: Testing that the mock exists
 test('renders sidebar', () => {
   render(<Page />);
@@ -37,7 +37,7 @@ test('renders sidebar', () => {
 **your human partner's correction:** "Are we testing the behavior of a mock?"
 
 **The fix:**
-```typescript
+```text
 // ✅ GOOD: Test real component or don't mock it
 test('renders sidebar', () => {
   render(<Page />);  // Don't mock sidebar
@@ -63,7 +63,7 @@ BEFORE asserting on any mock element:
 ## Anti-Pattern 2: Test-Only Methods in Production
 
 **The violation:**
-```typescript
+```text
 // ❌ BAD: destroy() only used in tests
 class Session {
   async destroy() {  // Looks like production API!
@@ -83,7 +83,7 @@ afterEach(() => session.destroy());
 - Confuses object lifecycle with entity lifecycle
 
 **The fix:**
-```typescript
+```text
 // ✅ GOOD: Test utilities handle test cleanup
 // Session has no destroy() - it's stateless in production
 
@@ -118,7 +118,7 @@ BEFORE adding any method to production class:
 ## Anti-Pattern 3: Mocking Without Understanding
 
 **The violation:**
-```typescript
+```text
 // ❌ BAD: Mock breaks test logic
 test('detects duplicate server', () => {
   // Mock prevents config write that test depends on!
@@ -137,7 +137,7 @@ test('detects duplicate server', () => {
 - Test passes for wrong reason or fails mysteriously
 
 **The fix:**
-```typescript
+```text
 // ✅ GOOD: Mock at correct level
 test('detects duplicate server', () => {
   // Mock the slow part, preserve behavior test needs
@@ -177,7 +177,7 @@ BEFORE mocking any method:
 ## Anti-Pattern 4: Incomplete Mocks
 
 **The violation:**
-```typescript
+```text
 // ❌ BAD: Partial mock - only fields you think you need
 const mockResponse = {
   status: 'success',
@@ -197,7 +197,7 @@ const mockResponse = {
 **The Iron Rule:** Mock the COMPLETE data structure as it exists in reality, not just fields your immediate test uses.
 
 **The fix:**
-```typescript
+```text
 // ✅ GOOD: Mirror real API completeness
 const mockResponse = {
   status: 'success',

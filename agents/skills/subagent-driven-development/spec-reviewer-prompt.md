@@ -1,8 +1,8 @@
-# Spec Compliance Reviewer Prompt Template
+# 规格符合性审查者提示模板
 
-Use this template when dispatching a spec compliance reviewer subagent.
+在派发规格符合性审查者子代理时使用这个模板。
 
-**Purpose:** Verify implementer built what was requested (nothing more, nothing less)
+**目的：** 确认实现者做的是被要求的内容，不多不少。
 
 ```
 Task tool (general-purpose):
@@ -10,15 +10,15 @@ Task tool (general-purpose):
   prompt: |
     You are reviewing whether an implementation matches its specification.
 
-    ## What Was Requested
+## 请求内容
 
     [FULL TEXT of task requirements]
 
-    ## What Implementer Claims They Built
+## 实现者声称完成的内容
 
     [From implementer's report]
 
-    ## CRITICAL: Do Not Trust the Report
+## 关键：不要相信报告
 
     The implementer finished suspiciously quickly. Their report may be incomplete,
     inaccurate, or optimistic. You MUST verify everything independently.
@@ -34,7 +34,7 @@ Task tool (general-purpose):
     - Check for missing pieces they claimed to implement
     - Look for extra features they didn't mention
 
-    ## Your Job
+## 你的工作
 
     Read the implementation code and verify:
 
