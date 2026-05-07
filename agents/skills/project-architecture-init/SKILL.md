@@ -53,10 +53,8 @@ docs/architecture/
 │   ├── 02_<模块名>.md        # 按序号命名，子模块用 02-01_<子模块名>.md
 │   ├── 03_<模块名>.md
 │   └── ...
-├── diagrams/                 # PlantUML 源文件
-│   └── *.puml
-└── 架构决策/                 # 架构决策记录
-    └── YY-MM-DD_决策主题.md
+└── diagrams/                 # PlantUML 源文件
+    └── *.puml
 ```
 
 ## AGENTS.md 规则注入
