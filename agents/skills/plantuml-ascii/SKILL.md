@@ -34,6 +34,24 @@ sudo yum install plantuml      # RHEL/CentOS
 wget https://github.com/plantuml/plantuml/releases/download/v1.2024.0/plantuml-1.2024.0.jar
 ```
 
+### Using Environment Variable (Recommended for CI/Agents)
+
+If you have `plantuml.jar` at a fixed location, set the `PLANTUML_JAR` environment variable:
+
+```bash
+# Linux/macOS
+export PLANTUML_JAR="/path/to/plantuml.jar"
+java -jar "$PLANTUML_JAR" -txt diagram.puml
+
+# Windows (PowerShell)
+$env:PLANTUML_JAR = "C:\\tools\\plantuml.jar"
+java -jar "$env:PLANTUML_JAR" -txt diagram.puml
+
+# Windows (CMD)
+set PLANTUML_JAR=C:\tools\plantuml.jar
+java -jar "%PLANTUML_JAR%" -txt diagram.puml
+```
+
 ## Output Formats
 
 | Flag    | Format        | Description                          |
@@ -303,3 +321,11 @@ cat seq.utxt
 **Problem**: Output file not created
 
 - **Solution**: Check file permissions, ensure PlantUML has write access
+
+**Problem**: `java.lang.IllegalStateException` in `GraphvizSolverB.solve` when using `-txt`/`-utxt`
+
+- **Cause**: The ASCII renderer has known issues with complex component diagrams (multiple packages, nested elements, notes, or long labels). The Graphviz-to-ASCII grid mapping fails on certain layouts.
+- **Solution**:
+  1. Simplify the diagram (reduce nesting, remove notes, shorten labels)
+  2. Use PNG/SVG output instead: `plantuml -png diagram.puml`
+  3. For architecture docs, hand-draw ASCII art directly in markdown instead of relying on automatic rendering

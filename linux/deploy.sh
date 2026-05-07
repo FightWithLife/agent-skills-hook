@@ -150,4 +150,25 @@ if [ "$TARGET" = "claude" ] || [ "$TARGET" = "all" ]; then
   echo "Claude Code deployed. Backup: $BACKUP_CL"
 fi
 
+# Qoder 部署（默认行为，每次运行无条件执行）
+BACKUP_Q="$HOME/.qoder-backups/agent-skills-hook-$STAMP"
+mkdir -p "$BACKUP_Q/qoder" "$BACKUP_Q/repo"
+
+# 备份现有配置
+[ -f "$HOME/.qoder/AGENTS.md" ] && cp -a "$HOME/.qoder/AGENTS.md" "$BACKUP_Q/qoder/AGENTS.md"
+[ -e "$HOME/.qoder/skills" ] && cp -a "$HOME/.qoder/skills" "$BACKUP_Q/qoder/"
+cp -a "$REPO_SKILLS" "$BACKUP_Q/repo/"
+
+# 部署配置（从 config/qoder/ 复制）
+mkdir -p "$HOME/.qoder"
+cp -a "$CONFIG_ROOT/qoder/AGENTS.md" "$HOME/.qoder/AGENTS.md"
+
+# 合并 skills
+merge_missing_skills "$HOME/.qoder/skills"
+
+# 创建软链接
+safe_link "$HOME/.qoder/skills" "$REPO_SKILLS"
+
+echo "Qoder deployed. Backup: $BACKUP_Q"
+
 echo "Deployment complete."

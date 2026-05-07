@@ -119,4 +119,21 @@ if ($Target -eq "claude" -or $Target -eq "all") {
     Write-Host "Claude Code deployed. Backup: $BackupCL"
 }
 
+# Qoder 部署（默认行为，每次运行无条件执行）
+$BackupQ = Join-Path $env:USERPROFILE ".qoder-backups\agent-skills-hook-$Stamp"
+New-Item -ItemType Directory -Path "$BackupQ\qoder", "$BackupQ\repo" -Force | Out-Null
+
+# 备份现有配置
+$QoderDir = Join-Path $env:USERPROFILE ".qoder"
+if (Test-Path "$QoderDir\AGENTS.md") { Copy-Item "$QoderDir\AGENTS.md" "$BackupQ\qoder\AGENTS.md" -Force }
+if (Test-Path "$QoderDir\skills") { Copy-Item "$QoderDir\skills" "$BackupQ\qoder\skills" -Recurse -Force }
+Copy-Item $RepoSkills "$BackupQ\repo\skills" -Recurse -Force
+
+# 部署配置（从 config/qoder/ 复制）
+New-Item -ItemType Directory -Path "$QoderDir" -Force | Out-Null
+Safe-Copy "$ConfigRoot\qoder\AGENTS.md" "$QoderDir\AGENTS.md"
+Safe-Copy $RepoSkills "$QoderDir\skills"
+
+Write-Host "Qoder deployed. Backup: $BackupQ"
+
 Write-Host "Deployment complete."
