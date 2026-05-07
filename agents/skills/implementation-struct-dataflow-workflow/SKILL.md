@@ -1,13 +1,13 @@
 ---
-name: struct-definition-dataflow-workflow
-description: 用户要求在架构文档确认后继续梳理结构体、数据流和流程图时使用。
+name: implementation-struct-dataflow-workflow
+description: 代码修改场景下，实现架构文档确认后，继续梳理结构体定义、数据流和流程图时使用
 ---
 
-# 结构体与数据流工作流
+# 实现结构体与数据流工作流
 
 ## 作用
 
-当架构文档已经被用户确认，接下来需要继续细拆实现内容时，就用这个 skill。
+当实现架构文档已被确认，需要在编码前继续细化结构体、数据流、流程图等实现细节时使用。本 skill 仅用于**代码改动场景**。
 
 它负责把架构文档进一步拆成三类产物：
 

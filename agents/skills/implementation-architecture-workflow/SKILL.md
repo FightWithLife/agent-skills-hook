@@ -1,13 +1,13 @@
 ---
-name: architecture-diagram-workflow
-description: 用户要求先写架构文档或修改架构文档时使用。
+name: implementation-architecture-workflow
+description: 在代码修改前需要编写实现架构文档时使用（仅限代码改动场景，非项目级架构文档初始化）
 ---
 
-# 架构图工作流
+# 实现架构工作流
 
 ## 作用
 
-用户要求先写架构文档或修改架构文档时，就先写一份架构图文档，再进入实现。
+在进行代码修改（新增、重构、修复）前，先编写实现架构文档，理清改动边界和模块关系，再进入编码。本 skill 仅用于**代码改动场景**，项目的整体架构文档初始化请使用 `project-architecture-init`。
 
 图怎么画、怎么命名、怎么渲染、怎么重渲染，统一遵循 [diagram-workflow](../diagram-workflow/SKILL.md)。
 
