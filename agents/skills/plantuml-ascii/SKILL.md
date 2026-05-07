@@ -1,6 +1,6 @@
 ---
 name: plantuml-ascii
-description: "Generate ASCII art diagrams using PlantUML text mode. Use when user asks to create ASCII diagrams, text-based diagrams, terminal-friendly diagrams, or mentions plantuml ascii, text diagram, ascii art diagram. Supports: Converting PlantUML diagrams to ASCII art, Creating sequence diagrams, class diagrams, flowcharts in ASCII format, Generating Unicode-enhanced ASCII art with -utxt flag"
+description: "Generate ASCII art diagrams using PlantUML text mode. Use when user asks to create ASCII diagrams, text-based diagrams, terminal-friendly diagrams, or mentions plantuml ascii, text diagram, ascii art diagram. Supports: Converting PlantUML diagrams to ASCII art, Creating sequence diagrams, class diagrams, flowcharts in ASCII format, Generating Unicode-enhanced ASCII art with -utxt flag. Includes bundled plantuml.jar — no external installation required."
 license: MIT
 allowed-tools: Bash, Write, Read
 ---
@@ -22,6 +22,10 @@ PlantUML can generate diagrams as plain text (ASCII art) instead of images. This
 
 ## Installation
 
+本 skill 目录已自带 `plantuml.jar`，可直接通过 `java -jar` 调用，无需额外安装。
+
+如需系统级命令，也可选择以下方式：
+
 ```bash
 # macOS
 brew install plantuml
@@ -34,9 +38,19 @@ sudo yum install plantuml      # RHEL/CentOS
 wget https://github.com/plantuml/plantuml/releases/download/v1.2024.0/plantuml-1.2024.0.jar
 ```
 
-### Using Environment Variable (Recommended for CI/Agents)
+### Using Bundled JAR (Recommended)
 
-If you have `plantuml.jar` at a fixed location, set the `PLANTUML_JAR` environment variable:
+本 skill 自带 `plantuml.jar`，可直接引用：
+
+```bash
+# 在 skill 目录内调用
+java -jar plantuml.jar -txt diagram.puml
+java -jar plantuml.jar -utxt diagram.puml
+```
+
+### Using Environment Variable (Optional)
+
+如果你有 `plantuml.jar` 在固定位置，可以设置 `PLANTUML_JAR` 环境变量：
 
 ```bash
 # Linux/macOS
@@ -76,15 +90,15 @@ Alice -> Bob : Is it ok?
 ### 2. Generate ASCII Art
 
 ```bash
-# Standard ASCII output
-plantuml -txt diagram.puml
-
-# Unicode-enhanced output (better looking)
-plantuml -utxt diagram.puml
-
-# Using JAR directly
+# Using bundled JAR (Recommended — no install needed)
 java -jar plantuml.jar -txt diagram.puml
 java -jar plantuml.jar -utxt diagram.puml
+
+# Standard ASCII output (requires system install)
+plantuml -txt diagram.puml
+
+# Unicode-enhanced output (better looking, requires system install)
+plantuml -utxt diagram.puml
 ```
 
 ### 3. View Output
@@ -296,12 +310,17 @@ Bob --> Alice: Response
 @enduml
 EOF
 
-plantuml -txt seq.puml
+# Using bundled JAR
+java -jar plantuml.jar -txt seq.puml
 cat seq.atxt
 
-# Create with Unicode
-plantuml -utxt seq.puml
+# Using bundled JAR with Unicode
+java -jar plantuml.jar -utxt seq.puml
 cat seq.utxt
+
+# Or using system install
+plantuml -txt seq.puml
+plantuml -utxt seq.puml
 ```
 
 ## Troubleshooting
