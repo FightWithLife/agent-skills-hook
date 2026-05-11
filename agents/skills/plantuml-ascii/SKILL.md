@@ -11,6 +11,8 @@ allowed-tools: Bash, Write, Read
 
 Create text-based ASCII art diagrams using PlantUML. Perfect for documentation in terminal environments, README files, emails, or any scenario where graphical diagrams aren't suitable.
 
+**Important boundary:** PlantUML ASCII is suitable for simple diagrams, quick previews, and source-assisted iteration. For complex architecture overviews or diagrams with side branches, nested structure, or long labels, do **not** use the auto-rendered `-txt/-utxt` output as the final displayed diagram in documentation. In those cases, keep the `.puml` source but hand-author the displayed ASCII and mark the source path near the diagram.
+
 ## What is PlantUML ASCII Art?
 
 PlantUML can generate diagrams as plain text (ASCII art) instead of images. This is useful for:
@@ -104,6 +106,14 @@ plantuml -utxt diagram.puml
 ### 3. View Output
 
 Output is saved as `diagram.atxt` (ASCII) or `diagram.utxt` (Unicode).
+
+### 4. Decide Whether It Can Be Shipped
+
+Before pasting ASCII output into docs, check whether the rendered result preserves the relationships you need readers to understand.
+
+- If the diagram is simple and readable, the rendered output can be used directly.
+- If side edges disappear, layout collapses, labels overlap, or the main relationship becomes ambiguous, treat the render as a preview only.
+- For complex docs, switch to: `.puml` source retained + manually authored ASCII in the doc + `Source: <path>.puml` note near the diagram.
 
 ## Diagram Types Supported
 
@@ -267,7 +277,7 @@ plantuml -txt -charset UTF-8 diagram.puml
 2. **Short labels**: Long text breaks ASCII alignment
 3. **Use Unicode (`-utxt`)**: Better visual quality with box-drawing chars
 4. **Test before sharing**: Verify in terminal with fixed-width font
-5. **Consider alternatives**: For complex diagrams, use Mermaid.js or graphviz
+5. **For complex docs, prefer hand-authored ASCII**: Keep `.puml` as source, but do not rely on auto-rendered output as the final displayed artifact
 
 ## Example Output Comparison
 
@@ -348,3 +358,4 @@ plantuml -utxt seq.puml
   1. Simplify the diagram (reduce nesting, remove notes, shorten labels)
   2. Use PNG/SVG output instead: `plantuml -png diagram.puml`
   3. For architecture docs, hand-draw ASCII art directly in markdown instead of relying on automatic rendering
+  4. Keep the `.puml` file and label the displayed diagram with `Source: <path>.puml`
