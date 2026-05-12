@@ -127,19 +127,13 @@ def map_serial_exception(port: str, exc: BaseException) -> RuntimeError:
     return RuntimeError((error_type, f"{port}: {msg}"))
 
 
-def warmup_then_open(args: argparse.Namespace, port: str):
+def open_with_retry(args: argparse.Namespace, port: str):
     if serial is None:
         raise RuntimeError(("dependency_missing", "pyserial is required. Install it with: pip install pyserial"))
     last_error: Optional[RuntimeError] = None
     for attempt in range(1, OPEN_RETRY_ATTEMPTS + 1):
-        warm = None
         opened = None
         try:
-            warm = serial.Serial(**build_serial_kwargs(args, port, 9600))
-            time.sleep(0.2)
-            warm.close()
-            warm = None
-            time.sleep(0.1)
             opened = serial.Serial(**build_serial_kwargs(args, port, int(args.baudrate)))
             ready = opened
             opened = None
@@ -155,8 +149,6 @@ def warmup_then_open(args: argparse.Namespace, port: str):
                 raise mapped
             last_error = RuntimeError((error_type, f"{message} (attempt {attempt}/{OPEN_RETRY_ATTEMPTS})"))
         finally:
-            if warm is not None and getattr(warm, "is_open", False):
-                warm.close()
             if opened is not None and getattr(opened, "is_open", False):
                 opened.close()
 
@@ -222,7 +214,7 @@ def append_raw_log(path: Path, payload: bytes) -> None:
 def open_serial(args: argparse.Namespace):
     port = resolve_port(args)
     args.port = port
-    return warmup_then_open(args, port)
+    return open_with_retry(args, port)
 
 
 def prepare_port(result: ResultDict, args: argparse.Namespace) -> int:

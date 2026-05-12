@@ -48,6 +48,10 @@ Start capture:
 python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py start
 ```
 
+说明：
+- `start` 返回 `ACK` 时可直接视为成功。
+- 若 `start` 返回空响应或 `NAK`，不要立刻判定失败；应继续检查 `get-last-error`，若包含 `sampling in progress`，视为采样已拉起。
+
 Start simulated capture:
 
 ```powershell
@@ -60,10 +64,22 @@ Export data to a local CSV path:
 python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py export kingstvis_captures\capture.csv
 ```
 
+说明：
+- 导出应在 `stop` 之后执行。
+- 不要假设 `start` 后立刻 `export` 一定成立。
+
 Run an automated capture and save loop:
 
 ```powershell
 python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py capture --count 3 --format csv --output-dir kingstvis_captures
+```
+
+当前脚本执行顺序为：`start` → 等待 `--wait-after-start` → `stop` → `export`。
+
+如现场发现 `stop` 后立即导出仍不稳定，可增加：
+
+```powershell
+python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py capture --wait-after-stop 0.5 --count 1 --format csv
 ```
 
 Run capture and export only selected channels:
@@ -136,8 +152,9 @@ python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py export 
 ## Response Rules
 
 - Treat any response beginning with `NAK` as failure.
+- Exception: for `start` / `start --simulate`, if the immediate response is empty or begins with `NAK`, follow with `get-last-error`; when it reports `sampling in progress`, treat the capture start as successful.
 - Report the exact command, response, output path, and whether the output file exists.
-- Do not claim capture succeeded unless KingstVIS returned a non-`NAK` response.
+- Do not claim export succeeded unless it happens after `stop`, and KingstVIS returned a non-`NAK` response or the output file actually appears.
 - If the file does not appear after a successful response, report it as a residual risk because KingstVIS may write asynchronously or reject the extension silently.
 
 ## Known Commands From SDK Examples

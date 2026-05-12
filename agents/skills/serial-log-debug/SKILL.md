@@ -113,7 +113,7 @@ python agents/skills/serial-log-debug/serial_tool.py session --port COM3 --send-
 1. 先确认场景属于“Windows + 本地直连串口 + 独占访问”。
 2. 明确串口参数，不自动猜测端口号、波特率或协议。
 3. 先建立连接或启动监听，再发送测试输入。
-   - 若当前硬件存在“直接以目标波特率打开失败”的问题，优先采用：**先用 9600 打开 → 关闭 → 再以目标波特率（例如 115200）重开**。
+   - 默认直接以目标波特率（例如 `115200`）打开串口；若现场存在异常，应按真实日志和错误类型继续排查，而不是在 skill 内隐式切换波特率重试。
    - 若未显式提供 `--port`，可以先枚举本机可见串口，并优先尝试 USB 串口设备（例如 CH340）。
 4. 同时保留两类日志：
    - 原始日志：完整字节流
@@ -165,5 +165,5 @@ python agents/skills/serial-log-debug/serial_tool.py session --port COM3 --send-
 当前实现还包含以下打开策略：
 
 - 未传 `--port` 时，自动枚举当前可见串口，并优先选择 USB 串口设备。
-- 实际打开串口时，先以 `9600` 预开一次并关闭，再按目标波特率重开。
+- 实际打开串口时，直接按请求的目标波特率打开，并保留有限次重试。
 - Windows 下 `PermissionError` / `access is denied` 会映射为 `port_busy`，避免误报成 `port_not_found`。
