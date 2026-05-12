@@ -14,6 +14,7 @@
 - 任务完成收尾总结（`Stop`）
 - Codex / Claude Code 的轻量优先协作路由
 - OpenCode 的 commands、自定义 agents、自定义 build prompt
+- OpenCode 的 OMO 轻量版 Sisyphus 移植配置与默认部署
 - 面向嵌入式 C 的 agent 分工：规划、实现、构建修复、固件审查、硬件影响审查
 
 ## 目录结构
@@ -26,6 +27,7 @@ agent-skills-hook/
 │   ├── codex/AGENTS.md      # Codex CLI 配置
 │   ├── opencode/AGENTS.md   # OpenCode 配置
 │   ├── opencode/opencode.json # OpenCode agents/commands 配置
+│   ├── opencode/oh-my-openagent/ # OMO 裁切后的插件侧配置
 │   ├── opencode/agents/     # OpenCode 自定义 agents
 │   ├── opencode/prompts/    # OpenCode 自定义 prompt
 │
@@ -107,7 +109,7 @@ cd windows
 **Linux（软链接）**：
 ```bash
 ls -la ~/.codex/skills ~/.codex/agents ~/.codex/AGENTS.md
-ls -la ~/.config/opencode/skills ~/.config/opencode/agents ~/.config/opencode/prompts ~/.config/opencode/AGENTS.md ~/.config/opencode/opencode.json
+ls -la ~/.config/opencode/skills ~/.config/opencode/agents ~/.config/opencode/prompts ~/.config/opencode/AGENTS.md ~/.config/opencode/opencode.json ~/.config/opencode/oh-my-openagent.json ~/.config/opencode/oh-my-openagent
 ls -la ~/.claude/skills ~/.claude/CLAUDE.md
 ```
 
@@ -117,6 +119,8 @@ Test-Path "$env:USERPROFILE\.codex\AGENTS.md"
 Test-Path "$env:USERPROFILE\.codex\agents"
 Test-Path "$env:USERPROFILE\.config\opencode\AGENTS.md"
 Test-Path "$env:USERPROFILE\.config\opencode\opencode.json"
+Test-Path "$env:USERPROFILE\.config\opencode\oh-my-openagent.json"
+Test-Path "$env:USERPROFILE\.config\opencode\oh-my-openagent"
 Test-Path "$env:USERPROFILE\.config\opencode\agents"
 Test-Path "$env:USERPROFILE\.config\opencode\prompts"
 Test-Path "$env:USERPROFILE\.claude\CLAUDE.md"
@@ -147,7 +151,8 @@ Copy-Item "$env:USERPROFILE\.codex-backups\agent-skills-hook-<timestamp>\codex\*
 | `config/claude/CLAUDE.md` | Claude Code 运行时配置（自包含） |
 | `config/codex/AGENTS.md` | Codex CLI 运行时配置（自包含） |
 | `config/opencode/AGENTS.md` | OpenCode 运行时配置（自包含） |
-| `config/opencode/opencode.json` | OpenCode commands、agent 路由与插件配置（部署时合并到本地配置，不包含 provider/API Key） |
+| `config/opencode/opencode.json` | OpenCode 主配置（保留现有 build/plan/explore，并注入 OMO 插件入口） |
+| `config/opencode/oh-my-openagent/` | 从 OMO 裁切出的插件侧配置、轻量化 Sisyphus prompt 补丁 |
 | `config/opencode/agents/` | OpenCode 自定义 agents 定义 |
 | `config/opencode/prompts/` | OpenCode 自定义 agent prompt |
 | `linux/deploy.sh` | Linux 部署脚本（软链接方式） |
@@ -159,8 +164,8 @@ Copy-Item "$env:USERPROFILE\.codex-backups\agent-skills-hook-<timestamp>\codex\*
 
 - Codex 部署仅维护 `~/.codex/skills`
 - Codex 代理定义从 `config/codex/agents` 部署到 `~/.codex/agents`
-- OpenCode 部署维护 `~/.config/opencode/AGENTS.md`、`opencode.json`、`agents/`、`prompts/`、`skills/`
-- `config/opencode/opencode.json` 只保存工作流配置，不保存 provider/API Key；部署脚本会把这些字段合并到本地 `opencode.json`，保留未被模板覆盖的私有配置（例如 `provider`）。
+- OpenCode 部署维护 `~/.config/opencode/AGENTS.md`、`opencode.json`、`oh-my-openagent.json`、`oh-my-openagent/`、`agents/`、`prompts/`、`skills/`
+- `config/opencode/opencode.json` 与 `config/opencode/oh-my-openagent/oh-my-openagent.json` 只保存工作流配置，不保存 provider/API Key；部署脚本会把这些字段深合并到本地配置，保留未被模板覆盖的私有配置。
 - Claude Code 部署仅维护 `~/.claude/skills`
 
 - Linux 用户：修改后重新运行 `linux/deploy.sh`（软链接自动指向新内容）

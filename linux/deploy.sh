@@ -16,6 +16,8 @@ REPO_SKILLS="$REPO_ROOT/agents/skills"
 CONFIG_ROOT="$REPO_ROOT/config"
 CODEX_AGENTS="$CONFIG_ROOT/codex/agents"
 OPENCODE_CONFIG="$CONFIG_ROOT/opencode"
+OMO_CONFIG_DIR="$OPENCODE_CONFIG/oh-my-openagent"
+OMO_CONFIG_FILE="$OMO_CONFIG_DIR/oh-my-openagent.json"
 
 if [ ! -d "$REPO_SKILLS" ]; then
   echo "ERROR: $REPO_SKILLS missing. Run 'git submodule update --init --recursive agents/skills' first." >&2
@@ -29,6 +31,11 @@ fi
 
 if [ ! -f "$OPENCODE_CONFIG/opencode.json" ]; then
   echo "ERROR: $OPENCODE_CONFIG/opencode.json missing." >&2
+  exit 1
+fi
+
+if [ ! -f "$OMO_CONFIG_FILE" ]; then
+  echo "ERROR: $OMO_CONFIG_FILE missing." >&2
   exit 1
 fi
 
@@ -95,7 +102,26 @@ with dest.open("r", encoding="utf-8") as f:
 with src.open("r", encoding="utf-8") as f:
     overlay = json.load(f)
 
-merged.update(overlay)
+def merge(base, overlay):
+    for key, value in overlay.items():
+        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+            base[key] = merge(base[key], value)
+            continue
+        if key in base and isinstance(base[key], list) and isinstance(value, list):
+            merged_list = []
+            seen = set()
+            for item in base[key] + value:
+                marker = json.dumps(item, ensure_ascii=False, sort_keys=True)
+                if marker in seen:
+                    continue
+                seen.add(marker)
+                merged_list.append(item)
+            base[key] = merged_list
+            continue
+        base[key] = value
+    return base
+
+merge(merged, overlay)
 
 with dest.open("w", encoding="utf-8") as f:
     json.dump(merged, f, ensure_ascii=False, indent=2)
@@ -140,6 +166,8 @@ if [ "$TARGET" = "opencode" ] || [ "$TARGET" = "all" ]; then
   # 备份现有配置
   [ -f "$HOME/.config/opencode/AGENTS.md" ] && cp -a "$HOME/.config/opencode/AGENTS.md" "$BACKUP_O/opencode/AGENTS.md"
   [ -f "$HOME/.config/opencode/opencode.json" ] && cp -a "$HOME/.config/opencode/opencode.json" "$BACKUP_O/opencode/opencode.json"
+  [ -f "$HOME/.config/opencode/oh-my-openagent.json" ] && cp -a "$HOME/.config/opencode/oh-my-openagent.json" "$BACKUP_O/opencode/oh-my-openagent.json"
+  [ -e "$HOME/.config/opencode/oh-my-openagent" ] && cp -a "$HOME/.config/opencode/oh-my-openagent" "$BACKUP_O/opencode/"
   [ -e "$HOME/.config/opencode/agents" ] && cp -a "$HOME/.config/opencode/agents" "$BACKUP_O/opencode/"
   [ -e "$HOME/.config/opencode/prompts" ] && cp -a "$HOME/.config/opencode/prompts" "$BACKUP_O/opencode/"
   [ -e "$HOME/.config/opencode/skills" ] && cp -a "$HOME/.config/opencode/skills" "$BACKUP_O/opencode/"
@@ -150,6 +178,8 @@ if [ "$TARGET" = "opencode" ] || [ "$TARGET" = "all" ]; then
   mkdir -p "$HOME/.config/opencode"
   cp -a "$CONFIG_ROOT/opencode/AGENTS.md" "$HOME/.config/opencode/AGENTS.md"
   merge_json_config "$OPENCODE_CONFIG/opencode.json" "$HOME/.config/opencode/opencode.json"
+  merge_json_config "$OMO_CONFIG_FILE" "$HOME/.config/opencode/oh-my-openagent.json"
+  safe_link "$HOME/.config/opencode/oh-my-openagent" "$OMO_CONFIG_DIR"
 
   # 合并 skills
   merge_missing_skills "$HOME/.config/opencode/skills"

@@ -63,6 +63,7 @@
     }
   },
   "plugin": [
+    "oh-my-openagent",
     "@tarquinen/opencode-dcp@latest",
     "opencode-pty"
   ]

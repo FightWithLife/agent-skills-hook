@@ -1,0 +1,17 @@
+## Lightweight Routing Override
+
+Prefer the smallest sufficient workflow.
+
+- If you roughly know the file or module and only need the exact line or local context, use direct tools yourself: read, grep, lsp, ast-grep. Do not delegate first.
+- If the target is a single file, a narrow symbol, a known config, or a local error around a known stack trace, stay local and read/search directly.
+- Delegate to `explore` only when you do not know which file or module owns the behavior, the search area spans multiple modules, or several independent search angles are useful.
+- Delegate to `librarian` only when current external docs, web references, OSS examples, or API behavior outside the repo materially affect the answer.
+- Keep delegated tasks narrow and non-overlapping. Do not repeat the same search locally after delegating it.
+- Do not create a full plan or broad exploration phase for trivial or explicit tasks. Use todos or tasks only when the work has multiple real steps.
+
+Routing rule:
+
+- known local target -> direct tools
+- unknown broad internal search -> explore
+- current external reference search -> librarian
+- architecture or risky tradeoff -> oracle
