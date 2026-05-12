@@ -16,6 +16,7 @@ $Stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $RepoSkills = Join-Path $RepoRoot "agents\skills"
 $ConfigRoot = Join-Path $RepoRoot "config"
 $CodexAgents = Join-Path $ConfigRoot "codex\agents"
+$OpenCodeConfig = Join-Path $ConfigRoot "opencode"
 
 # 验证 skills 目录存在
 if (-not (Test-Path $RepoSkills)) {
@@ -25,6 +26,11 @@ if (-not (Test-Path $RepoSkills)) {
 
 if (-not (Test-Path $CodexAgents)) {
     Write-Error "ERROR: $CodexAgents missing."
+    exit 1
+}
+
+if (-not (Test-Path "$OpenCodeConfig\opencode.json")) {
+    Write-Error "ERROR: $OpenCodeConfig\opencode.json missing."
     exit 1
 }
 
@@ -49,6 +55,30 @@ function Safe-Copy {
     }
     
     Copy-Item $Src $Dest -Recurse -Force
+}
+
+function Merge-JsonConfig {
+    param(
+        [string]$Src,
+        [string]$Dest
+    )
+
+    $DestDir = Split-Path $Dest -Parent
+    if ($DestDir -and -not (Test-Path $DestDir)) {
+        New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
+    }
+
+    $Merged = @{}
+    if (Test-Path $Dest) {
+        $Merged = Get-Content $Dest -Raw | ConvertFrom-Json -AsHashtable
+    }
+
+    $Overlay = Get-Content $Src -Raw | ConvertFrom-Json -AsHashtable
+    foreach ($Key in $Overlay.Keys) {
+        $Merged[$Key] = $Overlay[$Key]
+    }
+
+    $Merged | ConvertTo-Json -Depth 100 | Set-Content $Dest -Encoding UTF8
 }
 
 # Codex 部署
@@ -82,6 +112,9 @@ if ($Target -eq "opencode" -or $Target -eq "all") {
     # 备份现有配置
     $OpenCodeDir = Join-Path $env:USERPROFILE ".config\opencode"
     if (Test-Path "$OpenCodeDir\AGENTS.md") { Copy-Item "$OpenCodeDir\AGENTS.md" "$BackupO\opencode\AGENTS.md" -Force }
+    if (Test-Path "$OpenCodeDir\opencode.json") { Copy-Item "$OpenCodeDir\opencode.json" "$BackupO\opencode\opencode.json" -Force }
+    if (Test-Path "$OpenCodeDir\agents") { Copy-Item "$OpenCodeDir\agents" "$BackupO\opencode\agents" -Recurse -Force }
+    if (Test-Path "$OpenCodeDir\prompts") { Copy-Item "$OpenCodeDir\prompts" "$BackupO\opencode\prompts" -Recurse -Force }
     if (Test-Path "$OpenCodeDir\skills") { Copy-Item "$OpenCodeDir\skills" "$BackupO\opencode\skills" -Recurse -Force }
     if (Test-Path "$env:USERPROFILE\.claude\skills") { Copy-Item "$env:USERPROFILE\.claude\skills" "$BackupO\claude\skills" -Recurse -Force }
     Copy-Item $RepoSkills "$BackupO\repo\skills" -Recurse -Force
@@ -89,6 +122,9 @@ if ($Target -eq "opencode" -or $Target -eq "all") {
     # 部署配置（从 config/ 复制）
     New-Item -ItemType Directory -Path "$OpenCodeDir" -Force | Out-Null
     Safe-Copy "$ConfigRoot\opencode\AGENTS.md" "$OpenCodeDir\AGENTS.md"
+    Merge-JsonConfig "$OpenCodeConfig\opencode.json" "$OpenCodeDir\opencode.json"
+    Safe-Copy "$OpenCodeConfig\agents" "$OpenCodeDir\agents"
+    Safe-Copy "$OpenCodeConfig\prompts" "$OpenCodeDir\prompts"
     Safe-Copy $RepoSkills "$OpenCodeDir\skills"
     Safe-Copy $RepoSkills "$env:USERPROFILE\.claude\skills"
     if (Test-Path "$env:USERPROFILE\.agents\skills") {

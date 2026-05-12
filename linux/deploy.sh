@@ -15,6 +15,7 @@ REPO_SKILLS="$REPO_ROOT/agents/skills"
 # 配置源位于 config/ 目录（自包含）
 CONFIG_ROOT="$REPO_ROOT/config"
 CODEX_AGENTS="$CONFIG_ROOT/codex/agents"
+OPENCODE_CONFIG="$CONFIG_ROOT/opencode"
 
 if [ ! -d "$REPO_SKILLS" ]; then
   echo "ERROR: $REPO_SKILLS missing. Run 'git submodule update --init --recursive agents/skills' first." >&2
@@ -23,6 +24,11 @@ fi
 
 if [ ! -d "$CODEX_AGENTS" ]; then
   echo "ERROR: $CODEX_AGENTS missing." >&2
+  exit 1
+fi
+
+if [ ! -f "$OPENCODE_CONFIG/opencode.json" ]; then
+  echo "ERROR: $OPENCODE_CONFIG/opencode.json missing." >&2
   exit 1
 fi
 
@@ -66,6 +72,37 @@ safe_link() {
   ln -s "$target_path" "$link_path"
 }
 
+merge_json_config() {
+  local src="$1"
+  local dest="$2"
+  mkdir -p "$(dirname "$dest")"
+
+  if [ ! -f "$dest" ]; then
+    cp -a "$src" "$dest"
+    return 0
+  fi
+
+  python3 - "$src" "$dest" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+src = Path(sys.argv[1])
+dest = Path(sys.argv[2])
+
+with dest.open("r", encoding="utf-8") as f:
+    merged = json.load(f)
+with src.open("r", encoding="utf-8") as f:
+    overlay = json.load(f)
+
+merged.update(overlay)
+
+with dest.open("w", encoding="utf-8") as f:
+    json.dump(merged, f, ensure_ascii=False, indent=2)
+    f.write("\n")
+PY
+}
+
 # Codex 部署
 if [ "$TARGET" = "codex" ] || [ "$TARGET" = "all" ]; then
   BACKUP_C="$HOME/.codex-backups/agent-skills-hook-$STAMP"
@@ -102,6 +139,9 @@ if [ "$TARGET" = "opencode" ] || [ "$TARGET" = "all" ]; then
 
   # 备份现有配置
   [ -f "$HOME/.config/opencode/AGENTS.md" ] && cp -a "$HOME/.config/opencode/AGENTS.md" "$BACKUP_O/opencode/AGENTS.md"
+  [ -f "$HOME/.config/opencode/opencode.json" ] && cp -a "$HOME/.config/opencode/opencode.json" "$BACKUP_O/opencode/opencode.json"
+  [ -e "$HOME/.config/opencode/agents" ] && cp -a "$HOME/.config/opencode/agents" "$BACKUP_O/opencode/"
+  [ -e "$HOME/.config/opencode/prompts" ] && cp -a "$HOME/.config/opencode/prompts" "$BACKUP_O/opencode/"
   [ -e "$HOME/.config/opencode/skills" ] && cp -a "$HOME/.config/opencode/skills" "$BACKUP_O/opencode/"
   [ -e "$HOME/.claude/skills" ] && cp -a "$HOME/.claude/skills" "$BACKUP_O/claude/"
   cp -a "$REPO_SKILLS" "$BACKUP_O/repo/"
@@ -109,12 +149,15 @@ if [ "$TARGET" = "opencode" ] || [ "$TARGET" = "all" ]; then
   # 部署配置（从 config/ 复制）
   mkdir -p "$HOME/.config/opencode"
   cp -a "$CONFIG_ROOT/opencode/AGENTS.md" "$HOME/.config/opencode/AGENTS.md"
+  merge_json_config "$OPENCODE_CONFIG/opencode.json" "$HOME/.config/opencode/opencode.json"
 
   # 合并 skills
   merge_missing_skills "$HOME/.config/opencode/skills"
   merge_missing_skills "$HOME/.claude/skills"
 
   # 创建软链接
+  safe_link "$HOME/.config/opencode/agents" "$OPENCODE_CONFIG/agents"
+  safe_link "$HOME/.config/opencode/prompts" "$OPENCODE_CONFIG/prompts"
   safe_link "$HOME/.config/opencode/skills" "$REPO_SKILLS"
   safe_link "$HOME/.claude/skills" "$HOME/.config/opencode/skills"
 
