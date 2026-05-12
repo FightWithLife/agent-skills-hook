@@ -111,6 +111,9 @@ def build_serial_kwargs(args: argparse.Namespace, port: str, baudrate: int) -> D
         "bytesize": args.bytesize,
         "stopbits": args.stopbits,
         "write_timeout": args.timeout,
+        "xonxoff": args.xonxoff,
+        "rtscts": args.rtscts,
+        "dsrdtr": args.dsrdtr,
         "exclusive": True,
     }
 
@@ -234,30 +237,57 @@ def decode_preview(payload: bytes) -> tuple[str, str]:
         return "hex", payload.hex(" ")
 
 
+def append_rx_text_lines(text_path: Path, pending_text: str, chunk: bytes) -> str:
+    try:
+        text = pending_text + chunk.decode("utf-8")
+    except UnicodeDecodeError:
+        if pending_text:
+            append_text_log(text_path, "RX", "text", pending_text)
+        append_text_log(text_path, "RX", "hex", chunk.hex(" "))
+        return ""
+
+    parts = text.splitlines(keepends=True)
+    remainder = ""
+    if parts and not parts[-1].endswith(("\r", "\n")):
+        remainder = parts.pop()
+
+    for part in parts:
+        append_text_log(text_path, "RX", "text", part.rstrip("\r\n"))
+
+    return remainder
+
+
+def flush_pending_rx_text(text_path: Path, pending_text: str) -> None:
+    if pending_text:
+        append_text_log(text_path, "RX", "text", pending_text)
+
+
 def read_for_duration(ser, seconds: float, raw_path: Path, text_path: Path) -> int:
     deadline = time.time() + seconds
     total = 0
+    pending_text = ""
     while time.time() < deadline:
         chunk = ser.read(256)
         if not chunk:
             continue
         append_raw_log(raw_path, chunk)
-        mode, preview = decode_preview(chunk)
-        append_text_log(text_path, "RX", mode, preview)
+        pending_text = append_rx_text_lines(text_path, pending_text, chunk)
         total += len(chunk)
+    flush_pending_rx_text(text_path, pending_text)
     return total
 
 
 def read_for_bytes(ser, limit: int, raw_path: Path, text_path: Path) -> int:
     total = 0
+    pending_text = ""
     while total < limit:
         chunk = ser.read(min(256, limit - total))
         if not chunk:
             break
         append_raw_log(raw_path, chunk)
-        mode, preview = decode_preview(chunk)
-        append_text_log(text_path, "RX", mode, preview)
+        pending_text = append_rx_text_lines(text_path, pending_text, chunk)
         total += len(chunk)
+    flush_pending_rx_text(text_path, pending_text)
     return total
 
 
@@ -450,6 +480,9 @@ def add_common_serial_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--parity", default="N", choices=["N", "E", "O", "M", "S"])
     parser.add_argument("--bytesize", type=int, default=8, choices=[5, 6, 7, 8])
     parser.add_argument("--stopbits", type=float, default=1.0, choices=[1, 1.5, 2])
+    parser.add_argument("--xonxoff", action="store_true", help="Enable software flow control")
+    parser.add_argument("--rtscts", action="store_true", help="Enable RTS/CTS hardware flow control")
+    parser.add_argument("--dsrdtr", action="store_true", help="Enable DSR/DTR hardware flow control")
     parser.add_argument("--output-dir")
     parser.add_argument("--json", action="store_true", default=True)
 

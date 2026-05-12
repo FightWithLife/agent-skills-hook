@@ -34,6 +34,12 @@ description: Use when debugging hardware over a Windows local serial port, espec
 - 调试设备已上电，且具备输出日志或接收串口输入的条件。
 - 串口驱动正常、日志输出目录可写。
 
+TP807 HTTPS 联调已知约定：
+
+- 串口参数使用 `115200 8N1`。
+- **必须开启 `RTS/CTS` 硬件流控**；不要默认按“无流控”打开串口。
+- 若 AI 工具未显式支持 `RTS/CTS`，应先补齐参数支持，再开始抓取。
+
 如果任何一条不满足，先报告前置条件不成立，不要假装 skill 已具备对应能力。
 
 ## Quick Reference
@@ -64,6 +70,9 @@ python agents/skills/serial-log-debug/serial_tool.py capture --port COM3 --durat
 
 # 启动一次完整会话
 python agents/skills/serial-log-debug/serial_tool.py session --port COM3 --send-text reboot --duration 3 --output-dir serial_logs --json
+
+# TP807 HTTPS 联调：115200 8N1 + RTS/CTS
+python agents/skills/serial-log-debug/serial_tool.py capture --port COM6 --baudrate 115200 --bytesize 8 --parity N --stopbits 1 --rtscts --duration 25 --output-dir serial_logs --json
 ```
 
 ### 输入参数
@@ -114,6 +123,7 @@ python agents/skills/serial-log-debug/serial_tool.py session --port COM3 --send-
 2. 明确串口参数，不自动猜测端口号、波特率或协议。
 3. 先建立连接或启动监听，再发送测试输入。
    - 默认直接以目标波特率（例如 `115200`）打开串口；若现场存在异常，应按真实日志和错误类型继续排查，而不是在 skill 内隐式切换波特率重试。
+   - 若仓库或现场已有明确串口约定，必须显式传入对应流控参数；对 TP807 HTTPS 联调，默认使用 `115200 8N1 + RTS/CTS`。
    - 若未显式提供 `--port`，可以先枚举本机可见串口，并优先尝试 USB 串口设备（例如 CH340）。
 4. 同时保留两类日志：
    - 原始日志：完整字节流
