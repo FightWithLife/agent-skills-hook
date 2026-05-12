@@ -17,6 +17,7 @@ from pathlib import Path
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 23367
 DEFAULT_OUTPUT_DIR = "kingstvis_captures"
+DEFAULT_TIMEOUT = 30.0
 BUFFER_SIZE = 8192
 TRIGGER_OPTIONS = ("low_level", "high_level", "pos_edge", "neg_edge")
 
@@ -32,6 +33,46 @@ class CommandResult:
 
 class KingstVisSocketError(RuntimeError):
     pass
+
+
+def wait_for_output_path(
+    output_path: Path | None,
+    timeout: float,
+    poll_interval: float = 0.2,
+) -> bool | None:
+    if output_path is None:
+        return None
+    if output_path.exists():
+        return True
+    if timeout <= 0:
+        return False
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        time.sleep(poll_interval)
+        if output_path.exists():
+            return True
+    return output_path.exists()
+
+
+def build_result(
+    command: str,
+    response: str,
+    output_path: Path | None = None,
+    *,
+    wait_for_output_timeout: float = 0.0,
+) -> CommandResult:
+    exists = wait_for_output_path(output_path, wait_for_output_timeout)
+    ok = bool(response) and not response.startswith("NAK")
+    if not ok and output_path is not None and exists:
+        ok = True
+    return CommandResult(
+        command=command,
+        response=response,
+        ok=ok,
+        output_path=str(output_path) if output_path is not None else None,
+        output_exists=exists,
+    )
 
 
 class KingstVisClient:
@@ -65,20 +106,26 @@ class KingstVisClient:
             self._socket.close()
             self._socket = None
 
-    def send(self, command: str, output_path: Path | None = None) -> CommandResult:
+    def send(
+        self,
+        command: str,
+        output_path: Path | None = None,
+        *,
+        wait_for_output_timeout: float = 0.0,
+    ) -> CommandResult:
         if self._socket is None:
             raise KingstVisSocketError("Socket is not connected")
 
-        self._socket.send(command.encode("utf-8"))
-        response = self._socket.recv(BUFFER_SIZE).decode("utf-8", errors="replace")
-        ok = not response.startswith("NAK")
-        exists = output_path.exists() if output_path is not None else None
-        return CommandResult(
-            command=command,
-            response=response,
-            ok=ok,
-            output_path=str(output_path) if output_path is not None else None,
-            output_exists=exists,
+        self._socket.sendall(command.encode("utf-8"))
+        try:
+            response = self._socket.recv(BUFFER_SIZE).decode("utf-8", errors="replace")
+        except (TimeoutError, ConnectionResetError, ConnectionAbortedError):
+            response = ""
+        return build_result(
+            command,
+            response,
+            output_path,
+            wait_for_output_timeout=wait_for_output_timeout,
         )
 
 
@@ -247,7 +294,7 @@ def run_export(args: argparse.Namespace) -> int:
     time_span = normalize_float_values(args.time_span)
     command = build_export_command(output, channels, time_span)
     with KingstVisClient(args.host, args.port, args.timeout) as client:
-        result = client.send(command, output)
+        result = client.send(command, output, wait_for_output_timeout=args.timeout)
     print_result(result)
     return 0 if result.ok else 2
 
@@ -260,13 +307,21 @@ def export_with_optional_fallback(
     time_span: list[str],
 ) -> CommandResult:
     output.parent.mkdir(parents=True, exist_ok=True)
-    result = client.send(build_export_command(output, channels, time_span), output)
+    result = client.send(
+        build_export_command(output, channels, time_span),
+        output,
+        wait_for_output_timeout=5.0,
+    )
     if result.ok or not fallback_kvdat or output.suffix.lower() == ".kvdat":
         return result
 
     fallback = output.with_suffix(".kvdat")
     fallback.parent.mkdir(parents=True, exist_ok=True)
-    return client.send(build_export_command(fallback, channels, time_span), fallback)
+    return client.send(
+        build_export_command(fallback, channels, time_span),
+        fallback,
+        wait_for_output_timeout=5.0,
+    )
 
 
 def send_config_commands(client: KingstVisClient, args: argparse.Namespace, manifest: Path) -> bool:
@@ -352,7 +407,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="KingstVIS SocketAPI client")
     parser.add_argument("--host", default=DEFAULT_HOST, help="KingstVIS SocketAPI host")
     parser.add_argument("--port", default=DEFAULT_PORT, type=int, help="KingstVIS SocketAPI port")
-    parser.add_argument("--timeout", default=5.0, type=float, help="Socket timeout seconds")
+    parser.add_argument("--timeout", default=DEFAULT_TIMEOUT, type=float, help="Socket timeout seconds")
 
     subparsers = parser.add_subparsers(dest="command_name", required=True)
 
