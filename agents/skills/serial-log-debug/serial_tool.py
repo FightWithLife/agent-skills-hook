@@ -1,0 +1,514 @@
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import time
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Optional, Tuple
+from uuid import uuid4
+
+try:
+    import serial  # type: ignore
+    from serial import SerialException  # type: ignore
+    from serial.tools import list_ports  # type: ignore
+except Exception:  # pragma: no cover - runtime dependency gate
+    serial = None
+    SerialException = Exception
+    list_ports = None
+
+
+ERROR_TYPES = {
+    "dependency_missing",
+    "port_not_found",
+    "port_busy",
+    "invalid_param",
+    "read_timeout",
+    "write_failed",
+    "log_write_failed",
+    "serial_error",
+    "none",
+}
+
+ResultDict = Dict[str, Any]
+OPEN_RETRY_ATTEMPTS = 3
+OPEN_RETRY_DELAY_SEC = 0.35
+
+
+def now_ts() -> str:
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
+
+def make_result(command: str, args: argparse.Namespace) -> ResultDict:
+    return {
+        "ok": False,
+        "command": command,
+        "port": getattr(args, "port", None),
+        "baudrate": getattr(args, "baudrate", None),
+        "timeout": getattr(args, "timeout", None),
+        "log_path_raw": None,
+        "log_path_text": None,
+        "tx_bytes": 0,
+        "rx_bytes": 0,
+        "error_type": "none",
+        "error_message": "",
+        "session_id": None,
+    }
+
+
+def fail(result: ResultDict, error_type: str, message: str, exit_code: int = 1) -> int:
+    if error_type not in ERROR_TYPES:
+        error_type = "serial_error"
+    result["error_type"] = error_type
+    result["error_message"] = message
+    emit_result(result)
+    return exit_code
+
+
+def emit_result(result: ResultDict) -> None:
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+def ensure_pyserial(result: ResultDict) -> int:
+    if serial is None or list_ports is None:
+        return fail(
+            result,
+            "dependency_missing",
+            "pyserial is required. Install it with: pip install pyserial",
+        )
+    return 0
+
+
+def is_preferred_port(description: str, device: str) -> bool:
+    text = f"{device} {description}".lower()
+    preferred_tokens = ["usb", "ch340", "serial", "uart", "ttl"]
+    return any(token in text for token in preferred_tokens)
+
+
+def resolve_port(args: argparse.Namespace) -> str:
+    if args.port:
+        return str(args.port)
+    if list_ports is None:
+        raise RuntimeError(("dependency_missing", "pyserial is required. Install it with: pip install pyserial"))
+
+    ports = list(list_ports.comports())
+    if not ports:
+        raise RuntimeError(("port_not_found", "no serial ports detected"))
+
+    preferred = [p for p in ports if is_preferred_port(p.description, p.device)]
+    if preferred:
+        return str(preferred[0].device)
+    return str(ports[0].device)
+
+
+def build_serial_kwargs(args: argparse.Namespace, port: str, baudrate: int) -> Dict[str, Any]:
+    return {
+        "port": port,
+        "baudrate": baudrate,
+        "timeout": args.timeout,
+        "parity": args.parity,
+        "bytesize": args.bytesize,
+        "stopbits": args.stopbits,
+        "write_timeout": args.timeout,
+        "exclusive": True,
+    }
+
+
+def map_serial_exception(port: str, exc: BaseException) -> RuntimeError:
+    msg = str(exc)
+    lower_msg = msg.lower()
+    if "permissionerror" in lower_msg or "busy" in lower_msg or "access is denied" in lower_msg:
+        error_type = "port_busy"
+    elif "filenotfounderror" in lower_msg or "could not open port" in lower_msg or "cannot find the file" in lower_msg:
+        error_type = "port_not_found"
+    else:
+        error_type = "serial_error"
+    return RuntimeError((error_type, f"{port}: {msg}"))
+
+
+def warmup_then_open(args: argparse.Namespace, port: str):
+    if serial is None:
+        raise RuntimeError(("dependency_missing", "pyserial is required. Install it with: pip install pyserial"))
+    last_error: Optional[RuntimeError] = None
+    for attempt in range(1, OPEN_RETRY_ATTEMPTS + 1):
+        warm = None
+        opened = None
+        try:
+            warm = serial.Serial(**build_serial_kwargs(args, port, 9600))
+            time.sleep(0.2)
+            warm.close()
+            warm = None
+            time.sleep(0.1)
+            opened = serial.Serial(**build_serial_kwargs(args, port, int(args.baudrate)))
+            ready = opened
+            opened = None
+            return ready
+        except FileNotFoundError:
+            raise RuntimeError(("port_not_found", f"serial port not found: {port}"))
+        except PermissionError as exc:
+            last_error = RuntimeError(("port_busy", f"{port}: open failed after attempt {attempt}/{OPEN_RETRY_ATTEMPTS}: {exc}"))
+        except SerialException as exc:
+            mapped = map_serial_exception(port, exc)
+            error_type, message = mapped.args[0]
+            if error_type == "port_not_found":
+                raise mapped
+            last_error = RuntimeError((error_type, f"{message} (attempt {attempt}/{OPEN_RETRY_ATTEMPTS})"))
+        finally:
+            if warm is not None and getattr(warm, "is_open", False):
+                warm.close()
+            if opened is not None and getattr(opened, "is_open", False):
+                opened.close()
+
+        if attempt < OPEN_RETRY_ATTEMPTS:
+            time.sleep(OPEN_RETRY_DELAY_SEC)
+
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError(("serial_error", f"{port}: open failed for unknown reason"))
+
+
+def normalize_line_ending(mode: str) -> bytes:
+    mapping = {
+        "none": b"",
+        "lf": b"\n",
+        "cr": b"\r",
+        "crlf": b"\r\n",
+    }
+    return mapping[mode]
+
+
+def parse_hex_string(value: str) -> bytes:
+    text = value.replace(" ", "").replace("\n", "").replace("\r", "")
+    if not text:
+        raise ValueError("hex input is empty")
+    if len(text) % 2 != 0:
+        raise ValueError("hex input must contain an even number of digits")
+    try:
+        return bytes.fromhex(text)
+    except ValueError as exc:
+        raise ValueError(f"invalid hex input: {exc}") from exc
+
+
+def resolve_output_dir(output_dir: Optional[str]) -> Path:
+    base = Path(output_dir) if output_dir else Path("serial_logs")
+    base.mkdir(parents=True, exist_ok=True)
+    return base
+
+
+def start_logs(result: ResultDict, output_dir: Optional[str]) -> Tuple[str, Path, Path]:
+    session_id = datetime.now().strftime("%Y%m%d%H%M%S") + "_" + uuid4().hex[:8]
+    root = resolve_output_dir(output_dir)
+    raw_path = root / f"{session_id}_raw.bin"
+    text_path = root / f"{session_id}_text.log"
+    raw_path.touch(exist_ok=False)
+    text_path.touch(exist_ok=False)
+    result["session_id"] = session_id
+    result["log_path_raw"] = str(raw_path)
+    result["log_path_text"] = str(text_path)
+    return session_id, raw_path, text_path
+
+
+def append_text_log(path: Path, direction: str, data_type: str, content: str) -> None:
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(f"[{now_ts()}] {direction} {data_type}: {content}\n")
+
+
+def append_raw_log(path: Path, payload: bytes) -> None:
+    with path.open("ab") as fh:
+        fh.write(payload)
+
+
+def open_serial(args: argparse.Namespace):
+    port = resolve_port(args)
+    args.port = port
+    return warmup_then_open(args, port)
+
+
+def prepare_port(result: ResultDict, args: argparse.Namespace) -> int:
+    try:
+        args.port = resolve_port(args)
+        result["port"] = args.port
+        return 0
+    except RuntimeError as exc:
+        error_type, msg = exc.args[0]
+        return fail(result, error_type, msg)
+
+
+def decode_preview(payload: bytes) -> tuple[str, str]:
+    try:
+        return "text", payload.decode("utf-8")
+    except UnicodeDecodeError:
+        return "hex", payload.hex(" ")
+
+
+def read_for_duration(ser, seconds: float, raw_path: Path, text_path: Path) -> int:
+    deadline = time.time() + seconds
+    total = 0
+    while time.time() < deadline:
+        chunk = ser.read(256)
+        if not chunk:
+            continue
+        append_raw_log(raw_path, chunk)
+        mode, preview = decode_preview(chunk)
+        append_text_log(text_path, "RX", mode, preview)
+        total += len(chunk)
+    return total
+
+
+def read_for_bytes(ser, limit: int, raw_path: Path, text_path: Path) -> int:
+    total = 0
+    while total < limit:
+        chunk = ser.read(min(256, limit - total))
+        if not chunk:
+            break
+        append_raw_log(raw_path, chunk)
+        mode, preview = decode_preview(chunk)
+        append_text_log(text_path, "RX", mode, preview)
+        total += len(chunk)
+    return total
+
+
+def cmd_connect_test(args: argparse.Namespace) -> int:
+    result = make_result("connect-test", args)
+    if ensure_pyserial(result):
+        return 1
+    prep = prepare_port(result, args)
+    if prep:
+        return prep
+    try:
+        ser = open_serial(args)
+        ser.close()
+        result["ok"] = True
+        emit_result(result)
+        return 0
+    except RuntimeError as exc:
+        error_type, msg = exc.args[0]
+        return fail(result, error_type, msg)
+
+
+def cmd_send_text(args: argparse.Namespace) -> int:
+    result = make_result("send-text", args)
+    if ensure_pyserial(result):
+        return 1
+    prep = prepare_port(result, args)
+    if prep:
+        return prep
+    payload = args.text.encode(args.encoding) + normalize_line_ending(args.line_ending)
+    try:
+        session_id, raw_path, text_path = start_logs(result, args.output_dir)
+        _ = session_id
+        append_raw_log(raw_path, payload)
+        append_text_log(text_path, "TX", "text", repr(payload.decode(args.encoding, errors="replace")))
+        ser = open_serial(args)
+        written = ser.write(payload)
+        ser.flush()
+        ser.close()
+        result["ok"] = True
+        result["tx_bytes"] = written
+        emit_result(result)
+        return 0
+    except LookupError as exc:
+        return fail(result, "invalid_param", f"invalid encoding: {exc}")
+    except OSError as exc:
+        return fail(result, "log_write_failed", str(exc))
+    except RuntimeError as exc:
+        error_type, msg = exc.args[0]
+        return fail(result, error_type, msg)
+    except Exception as exc:
+        return fail(result, "write_failed", str(exc))
+
+
+def cmd_send_hex(args: argparse.Namespace) -> int:
+    result = make_result("send-hex", args)
+    try:
+        payload = parse_hex_string(args.hex)
+    except ValueError as exc:
+        return fail(result, "invalid_param", str(exc))
+    if ensure_pyserial(result):
+        return 1
+    prep = prepare_port(result, args)
+    if prep:
+        return prep
+    try:
+        session_id, raw_path, text_path = start_logs(result, args.output_dir)
+        _ = session_id
+        append_raw_log(raw_path, payload)
+        append_text_log(text_path, "TX", "hex", payload.hex(" "))
+        ser = open_serial(args)
+        written = ser.write(payload)
+        ser.flush()
+        ser.close()
+        result["ok"] = True
+        result["tx_bytes"] = written
+        emit_result(result)
+        return 0
+    except OSError as exc:
+        return fail(result, "log_write_failed", str(exc))
+    except RuntimeError as exc:
+        error_type, msg = exc.args[0]
+        return fail(result, error_type, msg)
+    except Exception as exc:
+        return fail(result, "write_failed", str(exc))
+
+
+def cmd_listen(args: argparse.Namespace) -> int:
+    result = make_result("listen", args)
+    if ensure_pyserial(result):
+        return 1
+    prep = prepare_port(result, args)
+    if prep:
+        return prep
+    try:
+        session_id, raw_path, text_path = start_logs(result, args.output_dir)
+        _ = session_id
+        ser = open_serial(args)
+        seconds = args.duration if args.duration is not None else 3.0
+        rx_bytes = read_for_duration(ser, seconds, raw_path, text_path)
+        ser.close()
+        result["ok"] = True
+        result["rx_bytes"] = rx_bytes
+        emit_result(result)
+        return 0
+    except OSError as exc:
+        return fail(result, "log_write_failed", str(exc))
+    except RuntimeError as exc:
+        error_type, msg = exc.args[0]
+        return fail(result, error_type, msg)
+
+
+def cmd_capture(args: argparse.Namespace) -> int:
+    result = make_result("capture", args)
+    if args.duration is None and args.max_bytes is None:
+        return fail(result, "invalid_param", "capture requires --duration or --max-bytes")
+    if ensure_pyserial(result):
+        return 1
+    prep = prepare_port(result, args)
+    if prep:
+        return prep
+    try:
+        session_id, raw_path, text_path = start_logs(result, args.output_dir)
+        _ = session_id
+        ser = open_serial(args)
+        rx_bytes = 0
+        if args.duration is not None:
+            rx_bytes += read_for_duration(ser, args.duration, raw_path, text_path)
+        if args.max_bytes is not None and rx_bytes < args.max_bytes:
+            rx_bytes += read_for_bytes(ser, args.max_bytes - rx_bytes, raw_path, text_path)
+        ser.close()
+        result["ok"] = True
+        result["rx_bytes"] = rx_bytes
+        emit_result(result)
+        return 0
+    except OSError as exc:
+        return fail(result, "log_write_failed", str(exc))
+    except RuntimeError as exc:
+        error_type, msg = exc.args[0]
+        return fail(result, error_type, msg)
+
+
+def cmd_session(args: argparse.Namespace) -> int:
+    result = make_result("session", args)
+    if ensure_pyserial(result):
+        return 1
+    prep = prepare_port(result, args)
+    if prep:
+        return prep
+    try:
+        session_id, raw_path, text_path = start_logs(result, args.output_dir)
+        _ = session_id
+        ser = open_serial(args)
+        tx_payload = None
+        if args.send_text is not None:
+            tx_payload = args.send_text.encode(args.encoding) + normalize_line_ending(args.line_ending)
+            append_raw_log(raw_path, tx_payload)
+            append_text_log(text_path, "TX", "text", repr(tx_payload.decode(args.encoding, errors="replace")))
+        elif args.send_hex is not None:
+            tx_payload = parse_hex_string(args.send_hex)
+            append_raw_log(raw_path, tx_payload)
+            append_text_log(text_path, "TX", "hex", tx_payload.hex(" "))
+
+        if tx_payload is not None:
+            result["tx_bytes"] = ser.write(tx_payload)
+            ser.flush()
+
+        duration = args.duration if args.duration is not None else 3.0
+        result["rx_bytes"] = read_for_duration(ser, duration, raw_path, text_path)
+        ser.close()
+        result["ok"] = True
+        emit_result(result)
+        return 0
+    except ValueError as exc:
+        return fail(result, "invalid_param", str(exc))
+    except LookupError as exc:
+        return fail(result, "invalid_param", f"invalid encoding: {exc}")
+    except OSError as exc:
+        return fail(result, "log_write_failed", str(exc))
+    except RuntimeError as exc:
+        error_type, msg = exc.args[0]
+        return fail(result, error_type, msg)
+    except Exception as exc:
+        return fail(result, "serial_error", str(exc))
+
+
+def add_common_serial_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--port")
+    parser.add_argument("--baudrate", type=int, default=115200)
+    parser.add_argument("--timeout", type=float, default=1.0)
+    parser.add_argument("--parity", default="N", choices=["N", "E", "O", "M", "S"])
+    parser.add_argument("--bytesize", type=int, default=8, choices=[5, 6, 7, 8])
+    parser.add_argument("--stopbits", type=float, default=1.0, choices=[1, 1.5, 2])
+    parser.add_argument("--output-dir")
+    parser.add_argument("--json", action="store_true", default=True)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Windows local serial debug helper")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    connect_test = sub.add_parser("connect-test")
+    add_common_serial_args(connect_test)
+    connect_test.set_defaults(func=cmd_connect_test)
+
+    send_text = sub.add_parser("send-text")
+    add_common_serial_args(send_text)
+    send_text.add_argument("--text", required=True)
+    send_text.add_argument("--encoding", default="utf-8")
+    send_text.add_argument("--line-ending", default="none", choices=["none", "lf", "cr", "crlf"])
+    send_text.set_defaults(func=cmd_send_text)
+
+    send_hex = sub.add_parser("send-hex")
+    add_common_serial_args(send_hex)
+    send_hex.add_argument("--hex", required=True)
+    send_hex.set_defaults(func=cmd_send_hex)
+
+    listen = sub.add_parser("listen")
+    add_common_serial_args(listen)
+    listen.add_argument("--duration", type=float)
+    listen.set_defaults(func=cmd_listen)
+
+    capture = sub.add_parser("capture")
+    add_common_serial_args(capture)
+    capture.add_argument("--duration", type=float)
+    capture.add_argument("--max-bytes", type=int)
+    capture.set_defaults(func=cmd_capture)
+
+    session = sub.add_parser("session")
+    add_common_serial_args(session)
+    session.add_argument("--send-text")
+    session.add_argument("--send-hex")
+    session.add_argument("--encoding", default="utf-8")
+    session.add_argument("--line-ending", default="none", choices=["none", "lf", "cr", "crlf"])
+    session.add_argument("--duration", type=float)
+    session.set_defaults(func=cmd_session)
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
