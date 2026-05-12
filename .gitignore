@@ -14,6 +14,8 @@ agents/skills/mediacrawler/browser_data/
 **/.pytest_cache/
 **/.mypy_cache/
 **/.ruff_cache/
+kingstvis_captures/*
+!kingstvis_captures/.gitkeep
 
 # Bytecode
 **/*.pyc
