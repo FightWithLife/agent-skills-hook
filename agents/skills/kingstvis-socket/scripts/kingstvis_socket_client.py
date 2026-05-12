@@ -75,20 +75,6 @@ def build_result(
     )
 
 
-def merge_command_results(command: str, primary: CommandResult, follow_up: CommandResult, ok: bool) -> CommandResult:
-    parts = []
-    if primary.response:
-        parts.append(primary.response)
-    parts.append(f"get-last-error: {follow_up.response}")
-    return CommandResult(
-        command=command,
-        response="\n".join(parts),
-        ok=ok,
-        output_path=primary.output_path,
-        output_exists=primary.output_exists,
-    )
-
-
 class KingstVisClient:
     def __init__(self, host: str, port: int, timeout: float) -> None:
         self.host = host
@@ -264,7 +250,7 @@ def run_connect(args: argparse.Namespace) -> int:
 def run_start(args: argparse.Namespace) -> int:
     command = "start --simulate" if args.simulate else "start"
     with KingstVisClient(args.host, args.port, args.timeout) as client:
-        result = send_start_and_confirm(client, command)
+        result = client.send(command)
     print_result(result)
     return 0 if result.ok else 2
 
@@ -338,17 +324,6 @@ def export_with_optional_fallback(
     )
 
 
-def send_start_and_confirm(client: KingstVisClient, command: str) -> CommandResult:
-    start_result = client.send(command)
-    if start_result.ok:
-        return start_result
-
-    status_result = client.send("get-last-error")
-    if "sampling in progress" in status_result.response.lower():
-        return merge_command_results(command, start_result, status_result, True)
-    return merge_command_results(command, start_result, status_result, False)
-
-
 def send_config_commands(client: KingstVisClient, args: argparse.Namespace, manifest: Path) -> bool:
     commands: list[str] = []
     for command in args.pre_command or []:
@@ -393,31 +368,36 @@ def run_capture(args: argparse.Namespace) -> int:
 
     with KingstVisClient(args.host, args.port, args.timeout) as client:
         failed = send_config_commands(client, args, manifest)
-        if failed and args.stop_on_error:
-            return 2
+    if failed and args.stop_on_error:
+        return 2
 
-        for index in range(1, args.count + 1):
-            start_result = send_start_and_confirm(client, command)
-            print_result(start_result)
-            append_manifest(manifest, start_result)
-            if not start_result.ok:
-                failed = True
-                if args.stop_on_error:
-                    break
-                continue
+    for index in range(1, args.count + 1):
+        with KingstVisClient(args.host, args.port, args.timeout) as client:
+            start_result = client.send(command)
+        print_result(start_result)
+        append_manifest(manifest, start_result)
+        if not start_result.ok:
+            failed = True
+            if args.stop_on_error:
+                break
+            continue
 
-            time.sleep(args.wait_after_start)
+        time.sleep(args.wait_after_start)
+
+        with KingstVisClient(args.host, args.port, args.timeout) as client:
             stop_result = client.send("stop")
-            print_result(stop_result)
-            append_manifest(manifest, stop_result)
-            if not stop_result.ok:
-                failed = True
-                if args.stop_on_error:
-                    break
-                continue
-            time.sleep(args.wait_after_stop)
+        print_result(stop_result)
+        append_manifest(manifest, stop_result)
+        if not stop_result.ok:
+            failed = True
+            if args.stop_on_error:
+                break
+            continue
 
-            output = resolve_output(args.path, args.output_dir, args.basename, args.format, index)
+        time.sleep(args.wait_after_stop)
+
+        output = resolve_output(args.path, args.output_dir, args.basename, args.format, index)
+        with KingstVisClient(args.host, args.port, args.timeout) as client:
             export_result = export_with_optional_fallback(
                 client,
                 output,
@@ -425,15 +405,15 @@ def run_capture(args: argparse.Namespace) -> int:
                 channels,
                 time_span,
             )
-            print_result(export_result)
-            append_manifest(manifest, export_result)
-            if not export_result.ok:
-                failed = True
-                if args.stop_on_error:
-                    break
+        print_result(export_result)
+        append_manifest(manifest, export_result)
+        if not export_result.ok:
+            failed = True
+            if args.stop_on_error:
+                break
 
-            if index != args.count:
-                time.sleep(args.interval)
+        if index != args.count:
+            time.sleep(args.interval)
 
     return 2 if failed else 0
 
@@ -541,7 +521,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     capture_parser.add_argument("--count", type=int, default=1, help="Number of capture/export cycles")
     capture_parser.add_argument("--interval", type=float, default=0.5, help="Delay between cycles")
-    capture_parser.add_argument("--wait-after-start", type=float, default=0.2, help="Capture dwell time before stop/export")
+    capture_parser.add_argument("--wait-after-start", type=float, default=0.2, help="Capture dwell time between start and stop")
     capture_parser.add_argument("--wait-after-stop", type=float, default=0.0, help="Delay after stop before export")
     capture_parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR, help="Local output directory")
     capture_parser.add_argument("--basename", default="capture", help="Output file prefix")
