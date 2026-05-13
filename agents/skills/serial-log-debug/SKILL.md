@@ -68,11 +68,23 @@ python agents/skills/serial-log-debug/serial_tool.py send-hex --port COM3 --hex 
 # 抓取 3 秒日志
 python agents/skills/serial-log-debug/serial_tool.py capture --port COM3 --duration 3 --output-dir serial_logs --json
 
-# 启动一次完整会话
-python agents/skills/serial-log-debug/serial_tool.py session --port COM3 --send-text reboot --duration 3 --output-dir serial_logs --json
+# 打开后台串口会话，持续落盘
+python agents/skills/serial-log-debug/serial_tool.py open --port COM3 --output-dir serial_logs --json
+
+# 查看会话状态
+python agents/skills/serial-log-debug/serial_tool.py status --session-path serial_logs\\20260513_xxx\\session.json
+
+# 查看最近日志
+python agents/skills/serial-log-debug/serial_tool.py peek --session-path serial_logs\\20260513_xxx\\session.json --lines 50
+
+# 只读取新增日志，按游标推进
+python agents/skills/serial-log-debug/serial_tool.py read-new --session-path serial_logs\\20260513_xxx\\session.json --cursor-name ai
+
+# 停止后台串口会话
+python agents/skills/serial-log-debug/serial_tool.py stop --session-path serial_logs\\20260513_xxx\\session.json
 
 # TP807 HTTPS 联调：115200 8N1 + RTS/CTS
-python agents/skills/serial-log-debug/serial_tool.py capture --port COM6 --baudrate 115200 --bytesize 8 --parity N --stopbits 1 --rtscts --duration 25 --output-dir serial_logs --json
+python agents/skills/serial-log-debug/serial_tool.py open --port COM6 --baudrate 115200 --bytesize 8 --parity N --stopbits 1 --rtscts --output-dir serial_logs --json
 ```
 
 ### 输入参数
@@ -98,6 +110,11 @@ python agents/skills/serial-log-debug/serial_tool.py capture --port COM6 --baudr
 | `listen` | 持续监听串口输出 |
 | `capture` | 按时长或字节数抓取一段日志 |
 | `session` | 完成一次监听 → 发送 → 接收 → 落盘闭环 |
+| `open` | 启动后台串口会话并持续落盘 |
+| `status` | 查询后台串口会话状态 |
+| `peek` | 读取最近日志片段，供 AI 判断是否继续 |
+| `read-new` | 按游标读取新增日志，避免重复读历史内容 |
+| `stop` | 停止后台串口会话 |
 
 ### 结果要求
 
@@ -125,7 +142,13 @@ python agents/skills/serial-log-debug/serial_tool.py capture --port COM6 --baudr
    - 默认直接以目标波特率（例如 `115200`）打开串口；若现场存在异常，应按真实日志和错误类型继续排查，而不是在 skill 内隐式切换波特率重试。
    - 若仓库或现场已有明确串口约定，必须显式传入对应流控参数；对 TP807 HTTPS 联调，默认使用 `115200 8N1 + RTS/CTS`。
    - 若未显式提供 `--port`，可以先枚举本机可见串口，并优先尝试 USB 串口设备（例如 CH340）。
-4. 同时保留两类日志：
+4. 推荐优先使用状态驱动模式：
+   - `open`
+   - `status`
+   - `peek`
+   - `read-new`
+   - `stop`
+5. 同时保留两类日志：
    - 原始日志：完整字节流
    - 可读日志：时间戳 + TX/RX + text/hex + 摘要
 5. 分析时只基于实际日志片段做轻量归纳，不补全不存在的证据。
@@ -177,3 +200,5 @@ python agents/skills/serial-log-debug/serial_tool.py capture --port COM6 --baudr
 - 未传 `--port` 时，自动枚举当前可见串口，并优先选择 USB 串口设备。
 - 实际打开串口时，直接按请求的目标波特率打开，并保留有限次重试。
 - Windows 下 `PermissionError` / `access is denied` 会映射为 `port_busy`，避免误报成 `port_not_found`。
+- `open` 会创建后台 worker 持续写入日志文件，并通过 `session.json` 暴露状态。
+- AI 可在测试过程中的任意阶段反复执行 `status`、`peek`、`read-new`，不需要预先固定抓取窗口。
