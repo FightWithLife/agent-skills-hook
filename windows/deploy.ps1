@@ -16,7 +16,6 @@ $Stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $RepoSkills = Join-Path $RepoRoot "agents\skills"
 $ConfigRoot = Join-Path $RepoRoot "config"
 $CodexAgents = Join-Path $ConfigRoot "codex\agents"
-$OpenCodeConfig = Join-Path $ConfigRoot "opencode"
 
 # 验证 skills 目录存在
 if (-not (Test-Path $RepoSkills)) {
@@ -26,11 +25,6 @@ if (-not (Test-Path $RepoSkills)) {
 
 if (-not (Test-Path $CodexAgents)) {
     Write-Error "ERROR: $CodexAgents missing."
-    exit 1
-}
-
-if (-not (Test-Path "$OpenCodeConfig\opencode.json")) {
-    Write-Error "ERROR: $OpenCodeConfig\opencode.json missing."
     exit 1
 }
 
@@ -57,58 +51,26 @@ function Safe-Copy {
     Copy-Item $Src $Dest -Recurse -Force
 }
 
-function Merge-JsonConfig {
+function Copy-DirectoryTree {
     param(
         [string]$Src,
         [string]$Dest
     )
 
-    $DestDir = Split-Path $Dest -Parent
-    if ($DestDir -and -not (Test-Path $DestDir)) {
-        New-Item -ItemType Directory -Path $DestDir -Force | Out-Null
+    if (-not (Test-Path $Src)) {
+        return
     }
 
-    $Merged = @{}
     if (Test-Path $Dest) {
-        $Merged = Get-Content $Dest -Raw | ConvertFrom-Json -AsHashtable
+        Remove-Item $Dest -Recurse -Force
     }
 
-    function Merge-Hashtable {
-        param(
-            [hashtable]$Base,
-            [hashtable]$Overlay
-        )
+    New-Item -ItemType Directory -Path $Dest -Force | Out-Null
 
-        foreach ($Key in $Overlay.Keys) {
-            if ($Base.ContainsKey($Key) -and $Base[$Key] -is [hashtable] -and $Overlay[$Key] -is [hashtable]) {
-                $Base[$Key] = Merge-Hashtable $Base[$Key] $Overlay[$Key]
-                continue
-            }
-
-            if ($Base.ContainsKey($Key) -and $Base[$Key] -is [System.Collections.IList] -and $Overlay[$Key] -is [System.Collections.IList]) {
-                $Items = @()
-                $Seen = @{}
-                foreach ($Item in @($Base[$Key]) + @($Overlay[$Key])) {
-                    $Identity = ConvertTo-Json $Item -Depth 100 -Compress
-                    if (-not $Seen.ContainsKey($Identity)) {
-                        $Seen[$Identity] = $true
-                        $Items += $Item
-                    }
-                }
-                $Base[$Key] = $Items
-                continue
-            }
-
-            $Base[$Key] = $Overlay[$Key]
-        }
-
-        return $Base
+    $null = robocopy $Src $Dest /E /NFL /NDL /NJH /NJS /NC /NS
+    if ($LASTEXITCODE -ge 8) {
+        throw "robocopy failed copying '$Src' to '$Dest' with exit code $LASTEXITCODE"
     }
-
-    $Overlay = Get-Content $Src -Raw | ConvertFrom-Json -AsHashtable
-    $Merged = Merge-Hashtable $Merged $Overlay
-
-    $Merged | ConvertTo-Json -Depth 100 | Set-Content $Dest -Encoding UTF8
 }
 
 # Codex 部署
@@ -119,9 +81,9 @@ if ($Target -eq "codex" -or $Target -eq "all") {
     # 备份现有配置
     $CodexDir = Join-Path $env:USERPROFILE ".codex"
     if (Test-Path "$CodexDir\AGENTS.md") { Copy-Item "$CodexDir\AGENTS.md" "$BackupC\codex\AGENTS.md" -Force }
-    if (Test-Path "$CodexDir\agents") { Copy-Item "$CodexDir\agents" "$BackupC\codex\agents" -Recurse -Force }
-    if (Test-Path "$CodexDir\skills") { Copy-Item "$CodexDir\skills" "$BackupC\codex\skills" -Recurse -Force }
-    Copy-Item $RepoSkills "$BackupC\repo\skills" -Recurse -Force
+    if (Test-Path "$CodexDir\agents") { Copy-DirectoryTree "$CodexDir\agents" "$BackupC\codex\agents" }
+    if (Test-Path "$CodexDir\skills") { Copy-DirectoryTree "$CodexDir\skills" "$BackupC\codex\skills" }
+    Copy-DirectoryTree $RepoSkills "$BackupC\repo\skills"
     
     # 部署配置（从 config/ 复制）
     Safe-Copy "$ConfigRoot\codex\AGENTS.md" "$CodexDir\AGENTS.md"
@@ -142,15 +104,13 @@ if ($Target -eq "opencode" -or $Target -eq "all") {
     # 备份现有配置
     $OpenCodeDir = Join-Path $env:USERPROFILE ".config\opencode"
     if (Test-Path "$OpenCodeDir\AGENTS.md") { Copy-Item "$OpenCodeDir\AGENTS.md" "$BackupO\opencode\AGENTS.md" -Force }
-    if (Test-Path "$OpenCodeDir\opencode.json") { Copy-Item "$OpenCodeDir\opencode.json" "$BackupO\opencode\opencode.json" -Force }
-    if (Test-Path "$OpenCodeDir\skills") { Copy-Item "$OpenCodeDir\skills" "$BackupO\opencode\skills" -Recurse -Force }
-    if (Test-Path "$env:USERPROFILE\.claude\skills") { Copy-Item "$env:USERPROFILE\.claude\skills" "$BackupO\claude\skills" -Recurse -Force }
-    Copy-Item $RepoSkills "$BackupO\repo\skills" -Recurse -Force
+    if (Test-Path "$OpenCodeDir\skills") { Copy-DirectoryTree "$OpenCodeDir\skills" "$BackupO\opencode\skills" }
+    if (Test-Path "$env:USERPROFILE\.claude\skills") { Copy-DirectoryTree "$env:USERPROFILE\.claude\skills" "$BackupO\claude\skills" }
+    Copy-DirectoryTree $RepoSkills "$BackupO\repo\skills"
     
     # 部署配置（从 config/ 复制）
     New-Item -ItemType Directory -Path "$OpenCodeDir" -Force | Out-Null
     Safe-Copy "$ConfigRoot\opencode\AGENTS.md" "$OpenCodeDir\AGENTS.md"
-    Merge-JsonConfig "$OpenCodeConfig\opencode.json" "$OpenCodeDir\opencode.json"
     Safe-Copy $RepoSkills "$OpenCodeDir\skills"
     Safe-Copy $RepoSkills "$env:USERPROFILE\.claude\skills"
     if (Test-Path "$env:USERPROFILE\.agents\skills") {
@@ -169,8 +129,8 @@ if ($Target -eq "claude" -or $Target -eq "all") {
     $ClaudeDir = Join-Path $env:USERPROFILE ".claude"
     if (Test-Path "$ClaudeDir\AGENTS.md") { Copy-Item "$ClaudeDir\AGENTS.md" "$BackupCL\claude\AGENTS.md" -Force }
     if (Test-Path "$ClaudeDir\CLAUDE.md") { Copy-Item "$ClaudeDir\CLAUDE.md" "$BackupCL\claude\CLAUDE.md" -Force }
-    if (Test-Path "$ClaudeDir\skills") { Copy-Item "$ClaudeDir\skills" "$BackupCL\claude\skills" -Recurse -Force }
-    Copy-Item $RepoSkills "$BackupCL\repo\skills" -Recurse -Force
+    if (Test-Path "$ClaudeDir\skills") { Copy-DirectoryTree "$ClaudeDir\skills" "$BackupCL\claude\skills" }
+    Copy-DirectoryTree $RepoSkills "$BackupCL\repo\skills"
     
     # 部署配置（从 config/ 复制）
     New-Item -ItemType Directory -Path "$ClaudeDir" -Force | Out-Null
@@ -188,8 +148,8 @@ New-Item -ItemType Directory -Path "$BackupQ\qoder", "$BackupQ\repo" -Force | Ou
 # 备份现有配置
 $QoderDir = Join-Path $env:USERPROFILE ".qoder"
 if (Test-Path "$QoderDir\AGENTS.md") { Copy-Item "$QoderDir\AGENTS.md" "$BackupQ\qoder\AGENTS.md" -Force }
-if (Test-Path "$QoderDir\skills") { Copy-Item "$QoderDir\skills" "$BackupQ\qoder\skills" -Recurse -Force }
-Copy-Item $RepoSkills "$BackupQ\repo\skills" -Recurse -Force
+if (Test-Path "$QoderDir\skills") { Copy-DirectoryTree "$QoderDir\skills" "$BackupQ\qoder\skills" }
+Copy-DirectoryTree $RepoSkills "$BackupQ\repo\skills"
 
 # 部署配置（从 config/qoder/ 复制）
 New-Item -ItemType Directory -Path "$QoderDir" -Force | Out-Null
