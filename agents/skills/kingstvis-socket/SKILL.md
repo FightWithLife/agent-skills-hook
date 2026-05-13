@@ -1,11 +1,11 @@
 ---
 name: kingstvis-socket
-description: Use when connecting to KingstVIS through its SocketAPI to send commands, start captures, simulate captures, export capture data, or batch-save local CSV/KVDAT files.
+description: Use when running KingstVIS capture/export through SocketAPI with one explicit `capture` command and fully specified parameters.
 ---
 
 # KingstVIS Socket Automation
 
-Use this skill when the user wants AI-assisted KingstVIS automation through the official SocketAPI: connect to KingstVIS, send commands, start captures, and export data into the current workspace.
+Use this skill when the user wants AI-assisted KingstVIS automation through the official SocketAPI.
 
 ## Prerequisites
 
@@ -13,6 +13,16 @@ Use this skill when the user wants AI-assisted KingstVIS automation through the 
 - KingstVIS Socket function is enabled in the application.
 - Default endpoint is `127.0.0.1:23367`.
 - Python 3 is available.
+
+## Required Rule
+
+- Default to `capture`. Do not use `start`, `stop`, `export`, or raw `send` as the normal workflow.
+- Every normal data-collection task should be expressed as one complete `capture` command with explicit parameters.
+- `capture` is a foreground blocking command. It does not return until the full capture/export flow finishes or fails.
+- If other operations must continue while capture is running, use the explicit background workflow: `capture-bg` plus `capture-status` or `capture-wait`.
+- Only use `connect` for connectivity check.
+- Only use `get-last-error` for dedicated diagnosis after a failed run.
+- Do not split one capture task into multiple manual socket steps unless the user explicitly asks to debug SocketAPI details.
 
 ## Tool
 
@@ -28,165 +38,141 @@ Default output directory:
 kingstvis_captures/
 ```
 
-## Common Workflows
+## Standard Workflow
 
-Send a raw command:
-
-```powershell
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py send "start"
-```
-
-Test connection only:
+First verify connectivity if needed:
 
 ```powershell
 python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py connect
 ```
 
-Start capture:
+Then run one complete capture command.
+
+Minimal example:
 
 ```powershell
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py start
+python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py capture --count 1 --format csv --output-dir kingstvis_captures
 ```
 
-说明：
-- `start` 返回 `ACK` 时可直接视为成功。
-- 不要在同一个 socket 会话里，`start` 后马上再发 `get-last-error`。
-- 若需排查 `start` 失败，请结束当前连接，按需另起新连接单独执行 `get-last-error`。
-
-Start simulated capture:
+Common explicit example:
 
 ```powershell
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py start --simulate
+python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py capture --count 1 --sample-rate 10000000 --sample-time 0.5 --threshold-voltage 1.65 --reset-trigger --pos-edge 0 --channels 0 1 --format csv --output-dir kingstvis_captures
 ```
 
-Export data to a local CSV path:
+Current capture sequence inside the script is:
+
+`start` -> wait `--wait-after-start` -> `stop` -> optional wait `--wait-after-stop` -> `export`
+
+The agent should still call only `capture`, not the internal steps directly.
+
+Execution semantics:
+
+- Foreground `capture` blocks until the whole sequence above completes.
+- If the task requires more commands to run in parallel, use `capture-bg`.
+- When using background execution, the agent must later call `capture-status` or `capture-wait` and confirm completion state before claiming success.
+
+## Recommended Capture Patterns
+
+Single capture:
 
 ```powershell
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py export kingstvis_captures\capture.csv
+python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py capture --count 1 --format csv --output-dir kingstvis_captures
 ```
 
-说明：
-- 导出应在 `stop` 之后执行。
-- 不要假设 `start` 后立刻 `export` 一定成立。
-
-Run an automated capture and save loop:
+Single capture with selected channels:
 
 ```powershell
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py capture --count 3 --format csv --output-dir kingstvis_captures
+python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py capture --count 1 --channels 0 1 --format csv --output-dir kingstvis_captures
 ```
 
-当前脚本执行顺序为：`start` → 等待 `--wait-after-start` → `stop` → `export`。
-
-连接时序要求：
-- `start`、`stop`、`export` 各自使用独立 socket 连接。
-- `start` 之后只在本地等待采样时长，不在同一连接里追加其他命令。
-
-显式分步执行时，推荐按以下顺序：
+Single capture with sample and trigger settings:
 
 ```powershell
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py start
-Start-Sleep -Seconds 1
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py stop
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py export kingstvis_captures\capture.csv
+python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py capture --count 1 --sample-rate 10000000 --sample-time 0.5 --threshold-voltage 1.65 --reset-trigger --pos-edge 0 --high-level 1 2 --low-level 3 4 --channels 0 1 --format csv --output-dir kingstvis_captures
 ```
 
-如现场发现 `stop` 后立即导出仍不稳定，可增加：
+Simulated capture when hardware is unavailable:
 
 ```powershell
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py capture --wait-after-stop 0.5 --count 1 --format csv
+python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py capture --simulate --count 1 --format csv --output-dir kingstvis_captures
 ```
 
-Run capture and export only selected channels:
+Multiple captures:
 
 ```powershell
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py capture --channels 0 1 --format csv
+python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py capture --count 3 --interval 0.5 --format csv --output-dir kingstvis_captures
 ```
 
-Run capture with sample settings and trigger settings:
+If CSV export is rejected by the installed KingstVIS version:
 
 ```powershell
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py capture --sample-rate 10000000 --sample-time 0.5 --threshold-voltage 1.65 --reset-trigger --pos-edge 0 --high-level 1 2 --low-level 3 4 --channels 0 1 --format csv
+python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py capture --count 1 --format csv --fallback-kvdat --output-dir kingstvis_captures
 ```
 
-Use simulated capture when hardware is not connected:
+If export timing is unstable after stop:
 
 ```powershell
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py capture --simulate --count 1 --format csv
+python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py capture --count 1 --wait-after-stop 0.5 --format csv --output-dir kingstvis_captures
 ```
 
-If CSV export is not accepted by the installed KingstVIS version, retry with KVDAT:
+Background capture when later steps must continue immediately:
 
 ```powershell
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py capture --count 1 --format csv --fallback-kvdat
+python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py capture-bg --status-file kingstvis_captures\capture_status.json --count 1 --sample-rate 10000000 --sample-time 0.5 --channels 0 1 --format csv --output-dir kingstvis_captures
 ```
 
-## SocketAPI Command Coverage
+Check whether it is still running:
 
-Error query:
+```powershell
+python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py capture-status --status-file kingstvis_captures\capture_status.json
+```
+
+Wait for completion before reporting success:
+
+```powershell
+python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py capture-wait --status-file kingstvis_captures\capture_status.json --wait-timeout 60
+```
+
+## Diagnosis Only
+
+Connectivity check:
+
+```powershell
+python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py connect
+```
+
+Read last error after a failed capture:
 
 ```powershell
 python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py get-last-error
 ```
 
-Capture control:
+Do not use the commands below in normal agent workflow:
 
-```powershell
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py start
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py start --simulate
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py stop
-```
+- `send`
+- `start`
+- `start --simulate`
+- `stop`
+- `export`
+- direct parameter-setting commands such as `set-sample-rate`, `set-sample-time`, `set-trigger`
 
-Sample rate and depth:
-
-```powershell
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py set-sample-rate 10000000
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py get-sample-rate
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py get-supported-sample-rate
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py set-sample-depth 20000000
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py get-actual-sample-depth
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py set-sample-time 0.5
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py get-actual-sample-time
-```
-
-Threshold and trigger:
-
-```powershell
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py set-threshold-voltage 1.65
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py set-trigger --reset
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py set-trigger --reset --pos-edge 0 --high-level 1 2 --low-level 3 4
-```
-
-Export selected channels and time span:
-
-```powershell
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py export kingstvis_captures\capture.csv --channels 0 1
-python agents\skills\kingstvis-socket\scripts\kingstvis_socket_client.py export kingstvis_captures\capture.csv --channels 0 1 --time-span 0.01 0.5
-```
+Those commands are implementation details or low-level diagnosis tools. Prefer putting all required parameters onto one `capture` command.
 
 ## Response Rules
 
 - Treat any response beginning with `NAK` as failure.
-- Do not send `get-last-error` immediately after `start` in the same socket session.
-- If `start` / `start --simulate` fails and further diagnosis is needed, reconnect first and then query `get-last-error` separately.
-- Report the exact command, response, output path, and whether the output file exists.
-- Do not claim export succeeded unless it happens after `stop`, and KingstVIS returned a non-`NAK` response or the output file actually appears.
+- Report the exact `capture` command, response, output path, and whether the output file exists.
+- If `capture` was started in the background, report that it is still running until completion evidence is collected.
+- Do not claim export succeeded unless KingstVIS returned a non-`NAK` response or the output file actually appears.
 - If the file does not appear after a successful response, report it as a residual risk because KingstVIS may write asynchronously or reject the extension silently.
+- If `capture` fails and further diagnosis is needed, run `get-last-error` separately.
 
-## Known Commands From SDK Examples
+## Allowed Commands For Normal Use
 
-- `get-last-error`
-- `start`
-- `start --simulate`
-- `stop`
-- `set-sample-rate <value>`
-- `get-sample-rate`
-- `get-supported-sample-rate`
-- `set-sample-depth <value>`
-- `get-actual-sample-depth`
-- `set-sample-time <seconds>`
-- `get-actual-sample-time`
-- `set-threshold-voltage <value>`
-- `set-trigger [--reset] [--low-level channels] [--high-level channels] [--pos-edge channel] [--neg-edge channel]`
-- `export-data <path> [--chn-select channels] [--time-span start [end]]`
-
-For unlisted SocketAPI commands, use `send` to pass the raw command through unchanged.
+- `connect`
+- `capture`
+- `capture-bg`
+- `capture-status`
+- `capture-wait`
+- `get-last-error` only after failure diagnosis is needed

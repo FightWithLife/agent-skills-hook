@@ -166,5 +166,66 @@ class CaptureWorkflowTests(unittest.TestCase):
         )
 
 
+class BackgroundCaptureTests(unittest.TestCase):
+    def test_capture_bg_writes_pending_status_file(self):
+        temp_dir = Path(self.id().replace(".", "_"))
+        status_path = temp_dir / "capture_status.json"
+        args = Namespace(
+            host="127.0.0.1",
+            port=23367,
+            timeout=1.0,
+            status_file=str(status_path),
+            python_executable=sys.executable,
+        )
+
+        launched = {}
+
+        class FakePopen:
+            def __init__(self, command, **kwargs):
+                launched["command"] = command
+                launched["kwargs"] = kwargs
+                self.pid = 4321
+
+        with (
+            patch.object(MODULE.subprocess, "Popen", FakePopen),
+            patch.object(MODULE, "timestamp", return_value="20260513_120000"),
+        ):
+            rc = MODULE.run_capture_bg(args)
+
+        self.assertEqual(rc, 0)
+        self.assertTrue(status_path.exists())
+        payload = MODULE.json.loads(status_path.read_text(encoding="utf-8"))
+        self.assertEqual(payload["status"], "running")
+        self.assertEqual(payload["pid"], 4321)
+        self.assertEqual(payload["started_at"], "20260513_120000")
+        self.assertIn("capture-runner", launched["command"])
+
+    def test_capture_status_reports_missing_file(self):
+        args = Namespace(status_file=str(Path("missing_status.json")))
+        with patch("builtins.print") as mocked_print:
+            rc = MODULE.run_capture_status(args)
+        self.assertEqual(rc, 2)
+        printed = mocked_print.call_args[0][0]
+        payload = MODULE.json.loads(printed)
+        self.assertEqual(payload["status"], "missing")
+
+    def test_capture_wait_returns_success_for_completed_status(self):
+        status_path = Path("capture_wait_status.json")
+        status_path.write_text(
+            MODULE.json.dumps(
+                {
+                    "status": "completed",
+                    "exit_code": 0,
+                    "output_exists": True,
+                }
+            ),
+            encoding="utf-8",
+        )
+        args = Namespace(status_file=str(status_path), poll_interval=0.01, wait_timeout=0.1)
+        with patch("builtins.print"):
+            rc = MODULE.run_capture_wait(args)
+        self.assertEqual(rc, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

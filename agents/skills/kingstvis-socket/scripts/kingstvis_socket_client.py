@@ -7,6 +7,7 @@ import argparse
 import csv
 import json
 import socket
+import subprocess
 import sys
 import time
 from dataclasses import asdict, dataclass
@@ -137,6 +138,10 @@ def print_result(result: CommandResult) -> None:
     print(json.dumps(asdict(result), ensure_ascii=False, indent=2))
 
 
+def print_json(payload: dict) -> None:
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+
+
 def quote_path_for_command(path: Path) -> str:
     return f'"{path}"'
 
@@ -218,6 +223,22 @@ def append_manifest(manifest_path: Path, result: CommandResult) -> None:
             ),
             file=sys.stderr,
         )
+
+
+def load_status_file(status_file: Path) -> dict | None:
+    if not status_file.exists():
+        return None
+    with status_file.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def write_status_file(status_file: Path, payload: dict) -> None:
+    status_file.parent.mkdir(parents=True, exist_ok=True)
+    status_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def default_status_file(output_dir: str) -> Path:
+    return (Path(output_dir).resolve() / "capture_status.json")
 
 
 def resolve_output(path_text: str | None, output_dir: str, basename: str, fmt: str, index: int) -> Path:
@@ -418,6 +439,158 @@ def run_capture(args: argparse.Namespace) -> int:
     return 2 if failed else 0
 
 
+def build_capture_runner_command(args: argparse.Namespace, status_file: Path) -> list[str]:
+    command = [
+        args.python_executable,
+        str(Path(__file__).resolve()),
+        "--host",
+        args.host,
+        "--port",
+        str(args.port),
+        "--timeout",
+        str(args.timeout),
+        "capture-runner",
+        "--status-file",
+        str(status_file),
+    ]
+    return command
+
+
+def run_capture_bg(args: argparse.Namespace) -> int:
+    status_file = Path(args.status_file).resolve()
+    payload = {
+        "status": "running",
+        "pid": None,
+        "started_at": timestamp(),
+        "command": "capture-runner",
+        "status_file": str(status_file),
+    }
+    write_status_file(status_file, payload)
+    process = subprocess.Popen(
+        build_capture_runner_command(args, status_file),
+        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+    )
+    payload["pid"] = process.pid
+    write_status_file(status_file, payload)
+    print_json(payload)
+    return 0
+
+
+def run_capture_runner(args: argparse.Namespace) -> int:
+    status_file = Path(args.status_file).resolve()
+    payload = load_status_file(status_file) or {}
+    payload.update(
+        {
+            "status": "running",
+            "pid": payload.get("pid"),
+            "started_at": payload.get("started_at", timestamp()),
+            "command": "capture-runner",
+            "status_file": str(status_file),
+        }
+    )
+    write_status_file(status_file, payload)
+
+    result_payload: dict
+    exit_code = 1
+    try:
+        exit_code = run_capture(args)
+        output_exists = None
+        output_path = None
+        if args.path:
+            output_path = str(Path(args.path).resolve())
+            output_exists = Path(output_path).exists()
+        result_payload = {
+            **payload,
+            "status": "completed" if exit_code == 0 else "failed",
+            "exit_code": exit_code,
+            "finished_at": timestamp(),
+            "output_path": output_path,
+            "output_exists": output_exists,
+        }
+    except Exception as exc:
+        result_payload = {
+            **payload,
+            "status": "failed",
+            "exit_code": 1,
+            "finished_at": timestamp(),
+            "error": str(exc),
+        }
+        write_status_file(status_file, result_payload)
+        raise
+
+    write_status_file(status_file, result_payload)
+    print_json(result_payload)
+    return exit_code
+
+
+def run_capture_status(args: argparse.Namespace) -> int:
+    status_file = Path(args.status_file).resolve()
+    payload = load_status_file(status_file)
+    if payload is None:
+        print_json({"status": "missing", "status_file": str(status_file)})
+        return 2
+    print_json(payload)
+    status = payload.get("status")
+    if status == "completed":
+        return 0
+    if status == "running":
+        return 3
+    return payload.get("exit_code", 1) or 1
+
+
+def run_capture_wait(args: argparse.Namespace) -> int:
+    status_file = Path(args.status_file).resolve()
+    deadline = time.monotonic() + args.wait_timeout
+    while time.monotonic() < deadline:
+        payload = load_status_file(status_file)
+        if payload is not None and payload.get("status") != "running":
+            print_json(payload)
+            if payload.get("status") == "completed":
+                return 0
+            return payload.get("exit_code", 1) or 1
+        time.sleep(args.poll_interval)
+
+    payload = load_status_file(status_file)
+    if payload is None:
+        payload = {"status": "missing", "status_file": str(status_file)}
+        print_json(payload)
+        return 2
+    print_json(payload)
+    return 3
+
+
+def add_capture_arguments(parser: argparse.ArgumentParser, *, include_status_file: bool = False) -> None:
+    parser.add_argument("--simulate", action="store_true", help="Use 'start --simulate'")
+    parser.add_argument("--pre-command", action="append", help="Raw command to send before start")
+    parser.add_argument("--sample-rate", help="Set sample rate before capture")
+    parser.add_argument("--sample-depth", help="Set sample depth before capture")
+    parser.add_argument("--sample-time", help="Set sample time before capture")
+    parser.add_argument("--threshold-voltage", help="Set threshold voltage before capture")
+    parser.add_argument("--reset-trigger", action="store_true", help="Reset trigger before capture")
+    parser.add_argument("--low-level", nargs="+", help="Low-level trigger channels")
+    parser.add_argument("--high-level", nargs="+", help="High-level trigger channels")
+    parser.add_argument("--pos-edge", nargs="+", help="Positive-edge trigger channel")
+    parser.add_argument("--neg-edge", nargs="+", help="Negative-edge trigger channel")
+    parser.add_argument("--channels", nargs="+", help="Export selected channels, for example 0 1")
+    parser.add_argument(
+        "--time-span",
+        nargs="+",
+        help="Export time range, for example 0.01 0.5 or only 0.01",
+    )
+    parser.add_argument("--count", type=int, default=1, help="Number of capture/export cycles")
+    parser.add_argument("--interval", type=float, default=0.5, help="Delay between cycles")
+    parser.add_argument("--wait-after-start", type=float, default=0.2, help="Capture dwell time between start and stop")
+    parser.add_argument("--wait-after-stop", type=float, default=0.0, help="Delay after stop before export")
+    parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR, help="Local output directory")
+    parser.add_argument("--basename", default="capture", help="Output file prefix")
+    parser.add_argument("--format", default="csv", choices=["csv", "kvdat", "txt"], help="Export extension")
+    parser.add_argument("--path", help="Exact output path; mainly for single capture")
+    parser.add_argument("--fallback-kvdat", action="store_true", help="Retry as .kvdat if export fails")
+    parser.add_argument("--stop-on-error", action="store_true", help="Stop loop after first failure")
+    if include_status_file:
+        parser.add_argument("--status-file", help="Status JSON path")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="KingstVIS SocketAPI client")
     parser.add_argument("--host", default=DEFAULT_HOST, help="KingstVIS SocketAPI host")
@@ -502,34 +675,32 @@ def build_parser() -> argparse.ArgumentParser:
     export_parser.set_defaults(func=run_export)
 
     capture_parser = subparsers.add_parser("capture", help="Start capture and export data")
-    capture_parser.add_argument("--simulate", action="store_true", help="Use 'start --simulate'")
-    capture_parser.add_argument("--pre-command", action="append", help="Raw command to send before start")
-    capture_parser.add_argument("--sample-rate", help="Set sample rate before capture")
-    capture_parser.add_argument("--sample-depth", help="Set sample depth before capture")
-    capture_parser.add_argument("--sample-time", help="Set sample time before capture")
-    capture_parser.add_argument("--threshold-voltage", help="Set threshold voltage before capture")
-    capture_parser.add_argument("--reset-trigger", action="store_true", help="Reset trigger before capture")
-    capture_parser.add_argument("--low-level", nargs="+", help="Low-level trigger channels")
-    capture_parser.add_argument("--high-level", nargs="+", help="High-level trigger channels")
-    capture_parser.add_argument("--pos-edge", nargs="+", help="Positive-edge trigger channel")
-    capture_parser.add_argument("--neg-edge", nargs="+", help="Negative-edge trigger channel")
-    capture_parser.add_argument("--channels", nargs="+", help="Export selected channels, for example 0 1")
-    capture_parser.add_argument(
-        "--time-span",
-        nargs="+",
-        help="Export time range, for example 0.01 0.5 or only 0.01",
-    )
-    capture_parser.add_argument("--count", type=int, default=1, help="Number of capture/export cycles")
-    capture_parser.add_argument("--interval", type=float, default=0.5, help="Delay between cycles")
-    capture_parser.add_argument("--wait-after-start", type=float, default=0.2, help="Capture dwell time between start and stop")
-    capture_parser.add_argument("--wait-after-stop", type=float, default=0.0, help="Delay after stop before export")
-    capture_parser.add_argument("--output-dir", default=DEFAULT_OUTPUT_DIR, help="Local output directory")
-    capture_parser.add_argument("--basename", default="capture", help="Output file prefix")
-    capture_parser.add_argument("--format", default="csv", choices=["csv", "kvdat", "txt"], help="Export extension")
-    capture_parser.add_argument("--path", help="Exact output path; mainly for single capture")
-    capture_parser.add_argument("--fallback-kvdat", action="store_true", help="Retry as .kvdat if export fails")
-    capture_parser.add_argument("--stop-on-error", action="store_true", help="Stop loop after first failure")
+    add_capture_arguments(capture_parser)
     capture_parser.set_defaults(func=run_capture)
+
+    capture_bg_parser = subparsers.add_parser("capture-bg", help="Launch capture in background")
+    add_capture_arguments(capture_bg_parser, include_status_file=True)
+    capture_bg_parser.add_argument(
+        "--python-executable",
+        default=sys.executable,
+        help="Python executable used to start the background runner",
+    )
+    capture_bg_parser.set_defaults(func=run_capture_bg)
+
+    capture_runner_parser = subparsers.add_parser("capture-runner", help=argparse.SUPPRESS)
+    add_capture_arguments(capture_runner_parser, include_status_file=True)
+    capture_runner_parser.add_argument("--status-file", required=True, help="Status JSON path")
+    capture_runner_parser.set_defaults(func=run_capture_runner)
+
+    capture_status_parser = subparsers.add_parser("capture-status", help="Read background capture status")
+    capture_status_parser.add_argument("--status-file", required=True, help="Status JSON path")
+    capture_status_parser.set_defaults(func=run_capture_status)
+
+    capture_wait_parser = subparsers.add_parser("capture-wait", help="Wait for background capture completion")
+    capture_wait_parser.add_argument("--status-file", required=True, help="Status JSON path")
+    capture_wait_parser.add_argument("--poll-interval", type=float, default=0.2, help="Polling interval seconds")
+    capture_wait_parser.add_argument("--wait-timeout", type=float, default=30.0, help="Maximum wait seconds")
+    capture_wait_parser.set_defaults(func=run_capture_wait)
 
     return parser
 
@@ -539,6 +710,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if getattr(args, "count", 1) < 1:
         parser.error("--count must be >= 1")
+    if getattr(args, "command_name", "") == "capture-bg" and not getattr(args, "status_file", None):
+        args.status_file = str(default_status_file(DEFAULT_OUTPUT_DIR))
     try:
         return args.func(args)
     except KingstVisSocketError as exc:
