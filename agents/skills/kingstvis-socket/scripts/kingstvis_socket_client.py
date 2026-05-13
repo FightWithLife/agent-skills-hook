@@ -76,6 +76,21 @@ def build_result(
     )
 
 
+def effective_capture_timeout(args: argparse.Namespace) -> float:
+    timeout = float(args.timeout)
+    sample_time = getattr(args, "sample_time", None)
+    if sample_time is None:
+        return timeout
+    try:
+        sample_time_value = float(sample_time)
+    except (TypeError, ValueError):
+        return timeout
+    if sample_time_value <= 0:
+        return timeout
+    # Long capture windows may keep the `start` command pending until capture completes.
+    return max(timeout, sample_time_value + 5.0)
+
+
 class KingstVisClient:
     def __init__(self, host: str, port: int, timeout: float) -> None:
         self.host = host
@@ -386,14 +401,15 @@ def run_capture(args: argparse.Namespace) -> int:
     channels = normalize_channels(args.channels)
     time_span = normalize_float_values(args.time_span)
     failed = False
+    timeout = effective_capture_timeout(args)
 
-    with KingstVisClient(args.host, args.port, args.timeout) as client:
+    with KingstVisClient(args.host, args.port, timeout) as client:
         failed = send_config_commands(client, args, manifest)
     if failed and args.stop_on_error:
         return 2
 
     for index in range(1, args.count + 1):
-        with KingstVisClient(args.host, args.port, args.timeout) as client:
+        with KingstVisClient(args.host, args.port, timeout) as client:
             start_result = client.send(command)
         print_result(start_result)
         append_manifest(manifest, start_result)
@@ -405,7 +421,7 @@ def run_capture(args: argparse.Namespace) -> int:
 
         time.sleep(args.wait_after_start)
 
-        with KingstVisClient(args.host, args.port, args.timeout) as client:
+        with KingstVisClient(args.host, args.port, timeout) as client:
             stop_result = client.send("stop")
         print_result(stop_result)
         append_manifest(manifest, stop_result)
@@ -418,7 +434,7 @@ def run_capture(args: argparse.Namespace) -> int:
         time.sleep(args.wait_after_stop)
 
         output = resolve_output(args.path, args.output_dir, args.basename, args.format, index)
-        with KingstVisClient(args.host, args.port, args.timeout) as client:
+        with KingstVisClient(args.host, args.port, timeout) as client:
             export_result = export_with_optional_fallback(
                 client,
                 output,
@@ -453,6 +469,44 @@ def build_capture_runner_command(args: argparse.Namespace, status_file: Path) ->
         "--status-file",
         str(status_file),
     ]
+    if args.simulate:
+        command.append("--simulate")
+    for pre_command in args.pre_command or []:
+        command.extend(["--pre-command", pre_command])
+    if args.sample_rate is not None:
+        command.extend(["--sample-rate", str(args.sample_rate)])
+    if args.sample_depth is not None:
+        command.extend(["--sample-depth", str(args.sample_depth)])
+    if args.sample_time is not None:
+        command.extend(["--sample-time", str(args.sample_time)])
+    if args.threshold_voltage is not None:
+        command.extend(["--threshold-voltage", str(args.threshold_voltage)])
+    if args.reset_trigger:
+        command.append("--reset-trigger")
+    for opt_name, opt_value in (
+        ("--low-level", args.low_level),
+        ("--high-level", args.high_level),
+        ("--pos-edge", args.pos_edge),
+        ("--neg-edge", args.neg_edge),
+        ("--channels", args.channels),
+        ("--time-span", args.time_span),
+    ):
+        if opt_value:
+            command.append(opt_name)
+            command.extend([str(v) for v in opt_value])
+    command.extend(["--count", str(args.count)])
+    command.extend(["--interval", str(args.interval)])
+    command.extend(["--wait-after-start", str(args.wait_after_start)])
+    command.extend(["--wait-after-stop", str(args.wait_after_stop)])
+    command.extend(["--output-dir", str(args.output_dir)])
+    command.extend(["--basename", str(args.basename)])
+    command.extend(["--format", str(args.format)])
+    if args.path:
+        command.extend(["--path", str(args.path)])
+    if args.fallback_kvdat:
+        command.append("--fallback-kvdat")
+    if args.stop_on_error:
+        command.append("--stop-on-error")
     return command
 
 
@@ -494,11 +548,14 @@ def run_capture_runner(args: argparse.Namespace) -> int:
     exit_code = 1
     try:
         exit_code = run_capture(args)
+        resolved_output = None
+        if getattr(args, "count", 1) == 1:
+            resolved_output = resolve_output(args.path, args.output_dir, args.basename, args.format, 1)
         output_exists = None
         output_path = None
-        if args.path:
-            output_path = str(Path(args.path).resolve())
-            output_exists = Path(output_path).exists()
+        if resolved_output is not None:
+            output_path = str(resolved_output)
+            output_exists = resolved_output.exists()
         result_payload = {
             **payload,
             "status": "completed" if exit_code == 0 else "failed",
