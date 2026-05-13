@@ -54,7 +54,13 @@ def run_json_cmd(command: list[str], cwd: Optional[Path], log_path: Path) -> Dic
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generic embedded debug workflow orchestrator. Serial capture is opened before flash or USB actions.")
+    parser = argparse.ArgumentParser(
+        description=(
+            "Generic embedded debug workflow orchestrator. "
+            "Serial capture is opened before flash or USB actions. "
+            "USB/test commands are expected to run serially; parallel command sending is forbidden unless the user explicitly requires it."
+        )
+    )
     parser.add_argument("--workspace", default=".")
     parser.add_argument("--artifacts-dir", default="artifacts")
     parser.add_argument("--build-cmd", nargs="+")
