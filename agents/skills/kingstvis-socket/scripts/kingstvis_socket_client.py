@@ -689,7 +689,6 @@ def build_parser() -> argparse.ArgumentParser:
 
     capture_runner_parser = subparsers.add_parser("capture-runner", help=argparse.SUPPRESS)
     add_capture_arguments(capture_runner_parser, include_status_file=True)
-    capture_runner_parser.add_argument("--status-file", required=True, help="Status JSON path")
     capture_runner_parser.set_defaults(func=run_capture_runner)
 
     capture_status_parser = subparsers.add_parser("capture-status", help="Read background capture status")

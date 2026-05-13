@@ -167,6 +167,15 @@ class CaptureWorkflowTests(unittest.TestCase):
 
 
 class BackgroundCaptureTests(unittest.TestCase):
+    def test_build_parser_accepts_background_commands(self):
+        parser = MODULE.build_parser()
+        args = parser.parse_args(["capture-status", "--status-file", "capture_status.json"])
+        self.assertEqual(args.command_name, "capture-status")
+        args = parser.parse_args(["capture-wait", "--status-file", "capture_status.json"])
+        self.assertEqual(args.command_name, "capture-wait")
+        args = parser.parse_args(["capture-runner", "--status-file", "capture_status.json"])
+        self.assertEqual(args.command_name, "capture-runner")
+
     def test_capture_bg_writes_pending_status_file(self):
         temp_dir = Path(self.id().replace(".", "_"))
         status_path = temp_dir / "capture_status.json"
