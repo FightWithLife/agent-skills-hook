@@ -8,62 +8,7 @@
     "prune": true,
     "reserved": 12000
   },
-  "agent": {
-    "build": {
-      "model": "rayplus/gpt-5.4",
-      "reasoningEffort": "medium",
-      "temperature": 0.15,
-      "prompt": "{file:./prompts/build-moderate.txt}",
-      "permission": {
-        "task": {
-          "*": "deny",
-          "explore": "allow",
-          "general": "allow",
-          "reviewer": "allow"
-        }
-      }
-    },
-    "plan": {
-      "model": "rayplus/gpt-5.4",
-      "reasoningEffort": "medium",
-      "temperature": 0.1,
-      "steps": 6,
-      "permission": {
-        "task": {
-          "*": "deny",
-          "explore": "allow",
-          "general": "allow",
-          "reviewer": "allow"
-        }
-      }
-    },
-    "explore": {
-      "model": "rayplus/gpt-5.4-mini",
-      "reasoningEffort": "low"
-    }
-  },
-  "command": {
-    "scan": {
-      "description": "隔离检索代码上下文",
-      "agent": "explore",
-      "subtask": true,
-      "template": "只做只读探索，不修改文件。回答这个问题：$ARGUMENTS"
-    },
-    "plan-task": {
-      "description": "隔离规划任务",
-      "agent": "plan",
-      "subtask": true,
-      "template": "先分析再给出执行计划，不修改文件。任务：$ARGUMENTS"
-    },
-    "review-diff": {
-      "description": "隔离审查当前改动",
-      "agent": "reviewer",
-      "subtask": true,
-      "template": "审查当前工作区改动。优先列出 bug、回归风险、边界遗漏和漏测。"
-    }
-  },
   "plugin": [
-    "oh-my-openagent",
     "@tarquinen/opencode-dcp@latest",
     "opencode-pty"
   ]

@@ -16,8 +16,6 @@ REPO_SKILLS="$REPO_ROOT/agents/skills"
 CONFIG_ROOT="$REPO_ROOT/config"
 CODEX_AGENTS="$CONFIG_ROOT/codex/agents"
 OPENCODE_CONFIG="$CONFIG_ROOT/opencode"
-OMO_CONFIG_DIR="$OPENCODE_CONFIG/oh-my-openagent"
-OMO_CONFIG_FILE="$OMO_CONFIG_DIR/oh-my-openagent.json"
 
 if [ ! -d "$REPO_SKILLS" ]; then
   echo "ERROR: $REPO_SKILLS missing. Run 'git submodule update --init --recursive agents/skills' first." >&2
@@ -31,11 +29,6 @@ fi
 
 if [ ! -f "$OPENCODE_CONFIG/opencode.json" ]; then
   echo "ERROR: $OPENCODE_CONFIG/opencode.json missing." >&2
-  exit 1
-fi
-
-if [ ! -f "$OMO_CONFIG_FILE" ]; then
-  echo "ERROR: $OMO_CONFIG_FILE missing." >&2
   exit 1
 fi
 
@@ -166,10 +159,6 @@ if [ "$TARGET" = "opencode" ] || [ "$TARGET" = "all" ]; then
   # 备份现有配置
   [ -f "$HOME/.config/opencode/AGENTS.md" ] && cp -a "$HOME/.config/opencode/AGENTS.md" "$BACKUP_O/opencode/AGENTS.md"
   [ -f "$HOME/.config/opencode/opencode.json" ] && cp -a "$HOME/.config/opencode/opencode.json" "$BACKUP_O/opencode/opencode.json"
-  [ -f "$HOME/.config/opencode/oh-my-openagent.json" ] && cp -a "$HOME/.config/opencode/oh-my-openagent.json" "$BACKUP_O/opencode/oh-my-openagent.json"
-  [ -e "$HOME/.config/opencode/oh-my-openagent" ] && cp -a "$HOME/.config/opencode/oh-my-openagent" "$BACKUP_O/opencode/"
-  [ -e "$HOME/.config/opencode/agents" ] && cp -a "$HOME/.config/opencode/agents" "$BACKUP_O/opencode/"
-  [ -e "$HOME/.config/opencode/prompts" ] && cp -a "$HOME/.config/opencode/prompts" "$BACKUP_O/opencode/"
   [ -e "$HOME/.config/opencode/skills" ] && cp -a "$HOME/.config/opencode/skills" "$BACKUP_O/opencode/"
   [ -e "$HOME/.claude/skills" ] && cp -a "$HOME/.claude/skills" "$BACKUP_O/claude/"
   cp -a "$REPO_SKILLS" "$BACKUP_O/repo/"
@@ -178,16 +167,12 @@ if [ "$TARGET" = "opencode" ] || [ "$TARGET" = "all" ]; then
   mkdir -p "$HOME/.config/opencode"
   cp -a "$CONFIG_ROOT/opencode/AGENTS.md" "$HOME/.config/opencode/AGENTS.md"
   merge_json_config "$OPENCODE_CONFIG/opencode.json" "$HOME/.config/opencode/opencode.json"
-  merge_json_config "$OMO_CONFIG_FILE" "$HOME/.config/opencode/oh-my-openagent.json"
-  safe_link "$HOME/.config/opencode/oh-my-openagent" "$OMO_CONFIG_DIR"
 
   # 合并 skills
   merge_missing_skills "$HOME/.config/opencode/skills"
   merge_missing_skills "$HOME/.claude/skills"
 
   # 创建软链接
-  safe_link "$HOME/.config/opencode/agents" "$OPENCODE_CONFIG/agents"
-  safe_link "$HOME/.config/opencode/prompts" "$OPENCODE_CONFIG/prompts"
   safe_link "$HOME/.config/opencode/skills" "$REPO_SKILLS"
   safe_link "$HOME/.claude/skills" "$HOME/.config/opencode/skills"
 

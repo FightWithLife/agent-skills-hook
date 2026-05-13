@@ -17,8 +17,6 @@ $RepoSkills = Join-Path $RepoRoot "agents\skills"
 $ConfigRoot = Join-Path $RepoRoot "config"
 $CodexAgents = Join-Path $ConfigRoot "codex\agents"
 $OpenCodeConfig = Join-Path $ConfigRoot "opencode"
-$OmoConfigDir = Join-Path $OpenCodeConfig "oh-my-openagent"
-$OmoConfigFile = Join-Path $OmoConfigDir "oh-my-openagent.json"
 
 # 验证 skills 目录存在
 if (-not (Test-Path $RepoSkills)) {
@@ -33,11 +31,6 @@ if (-not (Test-Path $CodexAgents)) {
 
 if (-not (Test-Path "$OpenCodeConfig\opencode.json")) {
     Write-Error "ERROR: $OpenCodeConfig\opencode.json missing."
-    exit 1
-}
-
-if (-not (Test-Path $OmoConfigFile)) {
-    Write-Error "ERROR: $OmoConfigFile missing."
     exit 1
 }
 
@@ -150,10 +143,6 @@ if ($Target -eq "opencode" -or $Target -eq "all") {
     $OpenCodeDir = Join-Path $env:USERPROFILE ".config\opencode"
     if (Test-Path "$OpenCodeDir\AGENTS.md") { Copy-Item "$OpenCodeDir\AGENTS.md" "$BackupO\opencode\AGENTS.md" -Force }
     if (Test-Path "$OpenCodeDir\opencode.json") { Copy-Item "$OpenCodeDir\opencode.json" "$BackupO\opencode\opencode.json" -Force }
-    if (Test-Path "$OpenCodeDir\oh-my-openagent.json") { Copy-Item "$OpenCodeDir\oh-my-openagent.json" "$BackupO\opencode\oh-my-openagent.json" -Force }
-    if (Test-Path "$OpenCodeDir\oh-my-openagent") { Copy-Item "$OpenCodeDir\oh-my-openagent" "$BackupO\opencode\oh-my-openagent" -Recurse -Force }
-    if (Test-Path "$OpenCodeDir\agents") { Copy-Item "$OpenCodeDir\agents" "$BackupO\opencode\agents" -Recurse -Force }
-    if (Test-Path "$OpenCodeDir\prompts") { Copy-Item "$OpenCodeDir\prompts" "$BackupO\opencode\prompts" -Recurse -Force }
     if (Test-Path "$OpenCodeDir\skills") { Copy-Item "$OpenCodeDir\skills" "$BackupO\opencode\skills" -Recurse -Force }
     if (Test-Path "$env:USERPROFILE\.claude\skills") { Copy-Item "$env:USERPROFILE\.claude\skills" "$BackupO\claude\skills" -Recurse -Force }
     Copy-Item $RepoSkills "$BackupO\repo\skills" -Recurse -Force
@@ -162,10 +151,6 @@ if ($Target -eq "opencode" -or $Target -eq "all") {
     New-Item -ItemType Directory -Path "$OpenCodeDir" -Force | Out-Null
     Safe-Copy "$ConfigRoot\opencode\AGENTS.md" "$OpenCodeDir\AGENTS.md"
     Merge-JsonConfig "$OpenCodeConfig\opencode.json" "$OpenCodeDir\opencode.json"
-    Merge-JsonConfig $OmoConfigFile "$OpenCodeDir\oh-my-openagent.json"
-    Safe-Copy $OmoConfigDir "$OpenCodeDir\oh-my-openagent"
-    Safe-Copy "$OpenCodeConfig\agents" "$OpenCodeDir\agents"
-    Safe-Copy "$OpenCodeConfig\prompts" "$OpenCodeDir\prompts"
     Safe-Copy $RepoSkills "$OpenCodeDir\skills"
     Safe-Copy $RepoSkills "$env:USERPROFILE\.claude\skills"
     if (Test-Path "$env:USERPROFILE\.agents\skills") {
