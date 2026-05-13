@@ -7,6 +7,12 @@ description: Use when debugging hardware over a Windows local serial port, espec
 
 用于 Windows 下的本地串口联调。核心原则是：**先保留原始证据，再做轻量分析**。这个 skill 只覆盖 Windows 下的本地直连串口收发、日志落盘和基于日志的初步定位，不覆盖刷写、产测和远程串口场景。
 
+默认前置原则：
+
+- 任何可能导致设备复位、重启、重新枚举、进入新阶段或瞬时输出关键日志的动作之前，优先先打开串口并开始持续抓取。
+- 典型场景包括：固件刷写前、USB 通信测试前、发送可能触发复位的控制命令前、人工重启或重新上电前。
+- 不要在动作完成后才启动串口；否则即使设备实际成功启动，也可能因为首段日志已丢失而误判。
+
 ## When to Use
 
 当出现以下情况时使用：
@@ -47,45 +53,50 @@ TP807 HTTPS 联调已知约定：
 ## 工程位置
 
 ```text
-agents/skills/serial-log-debug/
+<skill-root>/
 ```
 
 ## 快速使用
 
 ```bash
 # 查看总帮助
-python agents/skills/serial-log-debug/serial_tool.py --help
+python <serial_tool.py 路径> --help
 
 # 检查串口是否可独占打开
-python agents/skills/serial-log-debug/serial_tool.py connect-test --port COM3 --baudrate 115200 --json
+python <serial_tool.py 路径> connect-test --port COM3 --baudrate 115200 --json
 
 # 发送文本
-python agents/skills/serial-log-debug/serial_tool.py send-text --port COM3 --text reboot --line-ending crlf --json
+python <serial_tool.py 路径> send-text --port COM3 --text reboot --line-ending crlf --json
 
 # 发送 hex
-python agents/skills/serial-log-debug/serial_tool.py send-hex --port COM3 --hex "AA 55 01 02" --json
+python <serial_tool.py 路径> send-hex --port COM3 --hex "AA 55 01 02" --json
 
 # 抓取 3 秒日志
-python agents/skills/serial-log-debug/serial_tool.py capture --port COM3 --duration 3 --output-dir serial_logs --json
+python <serial_tool.py 路径> capture --port COM3 --duration 3 --output-dir serial_logs --json
 
 # 打开后台串口会话，持续落盘
-python agents/skills/serial-log-debug/serial_tool.py open --port COM3 --output-dir serial_logs --json
+python <serial_tool.py 路径> open --port COM3 --output-dir serial_logs --json
 
 # 查看会话状态
-python agents/skills/serial-log-debug/serial_tool.py status --session-path serial_logs\\20260513_xxx\\session.json
+python <serial_tool.py 路径> status --session-path serial_logs\\20260513_xxx\\session.json
 
 # 查看最近日志
-python agents/skills/serial-log-debug/serial_tool.py peek --session-path serial_logs\\20260513_xxx\\session.json --lines 50
+python <serial_tool.py 路径> peek --session-path serial_logs\\20260513_xxx\\session.json --lines 50
 
 # 只读取新增日志，按游标推进
-python agents/skills/serial-log-debug/serial_tool.py read-new --session-path serial_logs\\20260513_xxx\\session.json --cursor-name ai
+python <serial_tool.py 路径> read-new --session-path serial_logs\\20260513_xxx\\session.json --cursor-name ai
 
 # 停止后台串口会话
-python agents/skills/serial-log-debug/serial_tool.py stop --session-path serial_logs\\20260513_xxx\\session.json
+python <serial_tool.py 路径> stop --session-path serial_logs\\20260513_xxx\\session.json
 
 # TP807 HTTPS 联调：115200 8N1 + RTS/CTS
-python agents/skills/serial-log-debug/serial_tool.py open --port COM6 --baudrate 115200 --bytesize 8 --parity N --stopbits 1 --rtscts --output-dir serial_logs --json
+python <serial_tool.py 路径> open --port COM6 --baudrate 115200 --bytesize 8 --parity N --stopbits 1 --rtscts --output-dir serial_logs --json
 ```
+
+说明：
+
+- 示例中的 `<serial_tool.py 路径>` 是占位符，应该替换成当前运行环境解析到的实际脚本路径。
+- 不要假设该 skill 固定安装在 `agents/skills/`、仓库根目录或某个用户目录下。
 
 ### 输入参数
 
@@ -138,7 +149,9 @@ python agents/skills/serial-log-debug/serial_tool.py open --port COM6 --baudrate
 
 1. 先确认场景属于“Windows + 本地直连串口 + 独占访问”。
 2. 明确串口参数，不自动猜测端口号、波特率或协议。
-3. 先建立连接或启动监听，再发送测试输入。
+3. 任何会触发设备状态变化的外部动作之前，先建立连接或启动监听。
+   - 包括但不限于：刷写、USB 测试、发送复位命令、人工重启或重新上电。
+   - 目标是连续覆盖动作前、动作中、动作后的完整日志窗口，避免丢失首段证据。
    - 默认直接以目标波特率（例如 `115200`）打开串口；若现场存在异常，应按真实日志和错误类型继续排查，而不是在 skill 内隐式切换波特率重试。
    - 若仓库或现场已有明确串口约定，必须显式传入对应流控参数；对 TP807 HTTPS 联调，默认使用 `115200 8N1 + RTS/CTS`。
    - 若未显式提供 `--port`，可以先枚举本机可见串口，并优先尝试 USB 串口设备（例如 CH340）。
@@ -186,12 +199,14 @@ python agents/skills/serial-log-debug/serial_tool.py open --port COM6 --baudrate
 
 ## Current Implementation
 
-当前 skill 已包含 supporting CLI：
+当前 skill 已包含 supporting CLI 和示例文件：
 
-- `agents/skills/serial-log-debug/serial_tool.py`
-- `agents/skills/serial-log-debug/examples/send_text.txt`
-- `agents/skills/serial-log-debug/examples/sample_log.txt`
-- `agents/skills/serial-log-debug/README.md`
+- `serial_tool.py`
+- `examples/send_text.txt`
+- `examples/sample_log.txt`
+- `README.md`
+
+这些名称表示当前 skill 目录内的实现文件；迁移到其他目录时，应按实际落点定位，不要写死父目录结构。
 
 当前实现已经覆盖参数解析、统一 JSON 输出、错误分类、日志双文件落盘和最小子命令骨架。若宿主机未安装 `pyserial`，工具会返回结构化 `dependency_missing` 错误，而不是伪造串口执行结果。
 

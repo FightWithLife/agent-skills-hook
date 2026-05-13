@@ -770,37 +770,39 @@ def add_common_serial_args(parser: argparse.ArgumentParser) -> None:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Windows local serial debug helper")
+    parser = argparse.ArgumentParser(
+        description="Windows local serial debug helper. Start serial capture before flash, USB tests, reboot, or power-cycle actions that may emit short-lived logs."
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    p = sub.add_parser("connect-test")
+    p = sub.add_parser("connect-test", help="verify the target serial port can be opened exclusively")
     add_common_serial_args(p)
     p.set_defaults(func=cmd_connect_test)
 
-    p = sub.add_parser("send-text")
+    p = sub.add_parser("send-text", help="send a text command over serial")
     add_common_serial_args(p)
     p.add_argument("--text", required=True)
     p.add_argument("--encoding", default="utf-8")
     p.add_argument("--line-ending", default="none", choices=["none", "lf", "cr", "crlf"])
     p.set_defaults(func=cmd_send_text)
 
-    p = sub.add_parser("send-hex")
+    p = sub.add_parser("send-hex", help="send a hex payload over serial")
     add_common_serial_args(p)
     p.add_argument("--hex", required=True)
     p.set_defaults(func=cmd_send_hex)
 
-    p = sub.add_parser("listen")
+    p = sub.add_parser("listen", help="listen to serial output for a bounded duration")
     add_common_serial_args(p)
     p.add_argument("--duration", type=float)
     p.set_defaults(func=cmd_listen)
 
-    p = sub.add_parser("capture")
+    p = sub.add_parser("capture", help="capture a bounded chunk of serial logs")
     add_common_serial_args(p)
     p.add_argument("--duration", type=float)
     p.add_argument("--max-bytes", type=int)
     p.set_defaults(func=cmd_capture)
 
-    p = sub.add_parser("session")
+    p = sub.add_parser("session", help="run a short serial send/receive session with logs")
     add_common_serial_args(p)
     p.add_argument("--send-text")
     p.add_argument("--send-hex")
@@ -809,7 +811,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--duration", type=float)
     p.set_defaults(func=cmd_session)
 
-    p = sub.add_parser("follow")
+    p = sub.add_parser("follow", help="follow serial logs until stop conditions are met")
     add_common_serial_args(p)
     p.add_argument("--stop-file")
     p.add_argument("--max-bytes", type=int)
@@ -818,27 +820,27 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--stop-text")
     p.set_defaults(func=cmd_follow)
 
-    p = sub.add_parser("open")
+    p = sub.add_parser("open", help="start continuous serial capture before flash, USB, reboot, or power-cycle actions")
     add_common_serial_args(p)
     p.set_defaults(func=cmd_open)
 
-    p = sub.add_parser("status")
+    p = sub.add_parser("status", help="show the current state of a background serial capture session")
     p.add_argument("--session-path", required=True)
     p.set_defaults(func=cmd_status)
 
-    p = sub.add_parser("peek")
+    p = sub.add_parser("peek", help="read the recent tail of a serial capture session")
     p.add_argument("--session-path", required=True)
     p.add_argument("--lines", type=int, default=40)
     p.set_defaults(func=cmd_peek)
 
-    p = sub.add_parser("read-new")
+    p = sub.add_parser("read-new", help="read only newly appended serial log lines from a capture session")
     p.add_argument("--session-path", required=True)
     p.add_argument("--cursor-name", default="default")
     p.add_argument("--max-lines", type=int, default=200)
     p.add_argument("--no-update-cursor", action="store_true")
     p.set_defaults(func=cmd_read_new)
 
-    p = sub.add_parser("stop")
+    p = sub.add_parser("stop", help="stop a background serial capture session")
     p.add_argument("--session-path", required=True)
     p.add_argument("--wait-timeout", type=float, default=5.0)
     p.set_defaults(func=cmd_stop)

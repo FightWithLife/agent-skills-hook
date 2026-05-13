@@ -102,35 +102,47 @@ request_delay = 0.05
 
 ## 推荐命令
 
+如果本轮 USB 动作可能触发复位、重新枚举、进入新状态或需要结合启动日志判断结果，先开启串口持续抓取。
+
 先探测：
 
 ```powershell
-python C:\Users\DELL\.codex\skills\repo-usb-communicator\scripts\repo_usb_comm.py probe --config .agents/cache/<目标名>_download.cfg
+python <repo_usb_comm.py 路径> probe --config .agents/cache/<目标名>_download.cfg
 ```
 
 验证可打开：
 
 ```powershell
-python C:\Users\DELL\.codex\skills\repo-usb-communicator\scripts\repo_usb_comm.py open --config .agents/cache/<目标名>_download.cfg
+python <repo_usb_comm.py 路径> open --config .agents/cache/<目标名>_download.cfg
 ```
 
 发送文本：
 
 ```powershell
-python C:\Users\DELL\.codex\skills\repo-usb-communicator\scripts\repo_usb_comm.py send --config .agents/cache/<目标名>_download.cfg --text "status"
+python <repo_usb_comm.py 路径> send --config .agents/cache/<目标名>_download.cfg --text "status"
 ```
 
 发送十六进制：
 
 ```powershell
-python C:\Users\DELL\.codex\skills\repo-usb-communicator\scripts\repo_usb_comm.py send --config .agents/cache/<目标名>_download.cfg --hex "1b1c26010203"
+python <repo_usb_comm.py 路径> send --config .agents/cache/<目标名>_download.cfg --hex "1b1c26010203"
 ```
 
 发送并读取响应：
 
 ```powershell
-python C:\Users\DELL\.codex\skills\repo-usb-communicator\scripts\repo_usb_comm.py request --config .agents/cache/<目标名>_download.cfg --text "status" --read-length 16
+python <repo_usb_comm.py 路径> request --config .agents/cache/<目标名>_download.cfg --text "status" --read-length 16
 ```
+
+路径原则：
+
+- 示例中的 `<repo_usb_comm.py 路径>` 只是占位符，不要把 skill 安装目录写死到用户目录或仓库目录。
+- 若运行环境已能按 skill 名解析脚本位置，优先复用该结果；否则显式传入脚本实际路径。
+
+执行顺序要求：
+
+- 任何可能改变设备运行状态的 USB 收发前，优先先开串口。
+- 尤其是会触发重启、模式切换、重新枚举或短时状态上报的命令，不要等 USB 动作结束后再补抓串口日志。
 
 ## 适用边界
 

@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Repository-driven USB communication helper for Windows USBPRINT devices."""
+"""Repository-driven USB communication helper for Windows USBPRINT devices.
+
+Open serial logging before USB actions when the device may reboot, re-enumerate,
+or emit short-lived startup logs that are needed for judging success.
+"""
 
 from __future__ import annotations
 
@@ -456,14 +460,16 @@ def cmd_read(args):
 
 
 def build_parser():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Repository-driven USB communication helper. Start serial capture before USB actions that may reboot, re-enumerate, or change device state."
+    )
     sub = parser.add_subparsers(dest="cmd", required=True)
 
-    p = sub.add_parser("probe")
+    p = sub.add_parser("probe", help="probe matching USB device paths from repository-derived config")
     p.add_argument("--config", required=True)
     p.set_defaults(func=cmd_probe)
 
-    p = sub.add_parser("open")
+    p = sub.add_parser("open", help="verify the configured USB device can be opened")
     p.add_argument("--config", required=True)
     p.add_argument("--path")
     p.set_defaults(func=cmd_open)
@@ -478,12 +484,12 @@ def build_parser():
         p.add_argument("--no-append-crlf", dest="append_crlf", action="store_false")
         p.add_argument("--no-prefix", action="store_true")
 
-    p = sub.add_parser("send")
+    p = sub.add_parser("send", help="send a USB command without reading a response")
     add_payload_args(p)
     p.add_argument("--artifacts-dir", default="artifacts")
     p.set_defaults(func=cmd_send)
 
-    p = sub.add_parser("request")
+    p = sub.add_parser("request", help="send a USB command and read a fixed-length response; open serial capture first if device state may change")
     add_payload_args(p)
     p.add_argument("--read-length", type=int)
     p.add_argument("--read-timeout-ms", type=int)
@@ -492,7 +498,7 @@ def build_parser():
     p.add_argument("--artifacts-dir", default="artifacts")
     p.set_defaults(func=cmd_request)
 
-    p = sub.add_parser("exchange")
+    p = sub.add_parser("exchange", help="send a USB command and read until idle; open serial capture first if device state may change")
     add_payload_args(p)
     p.add_argument("--read-timeout-ms", type=int)
     p.add_argument("--idle-timeout-ms", type=int, default=200)
@@ -502,7 +508,7 @@ def build_parser():
     p.add_argument("--artifacts-dir", default="artifacts")
     p.set_defaults(func=cmd_exchange)
 
-    p = sub.add_parser("read")
+    p = sub.add_parser("read", help="read current USB device output without sending a new command")
     p.add_argument("--config", required=True)
     p.add_argument("--path")
     p.add_argument("--encoding")

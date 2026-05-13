@@ -53,7 +53,10 @@ description: 当需要按“改代码、编译刷写、串口抓日志、可选 
 
 ## 执行顺序要求
 
+- 任何可能导致设备复位、重启、重新枚举或瞬时输出关键启动日志的动作之前，必须先启动串口抓取。
 - 串口抓取必须在触发动作前启动。
+- 刷写前先开串口，避免设备刷写完成后的自动复位把首段启动日志漏掉。
+- USB 测试前先开串口，避免设备因命令触发复位、重连或状态切换时丢失关键日志。
 - 需要依赖新代码行为时，必须先完成编译和刷写，不能拿旧固件继续判断。
 - 需要 USB 触发时，不要跳过仓库事实检查直接猜设备参数或报文。
 - 任何一步失败，先收敛到失败点，不要并行堆更多动作掩盖问题。
@@ -81,6 +84,7 @@ description: 当需要按“改代码、编译刷写、串口抓日志、可选 
 
 - `scripts/debug_orchestrator.py`
   - 用于把构建、刷写、串口状态会话和可选 USB 触发串成一次执行
+  - 不要假设其他 skill 固定放在某个仓库目录；如目录布局不固定，优先显式传入依赖脚本路径
   - 串口阶段使用 `open -> status/read-new -> stop` 的状态驱动模式
   - 适合 AI 按轮次检查新增日志，再决定是否继续等待、触发动作或结束
   - 支持 `wait-text`、`usb-after-text`、`stop-after-text` 这类关键字驱动条件
@@ -97,6 +101,6 @@ description: 当需要按“改代码、编译刷写、串口抓日志、可选 
 
 ## 参考
 
-- `../repo-firmware-flasher/SKILL.md`
-- `../serial-log-debug/SKILL.md`
-- `../repo-usb-communicator/SKILL.md`
+- `repo-firmware-flasher`
+- `serial-log-debug`
+- `repo-usb-communicator`

@@ -54,11 +54,12 @@ def run_json_cmd(command: list[str], cwd: Optional[Path], log_path: Path) -> Dic
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generic embedded debug workflow orchestrator")
+    parser = argparse.ArgumentParser(description="Generic embedded debug workflow orchestrator. Serial capture is opened before flash or USB actions.")
     parser.add_argument("--workspace", default=".")
     parser.add_argument("--artifacts-dir", default="artifacts")
     parser.add_argument("--build-cmd", nargs="+")
     parser.add_argument("--flash-cmd", nargs="+")
+    parser.add_argument("--serial-tool")
     parser.add_argument("--serial-port")
     parser.add_argument("--serial-baudrate", type=int, default=115200)
     parser.add_argument("--serial-timeout", type=float, default=1.0)
@@ -88,7 +89,17 @@ def main() -> int:
     summary_path = run_dir / "summary.json"
 
     skill_root = Path(__file__).resolve().parents[1]
-    serial_tool = skill_root.parent / "serial-log-debug" / "serial_tool.py"
+    if args.serial_tool:
+        serial_tool = Path(args.serial_tool).resolve()
+    else:
+        serial_tool = skill_root.parent / "serial-log-debug" / "serial_tool.py"
+    if not serial_tool.exists():
+        summary["error"] = (
+            "serial_tool_not_found: provide --serial-tool when serial-log-debug is not located next to embedded-debug-workflow"
+        )
+        summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(json.dumps(summary, ensure_ascii=False, indent=2))
+        return 6
 
     summary: Dict[str, Any] = {
         "ok": False,
@@ -96,6 +107,7 @@ def main() -> int:
         "steps": [],
         "serial_session": None,
         "serial_polls": [],
+        "serial_tool": str(serial_tool),
     }
 
     if args.build_cmd:
@@ -105,14 +117,6 @@ def main() -> int:
             summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
             print(json.dumps(summary, ensure_ascii=False, indent=2))
             return 2
-
-    if args.flash_cmd:
-        flash_result = run_cmd(args.flash_cmd, workspace, run_dir / "flash.json")
-        summary["steps"].append({"name": "flash", **flash_result})
-        if flash_result["returncode"] != 0:
-            summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
-            print(json.dumps(summary, ensure_ascii=False, indent=2))
-            return 3
 
     open_cmd = [
         sys.executable,
@@ -149,6 +153,17 @@ def main() -> int:
 
     session_path = summary["serial_session"]["session_path"]
     time.sleep(args.serial_start_delay)
+
+    if args.flash_cmd:
+        flash_result = run_cmd(args.flash_cmd, workspace, run_dir / "flash.json")
+        summary["steps"].append({"name": "flash", **flash_result})
+        if flash_result["returncode"] != 0:
+            stop_cmd = [sys.executable, str(serial_tool), "stop", "--session-path", session_path]
+            stop_result = run_json_cmd(stop_cmd, workspace, run_dir / "serial_stop.json")
+            summary["serial_stop"] = stop_result.get("json", {})
+            summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+            print(json.dumps(summary, ensure_ascii=False, indent=2))
+            return 3
 
     if args.usb_cmd:
         summary["usb_triggered"] = False

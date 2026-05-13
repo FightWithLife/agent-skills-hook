@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Repository-driven firmware flashing helper for Windows USBPRINT devices."""
+"""Repository-driven firmware flashing helper for Windows USBPRINT devices.
+
+Open serial logging before real flashing when the device may reboot or emit
+short-lived startup logs needed for judging the result.
+"""
 
 from __future__ import annotations
 
@@ -446,19 +450,21 @@ def cmd_flash(args):
 
 
 def build_parser():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Repository-driven firmware flashing helper. Start serial capture before real flashing if reboot or startup logs matter."
+    )
     sub = parser.add_subparsers(dest="cmd", required=True)
 
-    p = sub.add_parser("probe")
+    p = sub.add_parser("probe", help="probe matching device paths from repository-derived config")
     p.add_argument("--config", required=True)
     p.set_defaults(func=cmd_probe)
 
-    p = sub.add_parser("inspect-firmware")
+    p = sub.add_parser("inspect-firmware", help="inspect the configured firmware artifact without writing to the device")
     p.add_argument("--config", required=True)
     p.add_argument("firmware", nargs="?")
     p.set_defaults(func=cmd_inspect)
 
-    p = sub.add_parser("make-packets")
+    p = sub.add_parser("make-packets", help="build OTA packet blobs from the firmware artifact")
     p.add_argument("--config", required=True)
     p.add_argument("firmware", nargs="?")
     p.add_argument("--out", required=True)
@@ -466,7 +472,7 @@ def build_parser():
     p.add_argument("--with-ota-command", action="store_true")
     p.set_defaults(func=cmd_make_packets)
 
-    p = sub.add_parser("flash")
+    p = sub.add_parser("flash", help="perform real flashing; open serial capture first if the device may reboot or emit key startup logs")
     p.add_argument("--config", required=True)
     p.add_argument("firmware", nargs="?")
     p.add_argument("--path")

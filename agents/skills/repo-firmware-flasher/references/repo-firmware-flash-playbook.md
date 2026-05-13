@@ -131,29 +131,40 @@ io_timeout_ms = 5000
 
 1. 从仓库里定位刷写入口和协议代码。
 2. 把查到的参数写成 `.agents/cache/<目标名>_download.cfg`。
-3. 先执行：
+3. 如果后续要真实写入设备，且需要观察复位后的启动日志，先开启串口持续抓取，不要等刷写后再补抓。
+4. 先执行：
 
 ```powershell
-python C:\Users\DELL\.codex\skills\repo-firmware-flasher\scripts\repo_flash.py probe --config .agents/cache/<目标名>_download.cfg
+python <repo_flash.py 路径> probe --config .agents/cache/<目标名>_download.cfg
 ```
 
-4. 再执行：
+5. 再执行：
 
 ```powershell
-python C:\Users\DELL\.codex\skills\repo-firmware-flasher\scripts\repo_flash.py inspect-firmware --config .agents/cache/<目标名>_download.cfg
+python <repo_flash.py 路径> inspect-firmware --config .agents/cache/<目标名>_download.cfg
 ```
 
-5. 如需验证分包：
+6. 如需验证分包：
 
 ```powershell
-python C:\Users\DELL\.codex\skills\repo-firmware-flasher\scripts\repo_flash.py make-packets --config .agents/cache/<目标名>_download.cfg --out artifacts\packet_blob.bin
+python <repo_flash.py 路径> make-packets --config .agents/cache/<目标名>_download.cfg --out artifacts\packet_blob.bin
 ```
 
-6. 只有在用户明确要求真实刷写时，才执行：
+7. 只有在用户明确要求真实刷写时，才执行：
 
 ```powershell
-python C:\Users\DELL\.codex\skills\repo-firmware-flasher\scripts\repo_flash.py flash --config .agents/cache/<目标名>_download.cfg --yes
+python <repo_flash.py 路径> flash --config .agents/cache/<目标名>_download.cfg --yes
 ```
+
+路径原则：
+
+- 示例中的 `<repo_flash.py 路径>` 只是占位符，不要假设 skill 固定安装在某个用户目录或仓库目录。
+- 若运行环境支持按 skill 名定位脚本，优先用运行时解析结果；否则显式传入脚本实际路径。
+
+刷写顺序要求：
+
+- 若设备刷写完成后会自动复位或立刻输出关键启动日志，必须先开串口，再执行 `flash`。
+- 不要在 `flash` 完成后才启动串口；否则可能漏掉判断是否成功启动所需的首段日志。
 
 ## 判断是否可复用本脚本
 
