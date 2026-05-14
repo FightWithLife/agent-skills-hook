@@ -2,6 +2,7 @@ import os
 import re
 import json
 import sys
+from pathlib import Path
 
 # 支持的编译器正则表达式
 COMPILER_PATTERNS = {
@@ -23,6 +24,10 @@ ARMCC_SPECIFIC_FLAGS = [
     '--feedback',
     '--keep',
     '--list'
+]
+
+TEMP_ARTIFACTS = [
+    "build_log.txt",
 ]
 
 def convert_to_clang_flags(args_str):
@@ -181,7 +186,32 @@ def generate_clangd_config():
     except Exception as e:
         print(f"[ERROR] 无法生成 .clangd 配置文件: {e}")
 
-def generate_compile_commands(compiler_name):
+
+def cleanup_temp_artifacts(preserve_build_log=False):
+    """
+    清理本脚本生成流程使用的临时产物，只保留最终需要的输出文件
+    """
+    removed = []
+
+    for artifact in TEMP_ARTIFACTS:
+        if artifact == "build_log.txt" and preserve_build_log:
+            continue
+
+        path = Path(artifact)
+        if not path.exists():
+            continue
+
+        try:
+            if path.is_file():
+                path.unlink()
+                removed.append(str(path))
+        except Exception as e:
+            print(f"[WARN] 无法清理临时产物 {path}: {e}")
+
+    if removed:
+        print("已清理临时产物: " + ", ".join(removed))
+
+def generate_compile_commands(compiler_name, preserve_build_log=False):
     """
     生成 compile_commands.json 文件
     """
@@ -201,6 +231,7 @@ def generate_compile_commands(compiler_name):
     if compile_commands:
         # 直接生成优化后的 compile_commands.json
         optimize_and_save(compile_commands)
+        cleanup_temp_artifacts(preserve_build_log=preserve_build_log)
         print(f"成功生成 compile_commands.json，共 {len(compile_commands)} 条编译命令")
     else:
         print("未找到任何编译命令，请检查 build_log.txt 内容")
@@ -291,6 +322,7 @@ def main():
         print("用法:")
         print("  python CompilerGen.py <compiler_name>   # 从build_log.txt生成.clangd和compile_commands.json")
         print("  python CompilerGen.py --generate-config # 只生成.clangd配置文件")
+        print("  python CompilerGen.py <compiler_name> --keep-build-log")
         print("示例: python CompilerGen.py armcc")
         sys.exit(1)
 
@@ -304,9 +336,11 @@ def main():
         print(f"支持的编译器: {', '.join(COMPILER_PATTERNS.keys())}")
         sys.exit(1)
 
+    preserve_build_log = "--keep-build-log" in sys.argv[2:]
+
     # 生成两个文件
     generate_clangd_config()
-    generate_compile_commands(compiler_name)
+    generate_compile_commands(compiler_name, preserve_build_log=preserve_build_log)
 
 if __name__ == "__main__":
     main()

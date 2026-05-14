@@ -1,0 +1,3 @@
+display_name: Embedded Cache Init
+short_description: 初始化 embedded 刷写与 KingstVIS 缓存文件
+default_prompt: 初始化当前项目的 embedded workflow cache，按用户提供的信息创建或补齐 .agents/cache 下的刷写配置、逻辑分析窗口经验表和 KingstVIS 通道映射文件。

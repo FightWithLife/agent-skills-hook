@@ -96,6 +96,18 @@ cd windows
 - 遇到 GPIO、时钟、UART、SPI、I2C、CAN、DMA、timer、board-support 等改动时，要求经过 `hardware_impact`。
 - 多文件功能、状态机、初始化时序或模块边界调整时，先拆解，再落地，最后回归审查。
 
+### 嵌入式相关 Skills
+
+- `embedded-workflow-cache-init`
+  - 初始化项目内 `.agents/cache` 的 embedded 工作流缓存。
+  - 适用于先落盘 `VID/PID`、刷写参数、固件产物路径，或在已提供逻辑分析仪映射/测试方法时初始化 KingstVIS 相关缓存。
+- `repo-firmware-flasher`
+  - 从仓库事实提取刷写参数，生成和复用下载配置，并执行探测、分包或刷写。
+- `embedded-debug-workflow`
+  - 编排“改代码 -> 编译 -> 刷写 -> 串口抓取 -> 可选 USB/逻辑分析”闭环调试流程。
+- `kingstvis-socket`
+  - 通过 SocketAPI 驱动 KingstVIS 进行抓取和导出，优先生成 CSV 供 AI 分析。
+
 ## 验证与回滚
 
 ### 验证部署
