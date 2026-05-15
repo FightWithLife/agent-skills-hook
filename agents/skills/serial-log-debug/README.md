@@ -43,6 +43,8 @@ python <serial_tool.py 路径> connect-test --port COM3 --json
 
 ```bash
 python <serial_tool.py 路径> open --port COM3 --baudrate 115200 --output-dir serial_logs --json
+python <serial_tool.py 路径> open --port COM3 --baudrate 115200 --output-dir serial_logs --json
+python <serial_tool.py 路径> open --port COM3 --baudrate 115200 --output-dir serial_logs --idle-timeout 600 --json
 ```
 
 说明：
@@ -50,4 +52,5 @@ python <serial_tool.py 路径> open --port COM3 --baudrate 115200 --output-dir s
 - 如果 `pyserial` 未安装，工具会返回 `dependency_missing`。
 - 如果 hex 输入非法，工具会返回 `invalid_param`。
 - 真实串口联调前，请确保目标端口能被独占打开。
+- 后台会话默认在 300 秒内没有新的 RX 数据时自动关闭，并把原因写入 `session.json` 与文本日志；可用 `--idle-timeout` 覆盖。
 - 示例中的 `<serial_tool.py 路径>` 是占位符，不要假设该 skill 固定放在某个仓库路径下。

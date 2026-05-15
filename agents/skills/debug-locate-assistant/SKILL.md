@@ -12,7 +12,7 @@ Goal: identify the exact `file:line` + function + trigger condition using eviden
 
 Tactics (choose per iteration):
 - Route A: logging probes + rerun narrowing (coarse to fine)
-- Route B: GDB stack/frame/memory/core analysis
+- Route B: GDB stack/frame/memory/core analysis for host-runnable binaries or host-generated core dumps
 
 This skill is for localization first, not direct fixing.
 
@@ -51,16 +51,18 @@ Minimum extensible structure (append one table row per iteration under the curre
 
 ## Route selection
 - Prefer Route A (logs) when behavior is wrong but process is still runnable and path narrowing is needed.
-- Prefer Route B (GDB) for crash/hang/core/thread/memory-state issues, but only after confirming the target binary was built with debug symbols enabled.
+- Prefer Route B (GDB) for crash/hang/core/thread/memory-state issues on host-runnable binaries or host-generated core dumps, but only after confirming the target binary was built with debug symbols enabled.
+- Do not use Route B as the default for flashed embedded firmware unless you have an explicitly supported remote-debug setup for that firmware.
 - You may switch routes across iterations, but keep one shared `debug_investigation.md`.
 
 ## Quick start
 1) If `debug_investigation.md` does not exist, create it; otherwise reuse it and create/locate the current session block, then add an initial context entry.
 2) Capture reproducible trigger input and expected vs actual.
 3) Choose Route A or Route B based on symptom.
-   - If choosing Route B, first verify the build enables debug symbols.
-   - Acceptable signals include compile flags such as `-g`, or build types such as `Debug` / `RelWithDebInfo`.
-   - If debug symbols are missing, record that fact in `debug_investigation.md`, rebuild with symbols if feasible, or switch to Route A.
+  - If choosing Route B, first verify the build enables debug symbols.
+  - Acceptable signals include compile flags such as `-g`, or build types such as `Debug` / `RelWithDebInfo`.
+  - If debug symbols are missing, record that fact in `debug_investigation.md`, rebuild with symbols if feasible, or switch to Route A.
+  - If the issue only reproduces on flashed firmware and no remote-debug-capable setup is available, do not force GDB; use Route A or board-side evidence instead.
 4) Run one focused iteration and append evidence.
 5) Continue until exact location is pinned.
 6) Report exact location + evidence + likely cause + fix plan.
@@ -88,6 +90,8 @@ Minimum extensible structure (append one table row per iteration under the curre
 Reference: `references/logging_discovery_checklist.md`
 
 ### 2B) Route B: GDB localization
+- Scope: host-runnable executables, test binaries, or host-generated core dumps only.
+- Out of scope: flashed embedded firmware on target boards unless the firmware and toolchain explicitly support remote debugging in that environment.
 - Before launching GDB, explicitly confirm that debug symbols are enabled in the build.
   - Check build flags, build type, or generated binaries to confirm symbols are present.
   - Typical acceptable configurations: `-g`, `Debug`, or `RelWithDebInfo`; minimal optimization such as `-O0` / `-Og` is preferred.

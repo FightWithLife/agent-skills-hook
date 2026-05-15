@@ -203,6 +203,24 @@ def append_raw_log(path: Path, payload: bytes) -> None:
         fh.write(payload)
 
 
+def session_close_metadata(reason: str, detail: str = "") -> Tuple[str, str]:
+    if reason == "idle_timeout":
+        return "idle_timeout", f"serial capture stopped after idle timeout{detail}"
+    if reason == "stop_requested":
+        return "stop_requested", "serial capture stopped by stop request"
+    if reason == "worker_exited":
+        return "worker_exited", "serial capture worker exited"
+    return "unknown", f"serial capture stopped: {detail or reason}"
+
+
+def mark_session_closed(state: Dict[str, Any], status: str, reason: str, detail: str = "") -> None:
+    close_reason, close_message = session_close_metadata(reason, detail)
+    state["status"] = status
+    state["close_reason"] = close_reason
+    state["close_message"] = close_message
+    state["last_update"] = now_ts()
+
+
 def open_serial(args: argparse.Namespace):
     port = resolve_port(args)
     args.port = port
@@ -586,6 +604,9 @@ def cmd_open(args: argparse.Namespace) -> int:
         "rx_bytes": 0,
         "last_update": now_ts(),
         "last_error": "",
+        "close_reason": "",
+        "close_message": "",
+        "idle_timeout": args.idle_timeout,
     }
     write_session_state(session_path, state)
     cmd = [
@@ -609,8 +630,7 @@ def cmd_open(args: argparse.Namespace) -> int:
 def cmd_status(args: argparse.Namespace) -> int:
     state = load_session_state(Path(args.session_path))
     if state.get("pid") and not pid_alive(int(state["pid"])) and state.get("status") == "running":
-        state["status"] = "stopped"
-        state["last_update"] = now_ts()
+        mark_session_closed(state, "stopped", "worker_exited")
         write_session_state(Path(args.session_path), state)
     print(json.dumps(state, ensure_ascii=False, indent=2))
     return 0
@@ -683,10 +703,9 @@ def cmd_stop(args: argparse.Namespace) -> int:
         time.sleep(0.2)
     state = load_session_state(state_path)
     if state.get("pid") and not pid_alive(int(state["pid"])):
-        state["status"] = "stopped"
+        mark_session_closed(state, "stopped", "stop_requested")
     else:
-        state["status"] = "stop_requested"
-    state["last_update"] = now_ts()
+        mark_session_closed(state, "stop_requested", "stop_requested")
     write_session_state(state_path, state)
     print(json.dumps(state, ensure_ascii=False, indent=2))
     return 0
@@ -717,24 +736,36 @@ def cmd_worker(args: argparse.Namespace) -> int:
         stop_path = Path(state["stop_file"])
         pending_text = ""
         total = 0
+        idle_timeout = state.get("idle_timeout")
+        idle_timeout = float(idle_timeout) if idle_timeout is not None else None
+        last_rx_time = time.time()
         state["status"] = "running"
         state["last_update"] = now_ts()
         write_session_state(session_path, state)
         while not stop_path.exists():
+            now = time.time()
+            if idle_timeout is not None and now - last_rx_time >= idle_timeout:
+                detail = f" ({idle_timeout:g}s without RX data)"
+                append_text_log(text_path, "SYS", "event", f"idle timeout reached{detail}, auto closing session")
+                mark_session_closed(state, "idle_stopped", "idle_timeout", detail)
+                state["rx_bytes"] = total
+                write_session_state(session_path, state)
+                break
             chunk = ser.read(256)
             if not chunk:
                 continue
             append_raw_log(raw_path, chunk)
             pending_text = append_rx_text_lines(text_path, pending_text, chunk)
             total += len(chunk)
+            last_rx_time = time.time()
             state["rx_bytes"] = total
             state["last_update"] = now_ts()
             write_session_state(session_path, state)
         flush_pending_rx_text(text_path, pending_text)
         ser.close()
-        state["status"] = "stopped"
+        if state.get("status") == "running":
+            mark_session_closed(state, "stopped", "stop_requested")
         state["rx_bytes"] = total
-        state["last_update"] = now_ts()
         write_session_state(session_path, state)
         result["ok"] = True
         result["rx_bytes"] = total
@@ -822,6 +853,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("open", help="start continuous serial capture before flash, USB, reboot, or power-cycle actions")
     add_common_serial_args(p)
+    p.add_argument(
+        "--idle-timeout",
+        type=float,
+        default=300.0,
+        help="auto stop when no RX data arrives for the given seconds",
+    )
     p.set_defaults(func=cmd_open)
 
     p = sub.add_parser("status", help="show the current state of a background serial capture session")

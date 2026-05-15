@@ -77,6 +77,12 @@ python <serial_tool.py 路径> capture --port COM3 --duration 3 --output-dir ser
 # 打开后台串口会话，持续落盘
 python <serial_tool.py 路径> open --port COM3 --output-dir serial_logs --json
 
+# 打开后台串口会话，默认 5 分钟空闲自动关闭
+python <serial_tool.py 路径> open --port COM3 --output-dir serial_logs --json
+
+# 如需覆盖默认值，可显式指定空闲超时
+python <serial_tool.py 路径> open --port COM3 --output-dir serial_logs --idle-timeout 600 --json
+
 # 查看会话状态
 python <serial_tool.py 路径> status --session-path serial_logs\\20260513_xxx\\session.json
 
@@ -216,4 +222,5 @@ python <serial_tool.py 路径> open --port COM6 --baudrate 115200 --bytesize 8 -
 - 实际打开串口时，直接按请求的目标波特率打开，并保留有限次重试。
 - Windows 下 `PermissionError` / `access is denied` 会映射为 `port_busy`，避免误报成 `port_not_found`。
 - `open` 会创建后台 worker 持续写入日志文件，并通过 `session.json` 暴露状态。
+- `open` 默认启用 300 秒 idle 超时；若持续未收到新的 RX 数据，会自动关闭并写入关闭原因。
 - AI 可在测试过程中的任意阶段反复执行 `status`、`peek`、`read-new`，不需要预先固定抓取窗口。
